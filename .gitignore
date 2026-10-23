@@ -1,0 +1,32 @@
+# Gradle / Android build output
+.gradle/
+**/build/
+**/target/
+local.properties
+*.apk
+*.aab
+
+# IDE and operating system files
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.jks
+*.keystore
+*.pem
+*.p12
+*.key
+
+# Logs, temporary files, and local database files
+*.log
+*.tmp
+*.sqlite
+*.db
+mysql-data/
+data/
