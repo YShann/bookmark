@@ -17,6 +17,18 @@ import androidx.compose.ui.layout.*
 import com.personal.bookmark_app.ui.components.TextFieldView
 import com.skydoves.landscapist.*
 import com.skydoves.landscapist.coil3.*
+import androidx.compose.ui.tooling.preview.Preview
+import com.personal.bookmark_app.ui.theme.BookmarkappTheme
+
+@Preview(
+    name = "登入",
+    showBackground = true,
+    showSystemUi = true
+)
+@Composable
+fun LoginScreenPreview() {
+    BookmarkappTheme { LoginScreen() }
+}
 
 @Composable
 fun LoginScreen() {
@@ -24,7 +36,7 @@ fun LoginScreen() {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .fillMaxHeight()
+            .fillMaxSize()
             .background(
                 color = Color(0xFFFFFFFF),
             )
@@ -124,7 +136,7 @@ fun LoginScreen() {
                     }
                     Column(
                         modifier = Modifier
-                            .height(57.dp)
+                            .height(38.dp)
                             .fillMaxWidth()
                     ){
                     }
@@ -199,7 +211,7 @@ fun LoginScreen() {
                     }
                     Column(
                         modifier = Modifier
-                            .height(28.dp)
+                            .height(20.dp)
                             .fillMaxWidth()
                     ){
                     }
@@ -331,7 +343,7 @@ fun LoginScreen() {
                                 shape = RoundedCornerShape(12.dp)
                             )
                             .shadow(
-                                elevation = 18.dp,
+                                elevation = 8.dp,
                                 spotColor = Color(0x2E4F5F4D),
                             )
                             .padding(vertical = 15.dp,)
@@ -473,7 +485,7 @@ fun LoginScreen() {
                     }
                     Column(
                         modifier = Modifier
-                            .height(40.dp)
+                            .height(24.dp)
                             .fillMaxWidth()
                     ){
                     }

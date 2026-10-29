@@ -13,15 +13,29 @@ import androidx.compose.ui.unit.*
 import androidx.compose.ui.layout.*
 import com.skydoves.landscapist.ImageOptions
 import com.skydoves.landscapist.coil3.CoilImage
+import androidx.compose.ui.tooling.preview.Preview
+import com.personal.bookmark_app.ui.theme.BookmarkappTheme
+
+@Preview(
+    name = "聚藏首頁預覽",
+    showBackground = true,
+    showSystemUi = true
+)
+@Composable
+fun HomeScreenPreview() {
+    BookmarkappTheme {
+        HomeScreen()
+    }
+}
+
 
 @Composable
 fun HomeScreen() {
     Column(
         modifier = Modifier
-            .fillMaxWidth()
-            .fillMaxHeight()
+            .fillMaxSize()
             .background(
-                color = Color(0xFFFFFFFF),
+                color = Color(0xFFFAF9F4),
             )
     ){
         Column(
@@ -34,9 +48,9 @@ fun HomeScreen() {
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(
-                        color = Color(0xFFF7F4EC),
+                        color = Color(0xFFFAF9F4),
                     )
-                    .padding(top = 20.dp,start = 24.dp,end = 24.dp,)
+                    .padding(top = 16.dp, start = 20.dp, end = 20.dp, bottom = 24.dp)
             ){
                 Row(
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -53,26 +67,19 @@ fun HomeScreen() {
                             modifier = Modifier
                                 .padding(end = 1.dp,)
                                 .clip(shape = RoundedCornerShape(16.dp))
-                                .width(49.dp)
-                                .height(48.dp)
+                                .size(40.dp)
                         )
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ){
                             Column(
                             ){
-                                Column(
-                                    modifier = Modifier
-                                        .width(16.dp)
-                                        .height(51.dp)
-                                ){
-                                }
                                 Text("聚藏",
                                     color = Color(0xFF111111),
-                                    fontSize = 32.sp,
+                                fontSize = 28.sp,
                                     fontWeight = FontWeight.Bold,
                                     modifier = Modifier
-                                        .padding(start = 15.dp,)
+                                        .padding(start = 12.dp,)
                                 )
                             }
                         }
@@ -85,13 +92,11 @@ fun HomeScreen() {
                             imageOptions = ImageOptions(contentScale = ContentScale.Crop),
                             modifier = Modifier
                                 .clip(shape = RoundedCornerShape(16.dp))
-                                .width(48.dp)
-                                .height(46.dp)
+                                .size(40.dp)
                         )
                         Column(
                             modifier = Modifier
-                                .width(12.dp)
-                                .height(49.dp)
+                                .width(8.dp)
                         ){
                         }
                         Row(
@@ -106,25 +111,23 @@ fun HomeScreen() {
                                     elevation = 2.dp,
                                     spotColor = Color(0x0D000000),
                                 )
-                                .padding(vertical = 11.dp,horizontal = 15.dp,)
+                                .padding(vertical = 10.dp, horizontal = 12.dp)
                         ){
                             CoilImage(
                                 imageModel = {"https://storage.googleapis.com/tagjs-prod.appspot.com/v1/dgVhxlMbDH/587dtapt_expires_30_days.png"},
                                 imageOptions = ImageOptions(contentScale = ContentScale.Crop),
                                 modifier = Modifier
                                     .clip(shape = RoundedCornerShape(6.dp))
-                                    .width(15.dp)
-                                    .height(18.dp)
+                                    .size(16.dp)
                             )
                             Column(
                                 modifier = Modifier
                                     .width(8.dp)
-                                    .height(27.dp)
                             ){
                             }
                             Text("新增收藏",
                                 color = Color(0xFFFFFFFF),
-                                fontSize = 18.sp,
+                                fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
                             )
                         }
@@ -132,7 +135,7 @@ fun HomeScreen() {
                 }
                 Column(
                     modifier = Modifier
-                        .height(24.dp)
+                    .height(16.dp)
                         .fillMaxWidth()
                 ){
                 }
@@ -145,7 +148,7 @@ fun HomeScreen() {
                             color = Color(0xFFF4F1E8),
                             shape = RoundedCornerShape(12.dp)
                         )
-                        .padding(vertical = 20.dp,horizontal = 28.dp,)
+                        .padding(vertical = 16.dp, horizontal = 18.dp)
                 ){
                     Column(
                         modifier = Modifier
@@ -160,7 +163,8 @@ fun HomeScreen() {
                         ){
                             Text("今日拾藏 • 3 則精選已抽出",
                                 color = Color(0xFF222222),
-                                fontSize = 28.sp,
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.SemiBold,
                             )
                         }
                         Column(
@@ -174,95 +178,42 @@ fun HomeScreen() {
                             fontSize = 16.sp,
                         )
                     }
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ){
-                        Column(
+                        CoilImage(
+                            imageModel = {"https://storage.googleapis.com/tagjs-prod.appspot.com/v1/dgVhxlMbDH/64hg8oiy_expires_30_days.png"},
+                            imageOptions = ImageOptions(contentScale = ContentScale.Crop),
                             modifier = Modifier
-                                .padding(bottom = 37.dp,)
-                        ){
-                            Column(
-                                modifier = Modifier
-                                    .width(16.dp)
-                                    .height(120.dp)
-                            ){
-                            }
-                            CoilImage(
-                                imageModel = {"https://storage.googleapis.com/tagjs-prod.appspot.com/v1/dgVhxlMbDH/64hg8oiy_expires_30_days.png"},
-                                imageOptions = ImageOptions(contentScale = ContentScale.Crop),
-                                modifier = Modifier
-                                    .padding(start = 15.dp,)
-                                    .clip(shape = RoundedCornerShape(16.dp))
-                                    .width(46.dp)
-                                    .height(46.dp)
-                            )
-                        }
-                    }
-                }
-                Column(
-                    modifier = Modifier
-                        .height(32.dp)
-                        .fillMaxWidth()
-                ){
-                }
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                ){
-                    Box(
-                        modifier = Modifier
-                            .padding(top = 11.dp,end = 26.dp,)
-                            .weight(1f)
-                    ){
-                        Column(
-                        ){
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                            ){
-                                Text("收藏分類夾",
-                                    color = Color(0xFF222222),
-                                    fontSize = 25.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier
-                                        .padding(end = 2.dp,)
-                                )
-                                Column(
-                                    modifier = Modifier
-                                        .width(12.dp)
-                                        .height(39.dp)
-                                ){
-                                }
-                            }
-                        }
-                        Text("5 個分類",
-                            color = Color(0xFF7A7468),
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier
-                                .offset(x = 19.dp, y = -2.dp)
-                                .align(Alignment.BottomEnd)
-                                .padding(start = 19.dp)
+                                .clip(shape = RoundedCornerShape(12.dp))
+                                .size(40.dp)
                         )
+                }
+                Spacer(modifier = Modifier.height(28.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                ){
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text("收藏分類夾", color = Color(0xFF222222), fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("5 個分類", color = Color(0xFF7A7468), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                     }
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .weight(1f)
                     ){
                         CoilImage(
                             imageModel = {"https://storage.googleapis.com/tagjs-prod.appspot.com/v1/dgVhxlMbDH/2o833yek_expires_30_days.png"},
                             imageOptions = ImageOptions(contentScale = ContentScale.Crop),
                             modifier = Modifier
                                 .clip(shape = RoundedCornerShape(10.dp))
-                                .width(80.dp)
-                                .height(49.dp)
+                                .width(64.dp)
+                                .height(40.dp)
                         )
                         Column(
                             modifier = Modifier
-                                .width(12.dp)
-                                .height(49.dp)
+                                .width(8.dp)
                         ){
                         }
                         Row(
@@ -301,9 +252,7 @@ fun HomeScreen() {
                     }
                 }
                 Column(
-                    modifier = Modifier
-                        .height(20.dp)
-                        .fillMaxWidth()
+                    modifier = Modifier.height(14.dp).fillMaxWidth()
                 ){
                 }
                 Column(
@@ -325,7 +274,7 @@ fun HomeScreen() {
                                     shape = RoundedCornerShape(12.dp)
                                 )
                                 .shadow(
-                                    elevation = 8.dp,
+                                    elevation = 2.dp,
                                     spotColor = Color(0x12000000),
                                 )
                                 .padding(bottom = 11.dp,)
@@ -335,12 +284,12 @@ fun HomeScreen() {
                                 imageOptions = ImageOptions(contentScale = ContentScale.Crop),
                                 modifier = Modifier
                                     .clip(shape = RoundedCornerShape(12.dp))
-                                    .width(185.dp)
-                                    .height(140.dp)
+                                    .fillMaxWidth()
+                                    .aspectRatio(1.52f)
                             )
                             Column(
                                 modifier = Modifier
-                                    .height(11.dp)
+                                    .height(7.dp)
                                     .fillMaxWidth()
                             ){
                             }
@@ -369,7 +318,7 @@ fun HomeScreen() {
                                     shape = RoundedCornerShape(12.dp)
                                 )
                                 .shadow(
-                                    elevation = 8.dp,
+                                    elevation = 2.dp,
                                     spotColor = Color(0x12000000),
                                 )
                                 .padding(bottom = 11.dp,)
@@ -379,12 +328,12 @@ fun HomeScreen() {
                                 imageOptions = ImageOptions(contentScale = ContentScale.Crop),
                                 modifier = Modifier
                                     .clip(shape = RoundedCornerShape(12.dp))
-                                    .width(185.dp)
-                                    .height(140.dp)
+                                    .fillMaxWidth()
+                                    .aspectRatio(1.52f)
                             )
                             Column(
                                 modifier = Modifier
-                                    .height(11.dp)
+                                    .height(7.dp)
                                     .fillMaxWidth()
                             ){
                             }
@@ -419,22 +368,22 @@ fun HomeScreen() {
                                     shape = RoundedCornerShape(12.dp)
                                 )
                                 .shadow(
-                                    elevation = 8.dp,
+                                    elevation = 2.dp,
                                     spotColor = Color(0x12000000),
                                 )
-                                .padding(bottom = 57.dp,)
+                                .padding(bottom = 11.dp,)
                         ){
                             CoilImage(
                                 imageModel = {"https://placehold.co/600x420/png?text=Old+street+tea+shop+front+with+signboard"},
                                 imageOptions = ImageOptions(contentScale = ContentScale.Crop),
                                 modifier = Modifier
                                     .clip(shape = RoundedCornerShape(12.dp))
-                                    .width(185.dp)
-                                    .height(140.dp)
+                                    .fillMaxWidth()
+                                    .aspectRatio(1.52f)
                             )
                             Column(
                                 modifier = Modifier
-                                    .height(11.dp)
+                                    .height(7.dp)
                                     .fillMaxWidth()
                             ){
                             }
@@ -463,7 +412,7 @@ fun HomeScreen() {
                                     shape = RoundedCornerShape(12.dp)
                                 )
                                 .shadow(
-                                    elevation = 8.dp,
+                                    elevation = 2.dp,
                                     spotColor = Color(0x12000000),
                                 )
                                 .padding(bottom = 11.dp,)
@@ -473,12 +422,12 @@ fun HomeScreen() {
                                 imageOptions = ImageOptions(contentScale = ContentScale.Crop),
                                 modifier = Modifier
                                     .clip(shape = RoundedCornerShape(12.dp))
-                                    .width(185.dp)
-                                    .height(140.dp)
+                                    .fillMaxWidth()
+                                    .aspectRatio(1.52f)
                             )
                             Column(
                                 modifier = Modifier
-                                    .height(11.dp)
+                                    .height(7.dp)
                                     .fillMaxWidth()
                             ){
                             }
@@ -520,15 +469,15 @@ fun HomeScreen() {
                             modifier = Modifier
                                 .padding(bottom = 1.dp,)
                                 .clip(shape = RoundedCornerShape(12.dp))
-                                .width(184.dp)
-                                .height(134.dp)
+                                .fillMaxWidth()
+                                .aspectRatio(1.52f)
                         )
                         Column(
                         ){
                             Column(
                                 modifier = Modifier
-                                    .width(184.dp)
-                                    .height(11.dp)
+                                    .fillMaxWidth()
+                                    .height(7.dp)
                             ){
                             }
                             Column(

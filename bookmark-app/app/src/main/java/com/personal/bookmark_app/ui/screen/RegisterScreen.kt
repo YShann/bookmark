@@ -17,6 +17,18 @@ import androidx.compose.ui.layout.*
 import com.personal.bookmark_app.ui.components.TextFieldView
 import com.skydoves.landscapist.*
 import com.skydoves.landscapist.coil3.*
+import androidx.compose.ui.tooling.preview.Preview
+import com.personal.bookmark_app.ui.theme.BookmarkappTheme
+
+@Preview(
+    name = "註冊",
+    showBackground = true,
+    showSystemUi = true
+)
+@Composable
+fun RegisterScreenPreview() {
+    BookmarkappTheme { RegisterScreen() }
+}
 
 @Composable
 fun RegisterScreen() {
@@ -62,6 +74,20 @@ fun RegisterScreen() {
                                 shape = RoundedCornerShape(16.dp)
                             )
                     ){
+                        Canvas(Modifier.fillMaxSize().padding(20.dp)) {
+                            val ink = Color(0xFF4F5F4D)
+                            val stroke = 2.dp.toPx()
+                            val x = size.width
+                            val y = size.height
+                            drawCircle(ink, radius = x * 0.085f, center = androidx.compose.ui.geometry.Offset(x * 0.5f, y * 0.13f), style = androidx.compose.ui.graphics.drawscope.Stroke(stroke))
+                            drawLine(ink, androidx.compose.ui.geometry.Offset(x * 0.14f, y * 0.34f), androidx.compose.ui.geometry.Offset(x * 0.14f, y * 0.78f), stroke)
+                            drawLine(ink, androidx.compose.ui.geometry.Offset(x * 0.14f, y * 0.34f), androidx.compose.ui.geometry.Offset(x * 0.5f, y * 0.43f), stroke)
+                            drawLine(ink, androidx.compose.ui.geometry.Offset(x * 0.5f, y * 0.43f), androidx.compose.ui.geometry.Offset(x * 0.5f, y * 0.86f), stroke)
+                            drawLine(ink, androidx.compose.ui.geometry.Offset(x * 0.5f, y * 0.43f), androidx.compose.ui.geometry.Offset(x * 0.86f, y * 0.34f), stroke)
+                            drawLine(ink, androidx.compose.ui.geometry.Offset(x * 0.86f, y * 0.34f), androidx.compose.ui.geometry.Offset(x * 0.86f, y * 0.78f), stroke)
+                            drawLine(ink, androidx.compose.ui.geometry.Offset(x * 0.14f, y * 0.78f), androidx.compose.ui.geometry.Offset(x * 0.5f, y * 0.86f), stroke)
+                            drawLine(ink, androidx.compose.ui.geometry.Offset(x * 0.5f, y * 0.86f), androidx.compose.ui.geometry.Offset(x * 0.86f, y * 0.78f), stroke)
+                        }
                     }
                     Column(
                         modifier = Modifier
@@ -121,6 +147,7 @@ fun RegisterScreen() {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
+                                .shadow(elevation = 2.dp, shape = RoundedCornerShape(12.dp))
                                 .clip(shape = RoundedCornerShape(12.dp))
                                 .fillMaxWidth()
                                 .background(
@@ -182,6 +209,7 @@ fun RegisterScreen() {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
+                                .shadow(elevation = 2.dp, shape = RoundedCornerShape(12.dp))
                                 .clip(shape = RoundedCornerShape(12.dp))
                                 .fillMaxWidth()
                                 .background(
@@ -243,6 +271,7 @@ fun RegisterScreen() {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
+                                .shadow(elevation = 2.dp, shape = RoundedCornerShape(12.dp))
                                 .clip(shape = RoundedCornerShape(12.dp))
                                 .fillMaxWidth()
                                 .background(
@@ -312,6 +341,7 @@ fun RegisterScreen() {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
+                                .shadow(elevation = 2.dp, shape = RoundedCornerShape(12.dp))
                                 .clip(shape = RoundedCornerShape(12.dp))
                                 .fillMaxWidth()
                                 .background(

@@ -18,6 +18,18 @@ import androidx.compose.ui.layout.*
 import com.personal.bookmark_app.ui.components.TextFieldView
 import com.skydoves.landscapist.*
 import com.skydoves.landscapist.coil3.*
+import androidx.compose.ui.tooling.preview.Preview
+import com.personal.bookmark_app.ui.theme.BookmarkappTheme
+
+@Preview(
+    name = "忘記密碼",
+    showBackground = true,
+    showSystemUi = true
+)
+@Composable
+fun ForgotPasswordScreenPreview() {
+    BookmarkappTheme { ForgotPasswordScreen() }
+}
 
 @Composable
 fun ForgotPasswordScreen() {
@@ -25,7 +37,7 @@ fun ForgotPasswordScreen() {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .fillMaxHeight()
+            .fillMaxSize()
             .background(
                 color = Color(0xFFFFFFFF),
             )
@@ -82,7 +94,7 @@ fun ForgotPasswordScreen() {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier
-                        .padding(bottom = 373.dp,)
+                        .padding(bottom = 24.dp,)
                         .fillMaxWidth()
                 ){
                     Row(
@@ -111,6 +123,7 @@ fun ForgotPasswordScreen() {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
+                             .shadow(elevation = 2.dp, shape = RoundedCornerShape(12.dp))
                             .clip(shape = RoundedCornerShape(12.dp))
                             .fillMaxWidth()
                             .background(
@@ -153,14 +166,18 @@ fun ForgotPasswordScreen() {
                             .fillMaxWidth()
                     ){
                     }
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 3.dp,)
-                    ){
-                        Text("若 5 分鐘內未收到信件，請檢查垃圾郵件或重新發送。",
+                    Row(
+                        verticalAlignment = Alignment.Top,
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                    ) {
+                        Text("ⓘ", color = Color(0xFF7A746B), fontSize = 17.sp, lineHeight = 22.sp)
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            "若 5 分鐘內未收到信件，請檢查垃圾郵件或重新發送。",
                             color = Color(0xFF7A746B),
                             fontSize = 16.sp,
+                            lineHeight = 21.sp,
+                            modifier = Modifier.weight(1f),
                         )
                     }
                     Column(
@@ -180,7 +197,7 @@ fun ForgotPasswordScreen() {
                                 shape = RoundedCornerShape(10.dp)
                             )
                             .shadow(
-                                elevation = 18.dp,
+                                elevation = 8.dp,
                                 spotColor = Color(0x1F000000),
                             )
                             .padding(vertical = 16.dp,)
@@ -211,7 +228,7 @@ fun ForgotPasswordScreen() {
                             .fillMaxWidth()
                     ){
                     }
-                    Text("想起密碼了？返回登入",
+                    Text("想起密碼了？ 返回登入",
                         color = Color(0xFF4E5F49),
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold,

@@ -14,19 +14,31 @@ import androidx.compose.ui.text.font.*
 import androidx.compose.ui.unit.*
 import androidx.compose.ui.text.*
 import androidx.compose.ui.layout.*
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
+import com.personal.bookmark_app.ui.theme.BookmarkappTheme
 import com.personal.bookmark_app.ui.components.TextFieldView
 import com.skydoves.landscapist.*
 import com.skydoves.landscapist.coil3.*
+
+@Preview(
+    name = "新增收藏預覽",
+    showBackground = true,
+    showSystemUi = true
+)
+@Composable
+fun AddBookmarkScreenPreview() {
+    BookmarkappTheme { AddBookmarkScreen() }
+}
 
 @Composable
 fun AddBookmarkScreen() {
     val textField1 = remember { mutableStateOf("") }
     Column(
         modifier = Modifier
-            .fillMaxWidth()
-            .fillMaxHeight()
+            .fillMaxSize()
             .background(
-                color = Color(0xFFFFFFFF),
+                color = Color(0xFFFBF9F3),
             )
     ){
         Column(
@@ -43,10 +55,8 @@ fun AddBookmarkScreen() {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(
-                                color = Color(0xFFF7F3EA),
-                            )
-                            .padding(top = 20.dp,start = 16.dp,end = 16.dp,)
+                            .background(color = Color(0xFFFBF9F3))
+                            .padding(top = 12.dp, start = 20.dp, end = 20.dp, bottom = 24.dp)
                     ){
                         Row(
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -109,7 +119,7 @@ fun AddBookmarkScreen() {
                         }
                         Column(
                             modifier = Modifier
-                                .height(20.dp)
+                                .height(12.dp)
                                 .fillMaxWidth()
                         ){
                         }
@@ -123,15 +133,22 @@ fun AddBookmarkScreen() {
                                 )
                                 .padding(16.dp)
                         ){
-                            Column(
+                            Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(top = 129.dp,start = 12.dp,)
+                                    .height(144.dp)
+                                    .clip(RoundedCornerShape(8.dp))
                             ){
+                                CoilImage(
+                                    imageModel = { "https://lh3.googleusercontent.com/aida-public/AB6AXuAc0UhWKR7yzzBJLrjr_NvAPuEaEmluA83gfl5sYhpgyXWeacRwbSmdvYvSsPZ5StI74u7lmSGgnvT04Acml3KSHGeQkWe_-yvc5t5gGKdIzKN7zJMNSnhBb9M0DgchNfC0MxVw-DEqtNdcbucCDO3DzTmIFfuWzXppwR4Zjj5crEGF_npWDAouTEpIP28sm12tzNAQwfgh2-VPfdVHQgGi1fs5Q0OuMFzJUokTDR8crlXlseMSJTA0zw" },
+                                    imageOptions = ImageOptions(contentScale = ContentScale.Crop),
+                                    modifier = Modifier.fillMaxSize(),
+                                )
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier
-                                        .padding(bottom = 12.dp,)
+                                        .align(Alignment.BottomStart)
+                                        .padding(8.dp)
                                         .clip(shape = RoundedCornerShape(6.dp))
                                         .background(
                                             color = Color(0xFFF3EFE4),
@@ -141,11 +158,11 @@ fun AddBookmarkScreen() {
                                             elevation = 2.dp,
                                             spotColor = Color(0x0D000000),
                                         )
-                                        .padding(vertical = 6.dp,horizontal = 12.dp,)
+                                        .padding(vertical = 5.dp,horizontal = 10.dp,)
                                 ){
                                     Text("✦",
                                         color = Color(0xFFD08A5A),
-                                        fontSize = 14.sp,
+                                        fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold,
                                         modifier = Modifier
                                             .padding(end = 3.dp,)
@@ -242,8 +259,11 @@ fun AddBookmarkScreen() {
                                     Text("https://www.threads.net/@tokyo_editorial...",
                                         color = Color(0xFF8A847A),
                                         fontSize = 13.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
                                         modifier = Modifier
-                                            .padding(end = 3.dp,)
+                                            .weight(1f)
+                                            .padding(end = 12.dp)
                                     )
                                 }
                             }
@@ -336,7 +356,7 @@ fun AddBookmarkScreen() {
                         }
                         Column(
                             modifier = Modifier
-                                .height(20.dp)
+                                .height(12.dp)
                                 .fillMaxWidth()
                         ){
                         }
@@ -487,7 +507,7 @@ fun AddBookmarkScreen() {
                                     }
                                     Text("Dcard",
                                         color = Color(0xFF5F5A52),
-                                        fontSize = 10.sp,
+                                        fontSize = 14.sp,
                                         modifier = Modifier
                                             .padding(end = 1.dp,)
                                     )
@@ -531,7 +551,7 @@ fun AddBookmarkScreen() {
                                 onValueChange = { newText -> textField1.value = newText },
                                 textStyle = TextStyle(
                                     color = Color(0xFF1F1A17),
-                                    fontSize = 24.sp,
+                                    fontSize = 20.sp,
                                     fontWeight = FontWeight.Bold,
                                 ),
                                 modifier = Modifier
@@ -608,7 +628,7 @@ fun AddBookmarkScreen() {
                                 ){
                                     Text("這家店專門收集 70 年代的建築雜誌，下次去東京一定要抽一個下午過去好好翻閱。",
                                         color = Color(0xFF2A241F),
-                                        fontSize = 18.sp,
+                                        fontSize = 16.sp,
                                     )
                                 }
                             }

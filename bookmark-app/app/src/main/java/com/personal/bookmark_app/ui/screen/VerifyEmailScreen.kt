@@ -13,13 +13,25 @@ import androidx.compose.ui.unit.*
 import androidx.compose.ui.layout.*
 import com.skydoves.landscapist.*
 import com.skydoves.landscapist.coil3.*
+import androidx.compose.ui.tooling.preview.Preview
+import com.personal.bookmark_app.ui.theme.BookmarkappTheme
+
+@Preview(
+    name = "驗證電子信箱",
+    showBackground = true,
+    showSystemUi = true
+)
+@Composable
+fun VerifyEmailScreenPreview() {
+    BookmarkappTheme { VerifyEmailScreen() }
+}
 
 @Composable
 fun VerifyEmailScreen() {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .fillMaxHeight()
+            .fillMaxSize()
             .background(
                 color = Color(0xFFFFFFFF),
             )
@@ -217,7 +229,7 @@ fun VerifyEmailScreen() {
                 }
                 Column(
                     modifier = Modifier
-                        .height(48.dp)
+                        .height(32.dp)
                         .fillMaxWidth()
                 ){
                 }
@@ -225,6 +237,7 @@ fun VerifyEmailScreen() {
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .fillMaxWidth()
+                        .padding(horizontal = 24.dp)
                 ){
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -322,27 +335,25 @@ fun VerifyEmailScreen() {
                             .height(70.dp)
                     ){
                     }
-                    Column(
+                    Box(
                         modifier = Modifier
-                            .clip(shape = RoundedCornerShape(6.dp))
-                            .height(70.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .height(64.dp)
                             .weight(1f)
-                            .background(
-                                color = Color(0xFFFFFFFF),
-                                shape = RoundedCornerShape(6.dp)
-                            )
-                    ){
+                            .background(Color.White),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Box(Modifier.width(2.dp).height(22.dp).background(Color(0xFFB45A3C)))
                     }
-                    Column(
+                    Box(
                         modifier = Modifier
-                            .clip(shape = RoundedCornerShape(6.dp))
-                            .height(70.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .height(64.dp)
                             .weight(1f)
-                            .background(
-                                color = Color(0xFFFFFFFF),
-                                shape = RoundedCornerShape(6.dp)
-                            )
-                    ){
+                            .background(Color(0xFFF3F0E8)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Box(Modifier.size(7.dp).clip(RoundedCornerShape(50)).background(Color(0xFFD7D5CF)))
                     }
                 }
                 Column(
@@ -442,7 +453,7 @@ fun VerifyEmailScreen() {
                             color = Color(0xFF4F634D),
                             shape = RoundedCornerShape(4.dp)
                         )
-                        .padding(vertical = 20.dp,)
+                        .padding(vertical = 16.dp,)
                 ){
                     Text("驗證並建立帳號",
                         color = Color(0xFFFFFFFF),
@@ -483,7 +494,7 @@ fun VerifyEmailScreen() {
                 }
                 Column(
                     modifier = Modifier
-                        .height(96.dp)
+                        .height(72.dp)
                         .fillMaxWidth()
                 ){
                 }

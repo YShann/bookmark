@@ -13,15 +13,25 @@ import androidx.compose.ui.unit.*
 import androidx.compose.ui.layout.*
 import com.skydoves.landscapist.*
 import com.skydoves.landscapist.coil3.*
+import androidx.compose.ui.tooling.preview.Preview
+
+@Preview(
+    name = "今日拾藏預覽",
+    showBackground = true,
+    showSystemUi = true
+)
+@Composable
+fun DailyPicksScreenPreview() {
+    DailyPicksScreen()
+}
 
 @Composable
 fun DailyPicksScreen() {
     Column(
         modifier = Modifier
-            .fillMaxWidth()
-            .fillMaxHeight()
+            .fillMaxSize()
             .background(
-                color = Color(0xFFFFFFFF),
+                color = Color(0xFFFBF9F3),
             )
     ){
         Column(
@@ -33,10 +43,8 @@ fun DailyPicksScreen() {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(
-                        color = Color(0xFFF7F4EE),
-                    )
-                    .padding(vertical = 28.dp,horizontal = 20.dp,)
+                    .background(color = Color(0xFFFBF9F3))
+                    .padding(start = 20.dp, top = 12.dp, end = 20.dp, bottom = 24.dp)
             ){
                 Row(
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -58,8 +66,7 @@ fun DailyPicksScreen() {
                         )
                         Column(
                             modifier = Modifier
-                                .width(25.dp)
-                                .height(28.dp)
+                                .width(20.dp)
                         ){
                         }
                         Text("今日拾藏",
@@ -101,7 +108,7 @@ fun DailyPicksScreen() {
                 }
                 Column(
                     modifier = Modifier
-                        .height(16.dp)
+                        .height(8.dp)
                         .fillMaxWidth()
                 ){
                 }
@@ -126,12 +133,12 @@ fun DailyPicksScreen() {
                     }
                     Text("2025 年 5 月 18 日・星期日",
                         color = Color(0xFF7A746B),
-                        fontSize = 16.sp,
+                        fontSize = 14.sp,
                     )
                 }
                 Column(
                     modifier = Modifier
-                        .height(16.dp)
+                        .height(10.dp)
                         .fillMaxWidth()
                 ){
                 }
@@ -143,16 +150,16 @@ fun DailyPicksScreen() {
                             color = Color(0xFFF4F0E8),
                             shape = RoundedCornerShape(10.dp)
                         )
-                        .padding(vertical = 23.dp,horizontal = 28.dp,)
+                        .padding(vertical = 14.dp,horizontal = 16.dp)
                 ){
                     Text("從遺忘的角落拾起 3 則收藏，回想當初的靈感。",
                         color = Color(0xFF5E5A54),
-                        fontSize = 18.sp,
+                        fontSize = 15.sp,
                     )
                 }
                 Column(
                     modifier = Modifier
-                        .height(32.dp)
+                        .height(24.dp)
                         .fillMaxWidth()
                 ){
                 }
@@ -177,7 +184,7 @@ fun DailyPicksScreen() {
                                 elevation = 2.dp,
                                 spotColor = Color(0x08000000),
                             )
-                            .padding(vertical = 20.dp,horizontal = 18.dp,)
+                            .padding(vertical = 16.dp,horizontal = 16.dp)
                     ){
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -200,7 +207,7 @@ fun DailyPicksScreen() {
                                     modifier = Modifier
                                         .clip(shape = RoundedCornerShape(2.dp))
                                         .width(13.dp)
-                                        .height(13.dp)
+                                        .height(6.dp)
                                 )
                                 Column(
                                     modifier = Modifier
@@ -264,46 +271,28 @@ fun DailyPicksScreen() {
                             ){
                                 Text("昭和復古喫茶店的招牌字體特輯",
                                     color = Color(0xFF1F1A17),
-                                    fontSize = 22.sp,
+                                    fontSize = 18.sp,
                                     fontWeight = FontWeight.Bold,
                                 )
                                 Column(
                                     modifier = Modifier
-                                        .height(13.dp)
+                                        .height(6.dp)
                                         .fillMaxWidth()
                                 ){
                                 }
                                 Text("手繪圓體、金屬壓印與暖黃霓虹管。在神保町與谷中的角落，收集舊時代喫茶館...",
                                     color = Color(0xFF5F5A54),
-                                    fontSize = 16.sp,
+                                    fontSize = 14.sp,
                                 )
                             }
-                            Column(
-                                modifier = Modifier
-                                    .width(16.dp)
-                                    .height(147.dp)
-                            ){
-                            }
-                            Column(
-                                modifier = Modifier
-                                    .padding(top = 70.dp,bottom = 4.dp,start = 59.dp,end = 4.dp,)
-                                    .clip(shape = RoundedCornerShape(4.dp))
-                                    .background(
-                                        color = Color(0x73000000),
-                                        shape = RoundedCornerShape(4.dp)
-                                    )
-                                    .padding(vertical = 1.dp,horizontal = 8.dp,)
-                            ){
-                                Text("1/6",
-                                    color = Color(0xFFFFFFFF),
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                )
-                            }
+                            Thumbnail(
+                                imageUrl = "https://lh3.googleusercontent.com/aida-public/AB6AXuA4ARgPC51l_ckRmiA8kyJZqWPUkfd_W-veWKgBxW34JItRWgTMezn9V4u2Y2GyTrtV-bS01M7_NLnz2ysXn6jIOZhl00y49eK77IOnYwiulNJ91auzb5COr5OSQ4Rh0-E5PKjndOJq7sQofVC5zwt3M_dws6RmHYW2js9ynGvTPftj1NHUuEYF9MQ2kqLdun9NLc-vkGa3D3uVycQn-p4Wztnwpwm_STqenkCOLw8pJPpoXQVT1Ck85Q",
+                                badge = "1/6",
+                            )
                         }
                         Column(
                             modifier = Modifier
-                                .height(17.dp)
+                                .height(12.dp)
                                 .fillMaxWidth()
                         ){
                         }
@@ -341,7 +330,7 @@ fun DailyPicksScreen() {
                     }
                     Column(
                         modifier = Modifier
-                            .height(33.dp)
+                            .height(24.dp)
                             .fillMaxWidth()
                     ){
                     }
@@ -362,7 +351,7 @@ fun DailyPicksScreen() {
                                 elevation = 2.dp,
                                 spotColor = Color(0x08000000),
                             )
-                            .padding(vertical = 20.dp,horizontal = 18.dp,)
+                            .padding(vertical = 16.dp,horizontal = 16.dp)
                     ){
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -385,7 +374,7 @@ fun DailyPicksScreen() {
                                     modifier = Modifier
                                         .clip(shape = RoundedCornerShape(2.dp))
                                         .width(13.dp)
-                                        .height(13.dp)
+                                        .height(6.dp)
                                 )
                                 Column(
                                     modifier = Modifier
@@ -449,42 +438,24 @@ fun DailyPicksScreen() {
                             ){
                                 Text("專注的技術：擺脫演算法餵養的「慢讀」練習",
                                     color = Color(0xFF1F1A17),
-                                    fontSize = 22.sp,
+                                    fontSize = 18.sp,
                                     fontWeight = FontWeight.Bold,
                                 )
                                 Column(
                                     modifier = Modifier
-                                        .height(13.dp)
+                                        .height(6.dp)
                                         .fillMaxWidth()
                                 ){
                                 }
                                 Text("在即時訊息過載的時代，用紙本書與手寫筆記重構深度思考的心理空間，重拾閱...",
                                     color = Color(0xFF5F5A54),
-                                    fontSize = 16.sp,
+                                    fontSize = 14.sp,
                                 )
                             }
-                            Column(
-                                modifier = Modifier
-                                    .width(16.dp)
-                                    .height(147.dp)
-                            ){
-                            }
-                            Column(
-                                modifier = Modifier
-                                    .padding(top = 69.dp,bottom = 5.dp,start = 52.dp,end = 4.dp,)
-                                    .clip(shape = RoundedCornerShape(4.dp))
-                                    .background(
-                                        color = Color(0x73000000),
-                                        shape = RoundedCornerShape(4.dp)
-                                    )
-                                    .padding(vertical = 1.dp,horizontal = 8.dp,)
-                            ){
-                                Text("專欄",
-                                    color = Color(0xFFFFFFFF),
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold,
-                                )
-                            }
+                            Thumbnail(
+                                imageUrl = "https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=800&q=80",
+                                badge = "專欄",
+                            )
                         }
                         Column(
                             modifier = Modifier
@@ -518,7 +489,7 @@ fun DailyPicksScreen() {
                     }
                     Column(
                         modifier = Modifier
-                            .height(32.dp)
+                            .height(24.dp)
                             .fillMaxWidth()
                     ){
                     }
@@ -539,7 +510,7 @@ fun DailyPicksScreen() {
                                 elevation = 2.dp,
                                 spotColor = Color(0x08000000),
                             )
-                            .padding(vertical = 20.dp,horizontal = 18.dp,)
+                            .padding(vertical = 16.dp,horizontal = 16.dp)
                     ){
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -626,48 +597,30 @@ fun DailyPicksScreen() {
                             ){
                                 Text("京都巷弄裡的老書店巡禮：只賣一本書的店",
                                     color = Color(0xFF1F1A17),
-                                    fontSize = 22.sp,
+                                    fontSize = 18.sp,
                                     fontWeight = FontWeight.Bold,
                                     modifier = Modifier
-                                        .width(213.dp)
+                                        
                                 )
                                 Column(
                                     modifier = Modifier
-                                        .height(13.dp)
+                                        .height(6.dp)
                                         .fillMaxWidth()
                                 ){
                                 }
                                 Text("藏身在石板小徑後的窄窄木屋，每週僅精選一冊主題讀物，在微光與茶香中感受...",
                                     color = Color(0xFF5F5A54),
-                                    fontSize = 16.sp,
+                                    fontSize = 14.sp,
                                 )
                             }
-                            Column(
-                                modifier = Modifier
-                                    .width(16.dp)
-                                    .height(176.dp)
-                            ){
-                            }
-                            Column(
-                                modifier = Modifier
-                                    .padding(top = 69.dp,bottom = 5.dp,start = 46.dp,end = 4.dp,)
-                                    .clip(shape = RoundedCornerShape(4.dp))
-                                    .background(
-                                        color = Color(0x73000000),
-                                        shape = RoundedCornerShape(4.dp)
-                                    )
-                                    .padding(vertical = 1.dp,horizontal = 8.dp,)
-                            ){
-                                Text("14:20",
-                                    color = Color(0xFFFFFFFF),
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                )
-                            }
+                            Thumbnail(
+                                imageUrl = "https://lh3.googleusercontent.com/aida-public/AB6AXuDOlyQg8DRF63oSYFbqOlXiAdqMqQes07uZnzbKWyMGO31KVw6Be0r0nweJINfiRj7-QtufYJ-1bkP413-Bz2bvfGomr_bybaGyFgrCIU2k7ckwHTdqMVeCFhxPAwi4cDStTfMlNO03xsCCDh4KjMc8uzLDWGjK7f2me2rXDWsjt1G7Llyt4KiW_ZKFzzbrP7_tJV4OSVEMJI7UGVWeYXgcBLCMkmiXNqQewe9qPXVBkoy57JCl_yIPDg",
+                                badge = "14:20",
+                            )
                         }
                         Column(
                             modifier = Modifier
-                                .height(17.dp)
+                                .height(12.dp)
                                 .fillMaxWidth()
                         ){
                         }
@@ -698,7 +651,7 @@ fun DailyPicksScreen() {
                 }
                 Column(
                     modifier = Modifier
-                        .height(41.dp)
+                        .height(24.dp)
                         .fillMaxWidth()
                 ){
                 }
@@ -717,7 +670,7 @@ fun DailyPicksScreen() {
                                 color = Color(0xFFE8E4DC),
                                 shape = RoundedCornerShape(12.dp)
                             )
-                            .padding(vertical = 16.dp,)
+                            .padding(vertical = 12.dp,)
                     ){
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
@@ -762,5 +715,32 @@ fun DailyPicksScreen() {
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun Thumbnail(imageUrl: String, badge: String) {
+    Box(
+        modifier = Modifier
+            .padding(start = 12.dp)
+            .size(width = 80.dp, height = 80.dp)
+            .clip(RoundedCornerShape(8.dp)),
+    ) {
+        CoilImage(
+            imageModel = { imageUrl },
+            imageOptions = ImageOptions(contentScale = ContentScale.Crop),
+            modifier = Modifier.fillMaxSize(),
+        )
+        Text(
+            text = badge,
+            color = Color.White,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .clip(RoundedCornerShape(topStart = 4.dp))
+                .background(Color(0xB3000000))
+                .padding(horizontal = 6.dp, vertical = 3.dp),
+        )
     }
 }
