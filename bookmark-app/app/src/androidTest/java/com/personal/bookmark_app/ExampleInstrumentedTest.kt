@@ -1,4 +1,4 @@
-package com.example.bookmark_app
+package com.personal.bookmark_app
 
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4

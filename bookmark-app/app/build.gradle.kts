@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.bookmark_app"
+    namespace = "com.personal.bookmark_app"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.example.bookmark_app"
+        applicationId = "com.personal.bookmark_app"
         minSdk = 24
         targetSdk = 36
         versionCode = 1
@@ -49,6 +49,7 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+    implementation(libs.landscapist.coil3)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
