@@ -1,499 +1,556 @@
 package com.personal.bookmark_app.ui.screen
 
-import androidx.compose.foundation.*
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.outlined.ViewList
+import androidx.compose.material.icons.outlined.AutoStories
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.GridView
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.*
-import androidx.compose.ui.draw.*
-import androidx.compose.ui.graphics.*
-import androidx.compose.ui.text.font.*
-import androidx.compose.ui.unit.*
-import androidx.compose.ui.layout.*
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import com.personal.bookmark_app.ui.mock_data.FolderMockData
+import com.personal.bookmark_app.ui.mock_data.DisplayMode
+import com.personal.bookmark_app.ui.model.FolderDisplayMode
+import com.personal.bookmark_app.ui.model.FolderUiModel
 import com.skydoves.landscapist.ImageOptions
 import com.skydoves.landscapist.coil3.CoilImage
-import androidx.compose.ui.tooling.preview.Preview
-import com.personal.bookmark_app.ui.theme.BookmarkappTheme
 
-@Preview(
-    name = "聚藏首頁預覽",
-    showBackground = true,
-    showSystemUi = true
-)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreenPreview() {
-    BookmarkappTheme {
-        HomeScreen()
+fun HomeScreen(
+    onSearchClick: () -> Unit = {},
+    onAddBookmarkClick: () -> Unit = {},
+    onDailyPicksClick: () -> Unit = {},
+    onEditFoldersClick: () -> Unit = {},
+    onFolderClick: (FolderUiModel) -> Unit = {}
+) {
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
+            HomeTopAppBar(
+                onSearchClick = onSearchClick,
+                onAddBookmarkClick = onAddBookmarkClick
+            )
+        }
+    ) { innerPadding ->
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
+            DailyPicksCard(
+                onClick = onDailyPicksClick
+            )
+
+            FolderSection(
+                folders = FolderMockData,
+                modifier = Modifier.weight(1f),
+                onEditClick = onEditFoldersClick,
+                onFolderClick = onFolderClick
+            )
+        }
     }
 }
 
+// --------------------------------------------------
+// Home Top App Bar
+// --------------------------------------------------
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun HomeTopAppBar(
+    onSearchClick: () -> Unit,
+    onAddBookmarkClick: () -> Unit
+) {
+    TopAppBar(
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                CoilImage(
+                    imageModel = {
+                        "https://storage.googleapis.com/tagjs-prod.appspot.com/v1/dgVhxlMbDH/fg1q4rmy_expires_30_days.png"
+                    },
+                    imageOptions = ImageOptions(
+                        contentScale = ContentScale.Crop
+                    ),
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                )
+
+                Spacer(
+                    modifier = Modifier.width(12.dp)
+                )
+
+                Text(
+                    text = "聚藏",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+        },
+        actions = {
+            IconButton(
+                onClick = onSearchClick
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Search,
+                    contentDescription = "搜尋收藏",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Spacer(
+                modifier = Modifier.width(4.dp)
+            )
+
+            Button(
+                onClick = onAddBookmarkClick,
+                shape = RoundedCornerShape(8.dp),
+                contentPadding = PaddingValues(
+                    horizontal = 12.dp,
+                    vertical = 8.dp
+                )
+            ) {
+                Text(
+                    text = "＋ 新增書籤",
+                    style = MaterialTheme.typography.labelLarge
+                )
+            }
+
+            Spacer(
+                modifier = Modifier.width(12.dp)
+            )
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.background
+        )
+    )
+}
+
+// --------------------------------------------------
+// Daily Picks Card
+// --------------------------------------------------
 
 @Composable
-fun HomeScreen() {
-    Column(
+private fun DailyPicksCard(
+    onClick: () -> Unit
+) {
+    Card(
+        onClick = onClick,
         modifier = Modifier
-            .fillMaxSize()
-            .background(
-                color = Color(0xFFFAF9F4),
-            )
-    ){
-        Column(
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 0.dp
+        )
+    ) {
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f)
-                .verticalScroll(rememberScrollState())
-        ){
+                .padding(18.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = "今日拾藏 • 3 則收藏已抽出",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                Spacer(
+                    modifier = Modifier.height(8.dp)
+                )
+
+                Text(
+                    text = "沉澱數位碎片，翻開為你挑選的安靜篇章。",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Spacer(
+                modifier = Modifier.width(12.dp)
+            )
+
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(10.dp))
                     .background(
-                        color = Color(0xFFFAF9F4),
-                    )
-                    .padding(top = 16.dp, start = 20.dp, end = 20.dp, bottom = 24.dp)
-            ){
+                        MaterialTheme.colorScheme.surfaceVariant
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.AutoStories,
+                    contentDescription = "今日拾藏",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
+    }
+}
+
+// --------------------------------------------------
+// Folder Section
+// --------------------------------------------------
+
+@Composable
+private fun FolderSection(
+    folders: List<FolderUiModel>,
+    modifier: Modifier = Modifier,
+    onEditClick: () -> Unit,
+    onFolderClick: (FolderUiModel) -> Unit
+) {
+    // 暫時使用假資料，未來改由 ViewModel 接收後端回傳的顯示方式
+    var displayMode by rememberSaveable {
+        mutableStateOf(DisplayMode)
+    }
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(
+                horizontal = 20.dp,
+                vertical = 28.dp
+            )
+    ) {
+        // Section Header
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            // SpaceBetween左側：標題與數量
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "我的收藏",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Text(
+                    text = "${folders.size} 個分類",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            // SpaceBetween右側：顯示方式與編輯按鈕
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // GRID、LIST 切換，編輯按鈕
                 Row(
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
-                        .fillMaxWidth()
-                ){
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                    ){
-                        CoilImage(
-                            imageModel = {"https://storage.googleapis.com/tagjs-prod.appspot.com/v1/dgVhxlMbDH/fg1q4rmy_expires_30_days.png"},
-                            imageOptions = ImageOptions(contentScale = ContentScale.Crop),
-                            modifier = Modifier
-                                .padding(end = 1.dp,)
-                                .clip(shape = RoundedCornerShape(16.dp))
-                                .size(40.dp)
-                        )
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ){
-                            Column(
-                            ){
-                                Text("聚藏",
-                                    color = Color(0xFF111111),
-                                fontSize = 28.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier
-                                        .padding(start = 12.dp,)
-                                )
-                            }
-                        }
-                    }
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                    ){
-                        CoilImage(
-                            imageModel = {"https://storage.googleapis.com/tagjs-prod.appspot.com/v1/dgVhxlMbDH/syibdhx6_expires_30_days.png"},
-                            imageOptions = ImageOptions(contentScale = ContentScale.Crop),
-                            modifier = Modifier
-                                .clip(shape = RoundedCornerShape(16.dp))
-                                .size(40.dp)
-                        )
-                        Column(
-                            modifier = Modifier
-                                .width(8.dp)
-                        ){
-                        }
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .clip(shape = RoundedCornerShape(6.dp))
-                                .background(
-                                    color = Color(0xFF4F5F4B),
-                                    shape = RoundedCornerShape(6.dp)
-                                )
-                                .shadow(
-                                    elevation = 2.dp,
-                                    spotColor = Color(0x0D000000),
-                                )
-                                .padding(vertical = 10.dp, horizontal = 12.dp)
-                        ){
-                            CoilImage(
-                                imageModel = {"https://storage.googleapis.com/tagjs-prod.appspot.com/v1/dgVhxlMbDH/587dtapt_expires_30_days.png"},
-                                imageOptions = ImageOptions(contentScale = ContentScale.Crop),
-                                modifier = Modifier
-                                    .clip(shape = RoundedCornerShape(6.dp))
-                                    .size(16.dp)
-                            )
-                            Column(
-                                modifier = Modifier
-                                    .width(8.dp)
-                            ){
-                            }
-                            Text("新增收藏",
-                                color = Color(0xFFFFFFFF),
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                            )
-                        }
-                    }
-                }
-                Column(
-                    modifier = Modifier
-                    .height(16.dp)
-                        .fillMaxWidth()
-                ){
-                }
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .clip(shape = RoundedCornerShape(12.dp))
-                        .fillMaxWidth()
                         .background(
-                            color = Color(0xFFF4F1E8),
-                            shape = RoundedCornerShape(12.dp)
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(
+                                alpha = 0.5f
+                            ),
+                            shape = RoundedCornerShape(8.dp)
                         )
-                        .padding(vertical = 16.dp, horizontal = 18.dp)
-                ){
-                    Column(
-                        modifier = Modifier
-                            .padding(end = 1.dp,)
-                            .weight(1f)
-                            .padding(bottom = 1.dp,)
-                    ){
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(end = 21.dp,)
-                        ){
-                            Text("今日拾藏 • 3 則精選已抽出",
-                                color = Color(0xFF222222),
-                                fontSize = 22.sp,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                        }
-                        Column(
-                            modifier = Modifier
-                                .height(9.dp)
-                                .fillMaxWidth()
-                        ){
-                        }
-                        Text("沉澱數位碎片，翻開為你挑選的安靜篇章。",
-                            color = Color(0xFF6F6A60),
-                            fontSize = 16.sp,
+                        .padding(3.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // 區塊顯示
+                    IconButton(
+                        onClick = {
+                            displayMode = FolderDisplayMode.GRID
+                        },
+                        modifier = Modifier.size(34.dp),
+                        colors = IconButtonDefaults.iconButtonColors(
+                            containerColor = if (displayMode == FolderDisplayMode.GRID) {
+                                MaterialTheme.colorScheme.surface
+                            } else {
+                                Color.Transparent
+                            }
                         )
-                    }
-                        CoilImage(
-                            imageModel = {"https://storage.googleapis.com/tagjs-prod.appspot.com/v1/dgVhxlMbDH/64hg8oiy_expires_30_days.png"},
-                            imageOptions = ImageOptions(contentScale = ContentScale.Crop),
-                            modifier = Modifier
-                                .clip(shape = RoundedCornerShape(12.dp))
-                                .size(40.dp)
-                        )
-                }
-                Spacer(modifier = Modifier.height(28.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                ){
-                    Row(
-                        modifier = Modifier.weight(1f),
-                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text("收藏分類夾", color = Color(0xFF222222), fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("5 個分類", color = Color(0xFF7A7468), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                    }
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                    ){
-                        CoilImage(
-                            imageModel = {"https://storage.googleapis.com/tagjs-prod.appspot.com/v1/dgVhxlMbDH/2o833yek_expires_30_days.png"},
-                            imageOptions = ImageOptions(contentScale = ContentScale.Crop),
-                            modifier = Modifier
-                                .clip(shape = RoundedCornerShape(10.dp))
-                                .width(64.dp)
-                                .height(40.dp)
+                        Icon(
+                            imageVector = Icons.Outlined.GridView,
+                            contentDescription = "區塊顯示",
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(20.dp)
                         )
-                        Column(
-                            modifier = Modifier
-                                .width(8.dp)
-                        ){
-                        }
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                        ){
-                            CoilImage(
-                                imageModel = {"https://storage.googleapis.com/tagjs-prod.appspot.com/v1/dgVhxlMbDH/xla93nhy_expires_30_days.png"},
-                                imageOptions = ImageOptions(contentScale = ContentScale.Crop),
-                                modifier = Modifier
-                                    .width(16.dp)
-                                    .height(16.dp)
-                            )
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                            ){
-                                Column(
-                                    modifier = Modifier
-                                        .padding(end = 7.dp,)
-                                ){
-                                    Text("編輯",
-                                        color = Color(0xFF4A4A4A),
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier
-                                            .padding(start = 7.dp,)
-                                    )
-                                    Column(
-                                        modifier = Modifier
-                                            .width(8.dp)
-                                            .height(24.dp)
-                                    ){
-                                    }
-                                }
+                    }
+
+                    // 列表顯示
+                    IconButton(
+                        onClick = {
+                            displayMode = FolderDisplayMode.LIST
+                        },
+                        modifier = Modifier.size(34.dp),
+                        colors = IconButtonDefaults.iconButtonColors(
+                            containerColor = if (displayMode == FolderDisplayMode.LIST) {
+                                MaterialTheme.colorScheme.surface
+                            } else {
+                                Color.Transparent
                             }
-                        }
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Outlined.ViewList,
+                            contentDescription = "列表顯示",
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
                 }
-                Column(
-                    modifier = Modifier.height(14.dp).fillMaxWidth()
-                ){
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                TextButton(
+                    onClick = onEditClick,
+                    contentPadding = PaddingValues(
+                        horizontal = 4.dp,
+                        vertical = 0.dp
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Edit,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+
+                    Spacer(
+                        modifier = Modifier.width(4.dp)
+                    )
+
+                    Text(
+                        text = "編輯",
+                        color = MaterialTheme.colorScheme.primary
+                    )
                 }
-                Column(
+            }
+        }
+
+        Spacer(
+            modifier = Modifier.height(14.dp)
+        )
+
+        // 根據顯示方式切換內容
+        when (displayMode) {
+            FolderDisplayMode.GRID -> {
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
                     modifier = Modifier
-                        .padding(bottom = 40.dp,)
                         .fillMaxWidth()
-                ){
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                    ){
-                        Column(
-                            modifier = Modifier
-                                .clip(shape = RoundedCornerShape(12.dp))
-                                .weight(1f)
-                                .background(
-                                    color = Color(0xFFFFFFFF),
-                                    shape = RoundedCornerShape(12.dp)
-                                )
-                                .shadow(
-                                    elevation = 2.dp,
-                                    spotColor = Color(0x12000000),
-                                )
-                                .padding(bottom = 11.dp,)
-                        ){
-                            CoilImage(
-                                imageModel = {"https://placehold.co/600x420/png?text=Desk+with+laptop+and+notebook+by+a+window"},
-                                imageOptions = ImageOptions(contentScale = ContentScale.Crop),
-                                modifier = Modifier
-                                    .clip(shape = RoundedCornerShape(12.dp))
-                                    .fillMaxWidth()
-                                    .aspectRatio(1.52f)
-                            )
-                            Column(
-                                modifier = Modifier
-                                    .height(7.dp)
-                                    .fillMaxWidth()
-                            ){
+                        .weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(
+                        bottom = 24.dp
+                    ),
+                    userScrollEnabled = true
+                ) {
+                    items(
+                        items = folders,
+                        key = { it.id }
+                    ) { folder ->
+                        FolderCard(
+                            folder = folder,
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                onFolderClick(folder)
                             }
-                            Column(
-                                modifier = Modifier
-                                    .padding(horizontal = 12.dp,)
-                            ){
-                                Text("未分類 (18) ",
-                                    color = Color(0xFF2A2A2A),
-                                    fontSize = 20.sp,
-                                )
-                            }
-                        }
-                        Column(
-                            modifier = Modifier
-                                .width(12.dp)
-                                .height(185.dp)
-                        ){
-                        }
-                        Column(
-                            modifier = Modifier
-                                .clip(shape = RoundedCornerShape(12.dp))
-                                .weight(1f)
-                                .background(
-                                    color = Color(0xFFFFFFFF),
-                                    shape = RoundedCornerShape(12.dp)
-                                )
-                                .shadow(
-                                    elevation = 2.dp,
-                                    spotColor = Color(0x12000000),
-                                )
-                                .padding(bottom = 11.dp,)
-                        ){
-                            CoilImage(
-                                imageModel = {"https://placehold.co/600x420/png?text=Old+street+tea+shop+front+with+signboard"},
-                                imageOptions = ImageOptions(contentScale = ContentScale.Crop),
-                                modifier = Modifier
-                                    .clip(shape = RoundedCornerShape(12.dp))
-                                    .fillMaxWidth()
-                                    .aspectRatio(1.52f)
-                            )
-                            Column(
-                                modifier = Modifier
-                                    .height(7.dp)
-                                    .fillMaxWidth()
-                            ){
-                            }
-                            Column(
-                                modifier = Modifier
-                                    .padding(horizontal = 12.dp,)
-                            ){
-                                Text("工作 (21) ",
-                                    color = Color(0xFF2A2A2A),
-                                    fontSize = 20.sp,
-                                )
-                            }
-                        }
-                    }
-                    Column(
-                        modifier = Modifier
-                            .height(12.dp)
-                            .fillMaxWidth()
-                    ){
-                    }
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                    ){
-                        Column(
-                            modifier = Modifier
-                                .clip(shape = RoundedCornerShape(12.dp))
-                                .weight(1f)
-                                .background(
-                                    color = Color(0xFFFFFFFF),
-                                    shape = RoundedCornerShape(12.dp)
-                                )
-                                .shadow(
-                                    elevation = 2.dp,
-                                    spotColor = Color(0x12000000),
-                                )
-                                .padding(bottom = 11.dp,)
-                        ){
-                            CoilImage(
-                                imageModel = {"https://placehold.co/600x420/png?text=Old+street+tea+shop+front+with+signboard"},
-                                imageOptions = ImageOptions(contentScale = ContentScale.Crop),
-                                modifier = Modifier
-                                    .clip(shape = RoundedCornerShape(12.dp))
-                                    .fillMaxWidth()
-                                    .aspectRatio(1.52f)
-                            )
-                            Column(
-                                modifier = Modifier
-                                    .height(7.dp)
-                                    .fillMaxWidth()
-                            ){
-                            }
-                            Column(
-                                modifier = Modifier
-                                    .padding(horizontal = 12.dp,)
-                            ){
-                                Text("生活靈感 (9) ",
-                                    color = Color(0xFF2A2A2A),
-                                    fontSize = 20.sp,
-                                )
-                            }
-                        }
-                        Column(
-                            modifier = Modifier
-                                .width(12.dp)
-                                .height(231.dp)
-                        ){
-                        }
-                        Column(
-                            modifier = Modifier
-                                .clip(shape = RoundedCornerShape(12.dp))
-                                .weight(1f)
-                                .background(
-                                    color = Color(0xFFFFFFFF),
-                                    shape = RoundedCornerShape(12.dp)
-                                )
-                                .shadow(
-                                    elevation = 2.dp,
-                                    spotColor = Color(0x12000000),
-                                )
-                                .padding(bottom = 11.dp,)
-                        ){
-                            CoilImage(
-                                imageModel = {"https://placehold.co/600x420/png?text=Desk+with+laptop+and+notebook+by+a+window"},
-                                imageOptions = ImageOptions(contentScale = ContentScale.Crop),
-                                modifier = Modifier
-                                    .clip(shape = RoundedCornerShape(12.dp))
-                                    .fillMaxWidth()
-                                    .aspectRatio(1.52f)
-                            )
-                            Column(
-                                modifier = Modifier
-                                    .height(7.dp)
-                                    .fillMaxWidth()
-                            ){
-                            }
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 12.dp,)
-                            ){
-                                Text("京都喫茶店與老鋪書店選書漫遊指南 (14) ",
-                                    color = Color(0xFF2A2A2A),
-                                    fontSize = 20.sp,
-                                )
-                            }
-                        }
-                    }
-                    Column(
-                        modifier = Modifier
-                            .height(12.dp)
-                            .fillMaxWidth()
-                    ){
-                    }
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier
-                            .clip(shape = RoundedCornerShape(12.dp))
-                            .background(
-                                color = Color(0xFFFFFFFF),
-                                shape = RoundedCornerShape(12.dp)
-                            )
-                            .shadow(
-                                elevation = 8.dp,
-                                spotColor = Color(0x12000000),
-                            )
-                            .padding(bottom = 10.dp,)
-                    ){
-                        CoilImage(
-                            imageModel = {"https://storage.googleapis.com/tagjs-prod.appspot.com/v1/dgVhxlMbDH/2nl27x0f_expires_30_days.png"},
-                            imageOptions = ImageOptions(contentScale = ContentScale.Crop),
-                            modifier = Modifier
-                                .padding(bottom = 1.dp,)
-                                .clip(shape = RoundedCornerShape(12.dp))
-                                .fillMaxWidth()
-                                .aspectRatio(1.52f)
                         )
-                        Column(
-                        ){
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(7.dp)
-                            ){
-                            }
-                            Column(
-                                modifier = Modifier
-                                    .padding(end = 61.dp,)
-                                    .padding(horizontal = 12.dp,)
-                            ){
-                                Text("閱讀筆記 (0) ",
-                                    color = Color(0xFF2A2A2A),
-                                    fontSize = 20.sp,
-                                )
-                            }
-                        }
                     }
                 }
             }
+
+            FolderDisplayMode.LIST -> {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(
+                        bottom = 24.dp
+                    ),
+                    userScrollEnabled = true
+                ) {
+                    items(
+                        items = folders,
+                        key = { it.id }
+                    ) { folder ->
+                        FolderListItem(
+                            folder = folder,
+                            onClick = {
+                                onFolderClick(folder)
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// --------------------------------------------------
+// Folder Card
+// --------------------------------------------------
+
+@Composable
+private fun FolderCard(
+    folder: FolderUiModel,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Card(
+        onClick = onClick,
+        modifier = modifier,
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 0.dp
+        )
+    ) {
+        Column {
+            CoilImage(
+                imageModel = { folder.imageUrl },
+                imageOptions = ImageOptions(
+                    contentScale = ContentScale.Crop
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1.52f)
+            )
+
+            Text(
+                text = "${folder.title} (${folder.count})",
+                modifier = Modifier.padding(
+                    horizontal = 12.dp,
+                    vertical = 12.dp
+                ),
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+    }
+}
+
+// --------------------------------------------------
+// Folder List Item
+// --------------------------------------------------
+
+@Composable
+private fun FolderListItem(
+    folder: FolderUiModel,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Card(
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 0.dp
+        ),
+        border = BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(
+                alpha = 0.5f
+            )
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // 收藏夾縮圖
+            CoilImage(
+                imageModel = { folder.imageUrl },
+                imageOptions = ImageOptions(
+                    contentScale = ContentScale.Crop
+                ),
+                modifier = Modifier
+                    .size(70.dp)
+                    .clip(RoundedCornerShape(6.dp))
+            )
+
+            Spacer(
+                modifier = Modifier.width(14.dp)
+            )
+
+            // 收藏夾名稱與收藏數量
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = folder.title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Spacer(
+                    modifier = Modifier.height(6.dp)
+                )
+
+                Text(
+                    text = "${folder.count} 則收藏",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            // > 查看收藏夾
+            Icon(
+                imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                contentDescription = "查看收藏夾",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(24.dp)
+            )
         }
     }
 }

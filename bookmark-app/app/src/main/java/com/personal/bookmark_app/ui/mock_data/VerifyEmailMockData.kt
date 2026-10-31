@@ -1,0 +1,22 @@
+package com.personal.bookmark_app.ui.mock_data
+
+import com.personal.bookmark_app.ui.screen.verifyemail.VerifyEmailUiState
+
+object VerifyEmailMockData {
+
+    val default = VerifyEmailUiState(
+        email = "shuhai.reader@cang.app",
+        verificationCode = "",
+        resendCountdown = 45
+    )
+
+    val error = default.copy(
+        verificationCode = "123456",
+        errorMessage = "驗證碼錯誤，請重新確認"
+    )
+
+    val completed = default.copy(
+        verificationCode = "123456",
+        resendCountdown = 0
+    )
+}
