@@ -1,6 +1,6 @@
 package com.personal.bookmark_app.ui.screen.addbookmark
 
-import com.personal.bookmark_app.ui.mock_data.AddBookmarkMockData
+import com.personal.bookmark_app.ui.mockdata.AddBookmarkMockData
 import com.personal.bookmark_app.ui.model.BookmarkSource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -49,6 +49,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -56,7 +61,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.personal.bookmark_app.ui.components.TextFieldView
+import com.personal.bookmark_app.ui.model.BookmarkPreviewUiModel
 import com.personal.bookmark_app.ui.model.FolderUiModel
+import com.personal.bookmark_app.ui.model.TagOptionUiModel
 import com.skydoves.landscapist.ImageOptions
 import com.skydoves.landscapist.coil3.CoilImage
 
@@ -64,23 +71,43 @@ import com.skydoves.landscapist.coil3.CoilImage
 @Composable
 fun AddBookmarkScreen(
     uiState: AddBookmarkUiState,
-
     onTitleChange: (String) -> Unit,
     onNoteChange: (String) -> Unit,
     onSourceChange: (BookmarkSource) -> Unit,
 
-    onFolderClick: () -> Unit,
+    onFolderSelected: (Long) -> Unit,
+    onCreateFolderClick: (String) -> Unit,
+
     onTagClick: (String) -> Unit,
-    onAddCustomTagClick: () -> Unit,
 
     onDailyPicksChange: (Boolean) -> Unit,
-
     onReparseClick: () -> Unit,
     onClearTitleClick: () -> Unit,
 
     onSaveClick: () -> Unit,
     onBackClick: () -> Unit
 ) {
+    var showFolderSheet by rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    var showAddFolderDialog by rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    var folders by remember {
+        mutableStateOf(AddBookmarkMockData.folders)
+    }
+
+    // 控制新增自訂標籤 Dialog
+    var showAddTagDialog by rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    // 暫存標籤列表
+    var tags by remember {
+        mutableStateOf(AddBookmarkMockData.tags)
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -122,7 +149,6 @@ fun AddBookmarkScreen(
 
     ) { innerPadding ->
 
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -135,10 +161,12 @@ fun AddBookmarkScreen(
             // 1. 文章預覽、來源網址、收藏資料夾
             BookmarkPreviewCard(
                 preview = AddBookmarkMockData.preview,
-                folders = AddBookmarkMockData.folders,
+                folders = folders,
                 selectedFolderId = uiState.selectedFolderId,
                 isParsing = uiState.isParsing,
-                onFolderClick = onFolderClick,
+                onFolderClick = {
+                    showFolderSheet = true
+                },
                 onReparseClick = onReparseClick
             )
 
@@ -163,10 +191,12 @@ fun AddBookmarkScreen(
 
             // 5. 索引標籤
             BookmarkTagSection(
-                tags = AddBookmarkMockData.tags,
+                tags = tags,
                 selectedTagIds = uiState.selectedTagIds,
                 onTagClick = onTagClick,
-                onAddCustomTagClick = onAddCustomTagClick
+                onAddCustomTagClick = {
+                    showAddTagDialog = true
+                }
             )
 
             // 6. 是否加入今日拾藏
@@ -175,6 +205,87 @@ fun AddBookmarkScreen(
                 onCheckedChange = onDailyPicksChange
             )
         }
+    }
+    if (showFolderSheet) {
+        FolderSelectionSheet(
+            folders = AddBookmarkMockData.folders,
+            selectedFolderId = uiState.selectedFolderId,
+            onDismiss = {
+                showFolderSheet = false
+            },
+            onFolderSelected = { folderId ->
+                onFolderSelected(folderId)
+                showFolderSheet = false
+            },
+            onCreateFolderClick = {
+                showFolderSheet = false
+                showAddFolderDialog = true
+            }
+        )
+    }
+
+    // 新增資料夾 Dialog
+    if (showAddFolderDialog) {
+        AddFolderDialog(
+            onDismiss = {
+                showAddFolderDialog = false
+            },
+            onConfirm = { folderName ->
+
+                // 建立新的資料夾 ID
+                val newFolderId = (folders.maxOfOrNull { it.id } ?: 0L) + 1L
+
+                // 建立新的資料夾
+                val newFolder = FolderUiModel(
+                    id = newFolderId,
+                    title = folderName,
+                    count = 0,
+                    imageUrl = "",
+                    latestSavedAt = null
+                )
+
+                // 更新資料夾列表
+                folders = folders + newFolder
+
+                // 自動選取新建立的資料夾
+                onFolderSelected(newFolderId)
+
+                // 通知外部新增資料夾
+                onCreateFolderClick(folderName)
+
+                showAddFolderDialog = false
+            }
+        )
+    }
+
+    // 新增自訂標籤 Dialog
+    if (showAddTagDialog) {
+        AddTagDialog(
+            existingTags = tags,
+            onDismiss = {
+                showAddTagDialog = false
+            },
+            onConfirm = { tagName ->
+
+                // 建立新的標籤 ID
+                val newTagId = "custom_${java.util.UUID.randomUUID()}"
+
+                // 建立新的標籤
+                val newTag = TagOptionUiModel(
+                    id = newTagId,
+                    name = tagName
+                )
+
+                // 更新標籤列表
+                tags = tags + newTag
+
+                // 自動選取新建立的標籤
+                onTagClick(newTagId)
+
+                // 關閉 Dialog
+                showAddTagDialog = false
+            }
+        )
     }
 }
 

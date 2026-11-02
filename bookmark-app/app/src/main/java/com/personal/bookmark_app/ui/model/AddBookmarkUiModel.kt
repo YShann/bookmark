@@ -1,6 +1,4 @@
-package com.personal.bookmark_app.ui.screen.addbookmark
-
-import com.personal.bookmark_app.ui.model.BookmarkSource
+package com.personal.bookmark_app.ui.model
 
 /**
  * 文章預覽資料

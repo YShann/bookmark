@@ -1,4 +1,4 @@
-package com.personal.bookmark_app.ui.mock_data
+package com.personal.bookmark_app.ui.mockdata
 
 import com.personal.bookmark_app.ui.screen.verifyemail.VerifyEmailUiState
 

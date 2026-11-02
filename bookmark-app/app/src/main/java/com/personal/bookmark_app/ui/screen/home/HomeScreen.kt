@@ -1,7 +1,9 @@
-package com.personal.bookmark_app.ui.screen
+package com.personal.bookmark_app.ui.screen.home
 
+import android.net.Uri
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -18,9 +20,12 @@ import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -30,32 +35,58 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.personal.bookmark_app.ui.mock_data.FolderMockData
-import com.personal.bookmark_app.ui.mock_data.DisplayMode
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.personal.bookmark_app.ui.mockdata.FolderMockData
 import com.personal.bookmark_app.ui.model.FolderDisplayMode
 import com.personal.bookmark_app.ui.model.FolderUiModel
+import com.personal.bookmark_app.ui.viewmodel.HomeViewModel
 import com.skydoves.landscapist.ImageOptions
 import com.skydoves.landscapist.coil3.CoilImage
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     onSearchClick: () -> Unit = {},
     onAddBookmarkClick: () -> Unit = {},
     onDailyPicksClick: () -> Unit = {},
     onEditFoldersClick: () -> Unit = {},
-    onFolderClick: (FolderUiModel) -> Unit = {}
+    onFolderClick: (FolderUiModel) -> Unit = {},
+    onAvatarSelected: (Uri) -> Unit = {},
+    onLogoutClick: () -> Unit = {}
 ) {
+    // 將假資料轉成可觀察、可修改的 Compose 狀態
+    val folders = remember {
+        mutableStateListOf<FolderUiModel>().apply {
+            addAll(FolderMockData)
+        }
+    }
+
+    var showFolderManagement by rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    // 記錄目前選取的空資料夾
+    var selectedEmptyFolder by remember {
+        mutableStateOf<FolderUiModel?>(null)
+    }
+
+    val homeViewModel: HomeViewModel = viewModel()
+
+    // 觀察本地端儲存的顯示方式
+    val displayMode by homeViewModel.folderDisplayMode.collectAsState()
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             HomeTopAppBar(
                 onSearchClick = onSearchClick,
-                onAddBookmarkClick = onAddBookmarkClick
+                onAddBookmarkClick = onAddBookmarkClick,
+                email = "mokuhaku.gather@gmail.com",
+                avatarImageUrl = "https://storage.googleapis.com/tagjs-prod.appspot.com/v1/dgVhxlMbDH/m1gw1n0e_expires_30_days.png",
+                onAvatarSelected = onAvatarSelected,
+                onLogoutClick = onLogoutClick
             )
         }
     ) { innerPadding ->
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -68,12 +99,153 @@ fun HomeScreen(
             FolderSection(
                 folders = FolderMockData,
                 modifier = Modifier.weight(1f),
+                displayMode = displayMode,
+                onDisplayModeChange = homeViewModel::updateFolderDisplayMode,
                 onEditClick = onEditFoldersClick,
-                onFolderClick = onFolderClick
+                onFolderClick = { folder ->
+                    // 判斷資料夾是否有收藏
+                    if (folder.count == 0) {
+                        selectedEmptyFolder = folder
+                    } else {
+                        // 有收藏則維持原本的導頁行為
+                        onFolderClick(folder)
+                    }
+                }
             )
         }
     }
+
+    // 收藏夾管理 Bottom Sheet
+    if (showFolderManagement) {
+        FolderManagementSheet(
+            folders = folders,
+            onDismiss = {
+                showFolderManagement = false
+            },
+            // 修改資料夾名稱
+            onRename = { folderId, newTitle ->
+                val index = folders.indexOfFirst {
+                    it.id == folderId
+                }
+
+                if (index != -1) {
+                    folders[index] = folders[index].copy(
+                        title = newTitle
+                    )
+                }
+            },
+            // 直接刪除資料夾及其收藏
+            onDelete = { folderId ->
+                folders.removeAll {
+                    it.id == folderId
+                }
+            },
+            // 將收藏移至「未分類」後刪除原資料夾
+            onMoveToUnclassified = { folderId ->
+
+                // 找到要刪除的資料夾
+                val sourceFolder = folders.find {
+                    it.id == folderId
+                }
+
+                // 找到「未分類」資料夾
+                val unclassifiedIndex = folders.indexOfFirst {
+                    it.title == "未分類"
+                }
+
+                // 確認兩個資料夾都存在，而且不是同一個
+                if (
+                    sourceFolder != null &&
+                    unclassifiedIndex != -1 &&
+                    sourceFolder.id != folders[unclassifiedIndex].id
+                ) {
+                    // 取得「未分類」資料夾
+                    val unclassifiedFolder = folders[unclassifiedIndex]
+
+                    // 更新「未分類」的收藏數量
+                    folders[unclassifiedIndex] = unclassifiedFolder.copy(
+                        count = unclassifiedFolder.count + sourceFolder.count
+                    )
+
+                    // 刪除原本的資料夾
+                    folders.removeAll {
+                        it.id == folderId
+                    }
+                }
+            },
+            // 新增資料夾
+            onAdd = { folderName ->
+                val newId = (folders.maxOfOrNull {
+                    it.id
+                } ?: 0L) + 1L
+
+                folders.add(
+                    FolderUiModel(
+                        id = newId,
+                        title = folderName,
+                        count = 0,
+                        imageUrl = "https://placehold.co/600x420/png?text=New",
+                        latestSavedAt = null
+                    )
+                )
+            }
+        )
+    }
+
+    // 空資料夾 Bottom Sheet
+    selectedEmptyFolder?.let { folder ->
+        EmptyFolderBottomSheet(
+            folder = folder,
+            onDismiss = {
+                selectedEmptyFolder = null
+            },
+            onAddBookmarkClick = {
+                selectedEmptyFolder = null
+
+                // 導向新增收藏頁面
+                onAddBookmarkClick()
+            }
+        )
+    }
+
 }
+//@OptIn(ExperimentalMaterial3Api::class)
+//@Composable
+//fun HomeScreen(
+//    onSearchClick: () -> Unit = {},
+//    onAddBookmarkClick: () -> Unit = {},
+//    onDailyPicksClick: () -> Unit = {},
+//    onEditFoldersClick: () -> Unit = {},
+//    onFolderClick: (FolderUiModel) -> Unit = {}
+//) {
+//    Scaffold(
+//        containerColor = MaterialTheme.colorScheme.background,
+//        topBar = {
+//            HomeTopAppBar(
+//                onSearchClick = onSearchClick,
+//                onAddBookmarkClick = onAddBookmarkClick
+//            )
+//        }
+//    ) { innerPadding ->
+//
+//        Column(
+//            modifier = Modifier
+//                .fillMaxSize()
+//                .padding(innerPadding)
+//        ) {
+//            DailyPicksCard(
+//                onClick = onDailyPicksClick
+//            )
+//
+//            FolderSection(
+//                folders = FolderMockData,
+//                modifier = Modifier.weight(1f),
+//                onEditClick = onEditFoldersClick,
+//                onFolderClick = onFolderClick
+//            )
+//        }
+//    }
+//}
 
 // --------------------------------------------------
 // Home Top App Bar
@@ -83,8 +255,21 @@ fun HomeScreen(
 @Composable
 private fun HomeTopAppBar(
     onSearchClick: () -> Unit,
-    onAddBookmarkClick: () -> Unit
+    onAddBookmarkClick: () -> Unit,
+    email: String,
+    avatarImageUrl: String,
+    onAvatarSelected: (Uri) -> Unit,
+    onLogoutClick: () -> Unit
 ) {
+    var showProfileDialog by rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    // 暫存使用者選擇的新頭像
+    var selectedAvatarUri by remember {
+        mutableStateOf<Uri?>(null)
+    }
+
     TopAppBar(
         title = {
             Row(
@@ -92,7 +277,7 @@ private fun HomeTopAppBar(
             ) {
                 CoilImage(
                     imageModel = {
-                        "https://storage.googleapis.com/tagjs-prod.appspot.com/v1/dgVhxlMbDH/fg1q4rmy_expires_30_days.png"
+                        selectedAvatarUri ?: avatarImageUrl
                     },
                     imageOptions = ImageOptions(
                         contentScale = ContentScale.Crop
@@ -100,6 +285,9 @@ private fun HomeTopAppBar(
                     modifier = Modifier
                         .size(36.dp)
                         .clip(RoundedCornerShape(8.dp))
+                        .clickable {
+                            showProfileDialog = true
+                        }
                 )
 
                 Spacer(
@@ -151,6 +339,25 @@ private fun HomeTopAppBar(
             containerColor = MaterialTheme.colorScheme.background
         )
     )
+
+    // 個人檔案 Dialog
+    if (showProfileDialog) {
+        PersonalProfileDialog(
+            email = email,
+            avatarImageUrl = selectedAvatarUri ?: avatarImageUrl,
+            onDismiss = {
+                showProfileDialog = false
+            },
+            onAvatarSelected = { uri ->
+                selectedAvatarUri = uri
+                onAvatarSelected(uri)
+            },
+            onLogoutClick = {
+                showProfileDialog = false
+                onLogoutClick()
+            }
+        )
+    }
 }
 
 // --------------------------------------------------
@@ -233,14 +440,11 @@ private fun DailyPicksCard(
 private fun FolderSection(
     folders: List<FolderUiModel>,
     modifier: Modifier = Modifier,
+    displayMode: FolderDisplayMode,
+    onDisplayModeChange: (FolderDisplayMode) -> Unit,
     onEditClick: () -> Unit,
     onFolderClick: (FolderUiModel) -> Unit
 ) {
-    // 暫時使用假資料，未來改由 ViewModel 接收後端回傳的顯示方式
-    var displayMode by rememberSaveable {
-        mutableStateOf(DisplayMode)
-    }
-
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -294,7 +498,7 @@ private fun FolderSection(
                     // 區塊顯示
                     IconButton(
                         onClick = {
-                            displayMode = FolderDisplayMode.GRID
+                            onDisplayModeChange(FolderDisplayMode.GRID)
                         },
                         modifier = Modifier.size(34.dp),
                         colors = IconButtonDefaults.iconButtonColors(
@@ -316,7 +520,7 @@ private fun FolderSection(
                     // 列表顯示
                     IconButton(
                         onClick = {
-                            displayMode = FolderDisplayMode.LIST
+                            onDisplayModeChange(FolderDisplayMode.LIST)
                         },
                         modifier = Modifier.size(34.dp),
                         colors = IconButtonDefaults.iconButtonColors(

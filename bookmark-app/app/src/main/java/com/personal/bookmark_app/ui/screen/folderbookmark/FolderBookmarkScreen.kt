@@ -1,7 +1,19 @@
-package com.personal.bookmark_app.ui.screen.folderdetail
+package com.personal.bookmark_app.ui.screen.folderbookmark
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -16,33 +28,239 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.personal.bookmark_app.ui.components.TextFieldView
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import com.personal.bookmark_app.ui.components.FolderBookmarkCard
-import com.personal.bookmark_app.ui.mock_data.FolderDetailMockData
+import com.personal.bookmark_app.ui.mockdata.FolderDetailMockData
+import com.personal.bookmark_app.ui.mockdata.FolderDetailMockData.availableTags
 
+//@Composable
+//fun FolderDetailScreen(
+//    folderName: String = "未分類",
+////    folderId: Long,
+//    onBackClick: () -> Unit = {},
+//    onBatchManageClick: () -> Unit = {},
+//    onBookmarkClick: (String) -> Unit = {}
+//) {
+//    var uiState by remember {
+//        mutableStateOf(FolderBookmarkUiState())
+//    }
+//
+//    val bookmarks = FolderDetailMockData.bookmarks
+//
+//    // 搜尋與標籤篩選
+//    val filteredBookmarks = remember(
+//        bookmarks,
+//        uiState.searchQuery,
+//        uiState.selectedTags,
+//        uiState.isNewestFirst
+//    ) {
+//        bookmarks
+//            .filter { bookmark ->
+//                val matchesSearch =
+//                    uiState.searchQuery.isBlank() ||
+//                            bookmark.title.contains(uiState.searchQuery, ignoreCase = true) ||
+//                            bookmark.description.contains(uiState.searchQuery, ignoreCase = true) ||
+//                            bookmark.source.contains(uiState.searchQuery, ignoreCase = true)
+//
+//                val matchesTags =
+//                    uiState.selectedTags.isEmpty() ||
+//                            uiState.selectedTags.all { tag ->
+//                                tag in bookmark.tags
+//                            }
+//
+//                matchesSearch && matchesTags
+//            }
+//            .let { result ->
+//                if (uiState.isNewestFirst) {
+//                    result.sortedByDescending { it.date }
+//                } else {
+//                    result.sortedBy { it.date }
+//                }
+//            }
+//    }
+//
+//    Scaffold(
+//        containerColor = MaterialTheme.colorScheme.background,
+//        topBar = {
+//            FolderDetailTopBar(
+//                folderName = folderName,
+//                onBackClick = onBackClick,
+//                onBatchManageClick = {
+//                    uiState = uiState.copy(
+//                        isBatchManaging = !uiState.isBatchManaging
+//                    )
+//                    onBatchManageClick()
+//                }
+//            )
+//        }
+//    ) { innerPadding ->
+//
+//        LazyColumn(
+//            modifier = Modifier
+//                .fillMaxSize()
+//                .padding(innerPadding),
+//            contentPadding = PaddingValues(
+//                start = 24.dp,
+//                end = 24.dp,
+//                top = 16.dp,
+//                bottom = 28.dp
+//            ),
+//            verticalArrangement = Arrangement.spacedBy(12.dp)
+//        ) {
+//
+//            // 搜尋欄位
+//            item {
+//                FolderSearchBar(
+//                    value = uiState.searchQuery,
+//                    onValueChange = {
+//                        uiState = uiState.copy(searchQuery = it)
+//                    }
+//                )
+//            }
+//
+//            // 標籤篩選
+//            item {
+//                FolderTagFilter(
+//                    availableTags = FolderDetailMockData.availableTags,
+//                    selectedTags = uiState.selectedTags,
+//                    isExpanded = uiState.isTagFilterExpanded,
+//                    onTagClick = { tag ->
+//                        val newTags = uiState.selectedTags.toMutableSet()
+//
+//                        if (tag in newTags) {
+//                            newTags.remove(tag)
+//                        } else {
+//                            newTags.add(tag)
+//                        }
+//
+//                        uiState = uiState.copy(
+//                            selectedTags = newTags
+//                        )
+//                    },
+//                    onClearClick = {
+//                        uiState = uiState.copy(
+//                            selectedTags = emptySet()
+//                        )
+//                    },
+//                    onExpandClick = {
+//                        uiState = uiState.copy(
+//                            isTagFilterExpanded =
+//                                !uiState.isTagFilterExpanded
+//                        )
+//                    }
+//                )
+//            }
+//
+//            // 收藏數量與排序
+//            item {
+//                FolderBookmarkHeader(
+//                    count = filteredBookmarks.size,
+//                    isNewestFirst = uiState.isNewestFirst,
+//                    onSortClick = {
+//                        uiState = uiState.copy(
+//                            isNewestFirst = !uiState.isNewestFirst
+//                        )
+//                    }
+//                )
+//            }
+//
+//            // 收藏清單
+//            if (filteredBookmarks.isEmpty()) {
+//                item {
+//                    EmptyBookmarkView()
+//                }
+//            } else {
+//                items(
+//                    items = filteredBookmarks,
+//                    key = { it.id }
+//                ) { bookmark ->
+//                    FolderBookmarkCard(
+//                        item = bookmark,
+//                        onClick = {
+//                            onBookmarkClick(bookmark.id)
+//                        }
+//                    )
+//                }
+//            }
+//        }
+//    }
+//}
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FolderDetailScreen(
+fun FolderBookmarkScreen(
     folderName: String = "未分類",
     onBackClick: () -> Unit = {},
     onBatchManageClick: () -> Unit = {},
-    onBookmarkClick: (String) -> Unit = {}
+    onBookmarkClick: (String) -> Unit = {},
+    onDeleteBookmarks: (List<String>) -> Unit = {},
+    onMoveBookmarks: (List<String>, String) -> Unit = { _, _ -> }
 ) {
+    // ------------------------------------
+    // UI State
+    // ------------------------------------
+
     var uiState by remember {
-        mutableStateOf(FolderDetailUiState())
+        mutableStateOf(FolderBookmarkUiState())
     }
 
-    val bookmarks = FolderDetailMockData.bookmarks
+    // 畫面收藏假資料
+    var bookmarks by remember {
+        mutableStateOf(FolderDetailMockData.bookmarks.toList())
+    }
 
-    // 搜尋與標籤篩選
+    // 已選取的收藏 ID
+    var selectedBookmarkIds by remember {
+        mutableStateOf<Set<String>>(emptySet())
+    }
+
+    // Dialog / BottomSheet
+    var showDeleteDialog by remember {
+        mutableStateOf(false)
+    }
+
+    var showMoveSheet by remember {
+        mutableStateOf(false)
+    }
+
+    val moveSheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true
+    )
+
+    // 目的資料夾假資料
+    val availableFolders = remember(folderName) {
+        listOf(
+            "生活靈感", "稍後閱讀", "旅行清單", "美食收藏"
+        ).filterNot { it == folderName }
+    }
+
+    // ------------------------------------
+    // 收藏搜尋、篩選、排序
+    // ------------------------------------
+
     val filteredBookmarks = remember(
         bookmarks,
         uiState.searchQuery,
@@ -51,17 +269,22 @@ fun FolderDetailScreen(
     ) {
         bookmarks
             .filter { bookmark ->
+
                 val matchesSearch =
                     uiState.searchQuery.isBlank() ||
-                            bookmark.title.contains(uiState.searchQuery, ignoreCase = true) ||
-                            bookmark.description.contains(uiState.searchQuery, ignoreCase = true) ||
-                            bookmark.source.contains(uiState.searchQuery, ignoreCase = true)
+                            bookmark.title.contains(
+                                uiState.searchQuery, ignoreCase = true
+                            ) ||
+                            bookmark.description.contains(
+                                uiState.searchQuery, ignoreCase = true
+                            ) ||
+                            bookmark.source.contains(
+                                uiState.searchQuery, ignoreCase = true
+                            )
 
                 val matchesTags =
                     uiState.selectedTags.isEmpty() ||
-                            uiState.selectedTags.all { tag ->
-                                tag in bookmark.tags
-                            }
+                            uiState.selectedTags.all { it in bookmark.tags }
 
                 matchesSearch && matchesTags
             }
@@ -74,20 +297,125 @@ fun FolderDetailScreen(
             }
     }
 
+    // ------------------------------------
+    // 批量管理狀態
+    // ------------------------------------
+
+    // 目前顯示的收藏是否全部選取
+    val isAllSelected =
+        filteredBookmarks.isNotEmpty() &&
+                filteredBookmarks.all { it.id in selectedBookmarkIds }
+
+    // 已選取數量
+    val selectedCount = selectedBookmarkIds.size
+
+    // 切換單筆選取
+    fun toggleBookmarkSelection(id: String) {
+        selectedBookmarkIds =
+            if (id in selectedBookmarkIds) {
+                selectedBookmarkIds - id
+            } else {
+                selectedBookmarkIds + id
+            }
+    }
+
+    // 全選 / 取消全選
+    // toggle 切換
+    fun toggleSelectAll() {
+        selectedBookmarkIds =
+            if (isAllSelected) {
+                // 已經全選 → 清空
+                emptySet()
+            } else {
+                // 尚未全選 → 全部勾選
+                filteredBookmarks.map { it.id }.toSet()
+            }
+    }
+
+    // ------------------------------------
+    // 結束批量管理
+    // ------------------------------------
+
+    fun finishBatchManaging() {
+        uiState = uiState.copy(isBatchManaging = false)
+        selectedBookmarkIds = emptySet()
+        showDeleteDialog = false
+        showMoveSheet = false
+    }
+
+    // ------------------------------------
+    // 刪除收藏
+    // ------------------------------------
+
+    fun deleteSelectedBookmarks() {
+        val idsToDelete = selectedBookmarkIds.toList()
+        if (idsToDelete.isEmpty()) return
+        // 從目前畫面的資料移除
+        bookmarks = bookmarks.filterNot { bookmark ->
+            bookmark.id in selectedBookmarkIds
+        }
+        // 通知上層處理資料刪除
+        onDeleteBookmarks(idsToDelete)
+        finishBatchManaging()
+    }
+
+    // ------------------------------------
+    // 移動收藏
+    // ------------------------------------
+
+    fun moveSelectedBookmarks(destination: String) {
+        val idsToMove = selectedBookmarkIds.toList()
+        if (idsToMove.isEmpty()) return
+        // 從目前資料夾清單移除
+        bookmarks = bookmarks.filterNot { bookmark ->
+            bookmark.id in selectedBookmarkIds
+        }
+        // 通知上層處理資料夾歸屬
+        onMoveBookmarks(idsToMove, destination)
+        finishBatchManaging()
+    }
+
+    // ------------------------------------
+    // Scaffold
+    // ------------------------------------
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             FolderDetailTopBar(
                 folderName = folderName,
-                onBackClick = onBackClick,
+                isBatchManaging = uiState.isBatchManaging,
+                onBackClick = {
+                    if (uiState.isBatchManaging) {
+                        finishBatchManaging()
+                    } else {
+                        onBackClick()
+                    }
+                },
                 onBatchManageClick = {
-                    uiState = uiState.copy(
-                        isBatchManaging = !uiState.isBatchManaging
-                    )
-                    onBatchManageClick()
+                    if (uiState.isBatchManaging) {
+                        finishBatchManaging()
+                    } else {
+                        uiState = uiState.copy(isBatchManaging = true)
+                        selectedBookmarkIds = emptySet()
+                        onBatchManageClick()
+                    }
                 }
             )
+        },
+        bottomBar = {
+            if (uiState.isBatchManaging) {
+                BatchManageBottomBar(
+                    isAllSelected = isAllSelected,
+                    hasBookmarks = filteredBookmarks.isNotEmpty(),
+                    hasSelection = selectedCount > 0,
+                    onSelectAllClick = { toggleSelectAll() },
+                    onDeleteClick = { showDeleteDialog = true },
+                    onMoveClick = { showMoveSheet = true }
+                )
+            }
         }
+
     ) { innerPadding ->
 
         LazyColumn(
@@ -107,8 +435,12 @@ fun FolderDetailScreen(
             item {
                 FolderSearchBar(
                     value = uiState.searchQuery,
-                    onValueChange = {
-                        uiState = uiState.copy(searchQuery = it)
+                    onValueChange = { query ->
+                        uiState = uiState.copy(
+                            searchQuery = query
+                        )
+                        // 搜尋條件變更，清除原本選取
+                        selectedBookmarkIds = emptySet()
                     }
                 )
             }
@@ -120,22 +452,24 @@ fun FolderDetailScreen(
                     selectedTags = uiState.selectedTags,
                     isExpanded = uiState.isTagFilterExpanded,
                     onTagClick = { tag ->
-                        val newTags = uiState.selectedTags.toMutableSet()
+                        val newTags =
+                            uiState.selectedTags.toMutableSet()
 
                         if (tag in newTags) {
                             newTags.remove(tag)
                         } else {
                             newTags.add(tag)
                         }
-
                         uiState = uiState.copy(
                             selectedTags = newTags
                         )
+                        selectedBookmarkIds = emptySet()
                     },
                     onClearClick = {
                         uiState = uiState.copy(
                             selectedTags = emptySet()
                         )
+                        selectedBookmarkIds = emptySet()
                     },
                     onExpandClick = {
                         uiState = uiState.copy(
@@ -161,22 +495,146 @@ fun FolderDetailScreen(
 
             // 收藏清單
             if (filteredBookmarks.isEmpty()) {
+
                 item {
                     EmptyBookmarkView()
                 }
+
             } else {
                 items(
                     items = filteredBookmarks,
                     key = { it.id }
                 ) { bookmark ->
+
                     FolderBookmarkCard(
                         item = bookmark,
+                        isBatchManaging = uiState.isBatchManaging,
+                        isSelected = bookmark.id in selectedBookmarkIds,
+
+                        onSelectionClick = {
+                            toggleBookmarkSelection(bookmark.id)
+                        },
+
                         onClick = {
-                            onBookmarkClick(bookmark.id)
+                            if (uiState.isBatchManaging) {
+                                toggleBookmarkSelection(bookmark.id)
+                            } else {
+                                onBookmarkClick(bookmark.id)
+                            }
+                        },
+
+                        // 編輯標題
+                        onEditTitleClick = { newTitle ->
+                            bookmarks = bookmarks.map { item ->
+                                if (item.id == bookmark.id) {
+                                    item.copy(title = newTitle)
+                                } else {
+                                    item
+                                }
+                            }
+                        },
+
+                        // 編輯筆記
+                        onEditNoteClick = { newNote ->
+                            bookmarks = bookmarks.map { item ->
+                                if (item.id == bookmark.id) {
+                                    item.copy(note = newNote)
+                                } else {
+                                    item
+                                }
+                            }
+                        },
+
+                        // 編輯標籤
+                        availableTags = availableTags,
+                        onTagsSave = { newTags ->
+                            bookmarks = bookmarks.map { item ->
+                                if (item.id == bookmark.id) {
+                                    item.copy(tags = newTags)
+                                } else {
+                                    item
+                                }
+                            }
+                        },
+
+                        // 刪除收藏
+                        onDeleteClick = {
+                            bookmarks = bookmarks.filterNot { item ->
+                                item.id == bookmark.id
+                            }
                         }
                     )
                 }
             }
+        }
+    }
+
+    // ------------------------------------
+    // 刪除確認 Dialog
+    // ------------------------------------
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showDeleteDialog = false
+            },
+            title = {
+                Text(
+                    text = "刪除收藏",
+                    style = MaterialTheme.typography.titleLarge
+                )
+            },
+            text = {
+                Text(
+                    text = "確定要刪除選取的 $selectedCount 筆收藏嗎？\n刪除後將無法復原。",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        deleteSelectedBookmarks()
+                    }
+                ) {
+                    Text(
+                        text = "刪除",
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteDialog = false
+                    }
+                ) {
+                    Text("取消")
+                }
+            },
+            shape = RoundedCornerShape(16.dp),
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    }
+
+    // ------------------------------------
+    // 移動收藏 BottomSheet
+    // ------------------------------------
+
+    if (showMoveSheet) {
+        ModalBottomSheet(
+            onDismissRequest = {
+                showMoveSheet = false
+            },
+            sheetState = moveSheetState,
+            containerColor = MaterialTheme.colorScheme.surface
+        ) {
+            MoveBookmarkSheet(
+                selectedCount = selectedCount,
+                folders = availableFolders,
+                onFolderClick = { destination ->
+                    moveSelectedBookmarks(destination)
+                }
+            )
         }
     }
 }
@@ -185,6 +643,7 @@ fun FolderDetailScreen(
 @Composable
 private fun FolderDetailTopBar(
     folderName: String,
+    isBatchManaging: Boolean,
     onBackClick: () -> Unit,
     onBatchManageClick: () -> Unit
 ) {
@@ -196,6 +655,7 @@ private fun FolderDetailTopBar(
                 fontWeight = FontWeight.Bold
             )
         },
+
         navigationIcon = {
             IconButton(
                 onClick = onBackClick
@@ -206,43 +666,119 @@ private fun FolderDetailTopBar(
                 )
             }
         },
+
         actions = {
             Surface(
                 modifier = Modifier
                     .padding(end = 16.dp)
                     .clip(CircleShape)
-                    .clickable(
-                        onClick = onBatchManageClick
-                    ),
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                shape = CircleShape
+                    .clickable(onClick = onBatchManageClick),
+
+                color = if (isBatchManaging) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.surfaceVariant
+                },
+
+                shape = RoundedCornerShape(6.dp)
             ) {
                 Row(
                     modifier = Modifier.padding(
-                        horizontal = 12.dp,
+                        horizontal = 14.dp,
                         vertical = 8.dp
                     ),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.CheckBox,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
+                    if (!isBatchManaging) {
+                        Icon(
+                            imageVector = Icons.Default.CheckBox,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
 
                     Text(
-                        text = "批量管理",
-                        style = MaterialTheme.typography.labelLarge
+                        text = if (isBatchManaging) "完成" else "批量管理",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = if (isBatchManaging) {
+                            MaterialTheme.colorScheme.onPrimary
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        }
                     )
                 }
             }
         },
+
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = MaterialTheme.colorScheme.background
         )
     )
 }
+
+//@OptIn(ExperimentalMaterial3Api::class)
+//@Composable
+//private fun FolderDetailTopBar(
+//    folderName: String,
+//    onBackClick: () -> Unit,
+//    onBatchManageClick: () -> Unit
+//) {
+//    TopAppBar(
+//        title = {
+//            Text(
+//                text = folderName,
+//                style = MaterialTheme.typography.titleLarge,
+//                fontWeight = FontWeight.Bold
+//            )
+//        },
+//        navigationIcon = {
+//            IconButton(
+//                onClick = onBackClick
+//            ) {
+//                Icon(
+//                    imageVector = Icons.Default.ArrowBack,
+//                    contentDescription = "返回"
+//                )
+//            }
+//        },
+//        actions = {
+//            Surface(
+//                modifier = Modifier
+//                    .padding(end = 16.dp)
+//                    .clip(CircleShape)
+//                    .clickable(
+//                        onClick = onBatchManageClick
+//                    ),
+//                color = MaterialTheme.colorScheme.surfaceVariant,
+//                shape = CircleShape
+//            ) {
+//                Row(
+//                    modifier = Modifier.padding(
+//                        horizontal = 12.dp,
+//                        vertical = 8.dp
+//                    ),
+//                    verticalAlignment = Alignment.CenterVertically,
+//                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+//                ) {
+//                    Icon(
+//                        imageVector = Icons.Default.CheckBox,
+//                        contentDescription = null,
+//                        modifier = Modifier.size(18.dp)
+//                    )
+//
+//                    Text(
+//                        text = "批量管理",
+//                        style = MaterialTheme.typography.labelLarge
+//                    )
+//                }
+//            }
+//        },
+//        colors = TopAppBarDefaults.topAppBarColors(
+//            containerColor = MaterialTheme.colorScheme.background
+//        )
+//    )
+//}
 
 @Composable
 private fun FolderSearchBar(

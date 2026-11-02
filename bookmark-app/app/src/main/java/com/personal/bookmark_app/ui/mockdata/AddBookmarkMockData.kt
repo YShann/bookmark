@@ -1,10 +1,10 @@
-package com.personal.bookmark_app.ui.mock_data
+package com.personal.bookmark_app.ui.mockdata
 
 import com.personal.bookmark_app.ui.model.BookmarkSource
 import com.personal.bookmark_app.ui.model.FolderUiModel
 import com.personal.bookmark_app.ui.screen.addbookmark.AddBookmarkUiState
-import com.personal.bookmark_app.ui.screen.addbookmark.BookmarkPreviewUiModel
-import com.personal.bookmark_app.ui.screen.addbookmark.TagOptionUiModel
+import com.personal.bookmark_app.ui.model.BookmarkPreviewUiModel
+import com.personal.bookmark_app.ui.model.TagOptionUiModel
 
 object AddBookmarkMockData {
 

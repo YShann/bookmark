@@ -24,10 +24,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
@@ -48,14 +44,22 @@ import com.personal.bookmark_app.ui.components.TextFieldView
 
 @Composable
 fun RegisterScreen(
-    onBackClick: () -> Unit = {},
-    onRegister: (RegisterUiState) -> Unit = {},
-    onGoogleRegister: () -> Unit = {},
-    onLoginClick: () -> Unit = {}
+    uiState: RegisterUiState,
+    onNicknameChange: (String) -> Unit,
+    onEmailChange: (String) -> Unit,
+    onPasswordChange: (String) -> Unit,
+    onConfirmPasswordChange: (String) -> Unit,
+    onPasswordVisibilityChange: () -> Unit,
+    onConfirmPasswordVisibilityChange: () -> Unit,
+    onTermsAcceptedChange: (Boolean) -> Unit,
+    onRegisterClick: () -> Unit,
+    onGoogleRegisterClick: () -> Unit,
+    onBackClick: () -> Unit,
+    onLoginClick: () -> Unit
 ) {
-    var uiState by remember {
-        mutableStateOf(RegisterUiState())
-    }
+//    var uiState by remember {
+//        mutableStateOf(RegisterUiState())
+//    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -86,28 +90,12 @@ fun RegisterScreen(
             // 註冊表單
             RegisterForm(
                 uiState = uiState,
-                onNicknameChange = {
-                    uiState = uiState.copy(nickname = it)
-                },
-                onEmailChange = {
-                    uiState = uiState.copy(email = it)
-                },
-                onPasswordChange = {
-                    uiState = uiState.copy(password = it)
-                },
-                onConfirmPasswordChange = {
-                    uiState = uiState.copy(confirmPassword = it)
-                },
-                onPasswordVisibilityChange = {
-                    uiState = uiState.copy(
-                        isPasswordVisible = !uiState.isPasswordVisible
-                    )
-                },
-                onConfirmPasswordVisibilityChange = {
-                    uiState = uiState.copy(
-                        isConfirmPasswordVisible = !uiState.isConfirmPasswordVisible
-                    )
-                }
+                onNicknameChange = onNicknameChange,
+                onEmailChange = onEmailChange,
+                onPasswordChange = onPasswordChange,
+                onConfirmPasswordChange = onConfirmPasswordChange,
+                onPasswordVisibilityChange = onPasswordVisibilityChange,
+                onConfirmPasswordVisibilityChange = onConfirmPasswordVisibilityChange
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -122,18 +110,15 @@ fun RegisterScreen(
             // 使用者條款
             TermsAgreement(
                 checked = uiState.isTermsAccepted,
-                onCheckedChange = {
-                    uiState = uiState.copy(isTermsAccepted = it)
-                }
+                onCheckedChange = onTermsAcceptedChange
+
             )
 
             Spacer(modifier = Modifier.height(24.dp))
 
             // 註冊按鈕
             Button(
-                onClick = {
-                    onRegister(uiState)
-                },
+                onClick = onRegisterClick,
                 enabled = uiState.isFormValid,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -162,7 +147,7 @@ fun RegisterScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             OutlinedButton(
-                onClick = onGoogleRegister,
+                onClick = onGoogleRegisterClick,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp),
@@ -331,7 +316,11 @@ private fun RegisterForm(
                 value = uiState.password,
                 onValueChange = onPasswordChange,
                 placeholder = "請輸入密碼",
-                visualTransformation = PasswordVisualTransformation(),
+                visualTransformation = if (uiState.isPasswordVisible) {
+                    VisualTransformation.None
+                } else {
+                    PasswordVisualTransformation()
+                },
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Password
                 ),

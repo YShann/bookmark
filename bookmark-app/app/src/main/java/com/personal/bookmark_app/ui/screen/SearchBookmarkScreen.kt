@@ -40,7 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.personal.bookmark_app.ui.components.BookmarkCard
-import com.personal.bookmark_app.ui.mock_data.bookmarkMockData
+import com.personal.bookmark_app.ui.mockdata.bookmarkMockData
 import com.personal.bookmark_app.ui.model.BookmarkSource
 import com.personal.bookmark_app.ui.model.BookmarkUiModel
 

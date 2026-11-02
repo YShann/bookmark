@@ -1,7 +1,9 @@
-package com.personal.bookmark_app.ui.components
+package com.personal.bookmark_app.ui.screen.folderbookmark
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,6 +15,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.HorizontalDivider
@@ -22,6 +25,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -30,6 +37,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.personal.bookmark_app.ui.model.FolderBookmarkUiModel
+import com.personal.bookmark_app.ui.screen.folderbookmark.editbottomsheet.DeleteBookmarkBottomSheet
+import com.personal.bookmark_app.ui.screen.folderbookmark.editbottomsheet.EditNoteBottomSheet
+import com.personal.bookmark_app.ui.screen.folderbookmark.editbottomsheet.EditTagsBottomSheet
+import com.personal.bookmark_app.ui.screen.folderbookmark.editbottomsheet.EditTitleBottomSheet
 import com.skydoves.landscapist.ImageOptions
 import com.skydoves.landscapist.coil3.CoilImage
 
@@ -37,8 +48,37 @@ import com.skydoves.landscapist.coil3.CoilImage
 @Composable
 fun FolderBookmarkCard(
     item: FolderBookmarkUiModel,
-    onClick: () -> Unit
+    isBatchManaging: Boolean = false,
+    isSelected: Boolean = false,
+    onSelectionClick: () -> Unit = {},
+    onClick: () -> Unit,
+    onEditTitleClick: (String) -> Unit = {},
+    onEditNoteClick: (String) -> Unit = {},
+    availableTags: List<String> = emptyList(),
+    onTagsSave: (List<String>) -> Unit = {},
+    onDeleteClick: () -> Unit = {}
 ) {
+    // 控制更多操作選單
+    var expanded by remember {
+        mutableStateOf(false)
+    }
+
+    var showEditTitleSheet by remember {
+        mutableStateOf(false)
+    }
+
+    var showEditNoteSheet by remember {
+        mutableStateOf(false)
+    }
+
+    var showEditTagsSheet by remember {
+        mutableStateOf(false)
+    }
+
+    var showDeleteSheet by remember {
+        mutableStateOf(false)
+    }
+
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -51,13 +91,54 @@ fun FolderBookmarkCard(
             modifier = Modifier.padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+
+            // 批量管理 Checkbox
+            if (isBatchManaging) {
+                Surface(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clickable(
+                            onClick = onSelectionClick
+                        ),
+                    shape = CircleShape,
+                    color = if (isSelected) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.surfaceVariant
+                    },
+                    border = if (isSelected) {
+                        null
+                    } else {
+                        BorderStroke(
+                            1.dp,
+                            MaterialTheme.colorScheme.outlineVariant
+                        )
+                    }
+                ) {
+                    if (isSelected) {
+                        Box(
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = "已選取",
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.onPrimary
+                            )
+                        }
+                    }
+                }
+                Spacer(Modifier.width(12.dp))
+            }
+
+            // 收藏縮圖
             CoilImage(
                 imageModel = { item.imageUrl },
                 imageOptions = ImageOptions(
                     contentScale = ContentScale.Crop
                 ),
                 modifier = Modifier
-                    .size(90.dp)
+                    .size(80.dp)
                     .clip(RoundedCornerShape(7.dp))
             )
 
@@ -66,7 +147,6 @@ fun FolderBookmarkCard(
             Column(
                 modifier = Modifier.weight(1f)
             ) {
-
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -79,17 +159,44 @@ fun FolderBookmarkCard(
                         overflow = TextOverflow.Ellipsis
                     )
 
-                    IconButton(
-                        onClick = {
-                            // TODO: 開啟單筆收藏的更多操作
-                        },
-                        modifier = Modifier.size(24.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.MoreVert,
-                            contentDescription = "更多操作",
-                            modifier = Modifier.size(20.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    // 更多操作按鈕
+                    Box {
+                        IconButton(
+                            onClick = {
+                                expanded = true
+                            },
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.MoreVert,
+                                contentDescription = "更多操作",
+                                modifier = Modifier.size(20.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        // 更多操作選單
+                        FolderBookmarkOptionsMenu(
+                            expanded = expanded,
+                            onDismissRequest = {
+                                expanded = false
+                            },
+                            onEditTitleClick = {
+                                expanded = false
+                                showEditTitleSheet = true
+                            },
+                            onEditNoteClick = {
+                                expanded = false
+                                showEditNoteSheet = true
+                            },
+                            onEditTagsClick = {
+                                expanded = false
+                                showEditTagsSheet = true
+                            },
+                            onDeleteClick = {
+                                expanded = false
+                                onDeleteClick()
+                            }
                         )
                     }
                 }
@@ -130,6 +237,58 @@ fun FolderBookmarkCard(
                 }
             }
         }
+    }
+    if (showEditTitleSheet) {
+        EditTitleBottomSheet(
+            item = item,
+            onDismiss = {
+                showEditTitleSheet = false
+            },
+            onSave = { newTitle ->
+                onEditTitleClick(newTitle)
+                showEditTitleSheet = false
+            }
+        )
+    }
+
+    if (showEditNoteSheet) {
+        EditNoteBottomSheet(
+            currentNote = item.note.orEmpty(),
+            onDismiss = {
+                showEditNoteSheet = false
+            },
+            onSave = { newNote ->
+                onEditNoteClick(newNote)
+                showEditNoteSheet = false
+            }
+        )
+    }
+
+    if (showEditTagsSheet) {
+        EditTagsBottomSheet(
+            currentTags = item.tags,
+            availableTags = availableTags,
+            onDismiss = {
+                showEditTagsSheet = false
+            },
+            onSave = { newTags ->
+                onTagsSave(newTags)
+                showEditTagsSheet = false
+            }
+        )
+    }
+
+    if (showDeleteSheet) {
+        DeleteBookmarkBottomSheet(
+            item = item,
+            onDismiss = {
+                showDeleteSheet = false
+            },
+            onConfirmDelete = {
+                onDeleteClick()
+                showDeleteSheet = false
+            }
+        )
     }
 }
 

@@ -1,9 +1,6 @@
-package com.personal.bookmark_app.ui.mock_data
+package com.personal.bookmark_app.ui.mockdata
 
-import com.personal.bookmark_app.ui.model.FolderDisplayMode
 import com.personal.bookmark_app.ui.model.FolderUiModel
-
-val DisplayMode = FolderDisplayMode.LIST
 
 val FolderMockData = listOf(
     // 固定排在第一個的未分類

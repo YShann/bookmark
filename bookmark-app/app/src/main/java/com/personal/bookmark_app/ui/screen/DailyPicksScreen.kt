@@ -36,7 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.personal.bookmark_app.ui.components.BookmarkCard
-import com.personal.bookmark_app.ui.mock_data.bookmarkMockData
+import com.personal.bookmark_app.ui.mockdata.bookmarkMockData
 import com.personal.bookmark_app.ui.theme.BookmarkTextSecondary
 
 @OptIn(ExperimentalMaterial3Api::class)
