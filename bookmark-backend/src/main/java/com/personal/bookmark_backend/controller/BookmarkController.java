@@ -1,0 +1,273 @@
+package com.personal.bookmark_backend.controller;
+
+import com.personal.bookmark_backend.dto.request.bookmark.CreateBookmarkRequest;
+import com.personal.bookmark_backend.dto.request.bookmark.MoveBookmarkRequest;
+import com.personal.bookmark_backend.dto.request.bookmark.UpdateBookmarkRequest;
+import com.personal.bookmark_backend.dto.response.bookmark.BookmarkResponse;
+import com.personal.bookmark_backend.entity.Bookmark;
+import com.personal.bookmark_backend.service.BookmarkService;
+import com.personal.bookmark_backend.service.TagService;
+
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api")
+@RequiredArgsConstructor
+public class BookmarkController {
+
+    private final BookmarkService bookmarkService;
+    private final TagService tagService;
+
+    // =====================================================
+    // 共用方法：取得登入者 ID
+    // =====================================================
+
+    private Long getUserId(Authentication authentication) {
+
+        return (Long) authentication.getPrincipal();
+    }
+
+
+    // =====================================================
+    // 1. 查詢收藏夾內的所有收藏
+    // =====================================================
+
+    @GetMapping("/folders/{folderId}/bookmarks")
+    public ResponseEntity<List<BookmarkResponse>> getFolderBookmarks(
+            @PathVariable Long folderId,
+            Authentication authentication
+    ) {
+
+        // 從登入狀態取得目前使用者 ID
+        Long userId = getUserId(authentication);
+
+        // 查詢收藏夾內的所有收藏
+        List<Bookmark> bookmarks =
+                bookmarkService.getFolderBookmarks(userId, folderId);
+
+        // 取得所有收藏 ID
+        List<Long> bookmarkIds = bookmarks.stream()
+                .map(Bookmark::getId)
+                .toList();
+
+        // 一次查詢所有收藏的標籤名稱
+        Map<Long, List<String>> tagNamesMap =
+                tagService.getBookmarkTagNames(
+                        userId,
+                        folderId,
+                        bookmarkIds
+                );
+
+        // 將 Entity 轉換成 Response DTO
+        List<BookmarkResponse> response = bookmarks.stream()
+                .map(bookmark -> toResponse(
+                        bookmark,
+                        tagNamesMap.getOrDefault(
+                                bookmark.getId(),
+                                List.of()
+                        )
+                ))
+                .toList();
+
+        return ResponseEntity.ok(response);
+    }
+
+
+    // =====================================================
+    // 2. 查詢單筆收藏
+    // =====================================================
+
+    @GetMapping("/bookmarks/{bookmarkId}")
+    public ResponseEntity<BookmarkResponse> getBookmark(
+            @PathVariable Long bookmarkId,
+            Authentication authentication
+    ) {
+
+        Long userId = getUserId(authentication);
+
+        // 查詢指定收藏
+        Bookmark bookmark =
+                bookmarkService.getBookmark(userId, bookmarkId);
+
+        // 查詢標籤並轉換成 Response DTO
+        return ResponseEntity.ok(
+                toBookmarkResponse(userId, bookmark)
+        );
+    }
+
+
+    // =====================================================
+    // 3. 新增收藏
+    // =====================================================
+
+    @PostMapping("/folders/{folderId}/bookmarks")
+    public ResponseEntity<BookmarkResponse> createBookmark(
+            @PathVariable Long folderId,
+            @Valid @RequestBody CreateBookmarkRequest request,
+            Authentication authentication
+    ) {
+
+        Long userId = getUserId(authentication);
+
+        // 建立收藏
+        Bookmark bookmark = bookmarkService.createBookmark(
+                userId,
+                folderId,
+                request.url(),
+                request.title(),
+                request.content(),
+                request.note(),
+                request.source(),
+                request.imageUrl(),
+                request.tags()
+        );
+
+        BookmarkResponse response = toBookmarkResponse(
+                userId,
+                bookmark
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(response);
+    }
+
+
+    // =====================================================
+    // 4. 修改收藏
+    // =====================================================
+
+    @PatchMapping("/bookmarks/{bookmarkId}")
+    public ResponseEntity<BookmarkResponse> updateBookmark(
+            @PathVariable Long bookmarkId,
+            @Valid @RequestBody UpdateBookmarkRequest request,
+            Authentication authentication
+    ) {
+
+        Long userId = getUserId(authentication);
+
+        // 修改收藏內容及標籤
+        Bookmark bookmark = bookmarkService.updateBookmark(
+                userId,
+                bookmarkId,
+                request.url(),
+                request.title(),
+                request.content(),
+                request.note(),
+                request.source(),
+                request.imageUrl(),
+                request.tags()
+        );
+
+        return ResponseEntity.ok(
+                toBookmarkResponse(userId, bookmark)
+        );
+    }
+
+
+    // =====================================================
+    // 5. 刪除收藏
+    // =====================================================
+
+    @DeleteMapping("/bookmarks/{bookmarkId}")
+    public ResponseEntity<Void> deleteBookmark(
+            @PathVariable Long bookmarkId,
+            Authentication authentication
+    ) {
+
+        Long userId = getUserId(authentication);
+
+        bookmarkService.deleteBookmark(userId, bookmarkId);
+
+        return ResponseEntity.noContent().build();
+    }
+
+
+    // =====================================================
+    // 6. 搬移收藏到其他收藏夾
+    // =====================================================
+
+    @PatchMapping("/bookmarks/{bookmarkId}/move")
+    public ResponseEntity<BookmarkResponse> moveBookmark(
+            @PathVariable Long bookmarkId,
+            @Valid @RequestBody MoveBookmarkRequest request,
+            Authentication authentication
+    ) {
+
+        Long userId = getUserId(authentication);
+
+        // 搬移收藏
+        Bookmark bookmark = bookmarkService.moveBookmark(
+                userId,
+                bookmarkId,
+                request.targetFolderId()
+        );
+
+        return ResponseEntity.ok(
+                toBookmarkResponse(userId, bookmark)
+        );
+    }
+
+
+    // =====================================================
+    // 共用方法：查詢收藏標籤並轉換成 Response DTO
+    // =====================================================
+
+    private BookmarkResponse toBookmarkResponse(
+            Long userId,
+            Bookmark bookmark
+    ) {
+
+        // 查詢這筆收藏的標籤名稱
+        Map<Long, List<String>> tagNamesMap =
+                tagService.getBookmarkTagNames(
+                        userId,
+                        bookmark.getFolderId(),
+                        List.of(bookmark.getId())
+                );
+
+        // 取得標籤名稱
+        // 根據當前bookmark的 ID 找出對應的標籤清單；如果沒有任何標籤（在 Map 裡找不到對應的 ID），就回傳『空的清單（List.of()）』
+        List<String> tagNames = tagNamesMap.getOrDefault(
+                bookmark.getId(),
+                List.of()
+        );
+
+        // Entity -> Response DTO
+        return toResponse(bookmark, tagNames);
+    }
+
+
+    // =====================================================
+    // 共用方法：Bookmark Entity 轉換成 Response DTO
+    // =====================================================
+
+    private BookmarkResponse toResponse(
+            Bookmark bookmark,
+            List<String> tagNames
+    ) {
+
+        return new BookmarkResponse(
+                bookmark.getId(),
+                bookmark.getFolderId(),
+                bookmark.getUrl(),
+                bookmark.getTitle(),
+                bookmark.getContent(),
+                bookmark.getNote(),
+                bookmark.getSource(),
+                bookmark.getImageUrl(),
+                tagNames,
+                bookmark.getCreatedAt(),
+                bookmark.getUpdatedAt()
+        );
+    }
+}

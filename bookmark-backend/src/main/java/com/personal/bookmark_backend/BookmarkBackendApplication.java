@@ -1,4 +1,4 @@
-package com.example.bookmark_backend;
+package com.personal.bookmark_backend;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
