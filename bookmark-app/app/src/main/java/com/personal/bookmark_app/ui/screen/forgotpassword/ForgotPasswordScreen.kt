@@ -17,7 +17,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowLeft
 import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.Button
@@ -212,7 +212,7 @@ private fun ForgotPasswordHeader(
             onClick = onBackClick
         ) {
             Icon(
-                imageVector = Icons.Filled.ChevronLeft,
+                imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowLeft,
                 contentDescription = "返回",
                 tint = MaterialTheme.colorScheme.onSurface
             )

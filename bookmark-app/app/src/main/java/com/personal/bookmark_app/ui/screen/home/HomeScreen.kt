@@ -4,7 +4,21 @@ import android.net.Uri
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -14,18 +28,31 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.outlined.ViewList
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.outlined.AutoStories
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material3.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -97,11 +124,13 @@ fun HomeScreen(
             )
 
             FolderSection(
-                folders = FolderMockData,
+                folders = folders,
                 modifier = Modifier.weight(1f),
                 displayMode = displayMode,
                 onDisplayModeChange = homeViewModel::updateFolderDisplayMode,
-                onEditClick = onEditFoldersClick,
+                onEditClick = {
+                    showFolderManagement = true
+                },
                 onFolderClick = { folder ->
                     // 判斷資料夾是否有收藏
                     if (folder.count == 0) {
@@ -209,43 +238,6 @@ fun HomeScreen(
     }
 
 }
-//@OptIn(ExperimentalMaterial3Api::class)
-//@Composable
-//fun HomeScreen(
-//    onSearchClick: () -> Unit = {},
-//    onAddBookmarkClick: () -> Unit = {},
-//    onDailyPicksClick: () -> Unit = {},
-//    onEditFoldersClick: () -> Unit = {},
-//    onFolderClick: (FolderUiModel) -> Unit = {}
-//) {
-//    Scaffold(
-//        containerColor = MaterialTheme.colorScheme.background,
-//        topBar = {
-//            HomeTopAppBar(
-//                onSearchClick = onSearchClick,
-//                onAddBookmarkClick = onAddBookmarkClick
-//            )
-//        }
-//    ) { innerPadding ->
-//
-//        Column(
-//            modifier = Modifier
-//                .fillMaxSize()
-//                .padding(innerPadding)
-//        ) {
-//            DailyPicksCard(
-//                onClick = onDailyPicksClick
-//            )
-//
-//            FolderSection(
-//                folders = FolderMockData,
-//                modifier = Modifier.weight(1f),
-//                onEditClick = onEditFoldersClick,
-//                onFolderClick = onFolderClick
-//            )
-//        }
-//    }
-//}
 
 // --------------------------------------------------
 // Home Top App Bar
@@ -275,20 +267,36 @@ private fun HomeTopAppBar(
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                CoilImage(
-                    imageModel = {
-                        selectedAvatarUri ?: avatarImageUrl
-                    },
-                    imageOptions = ImageOptions(
-                        contentScale = ContentScale.Crop
-                    ),
+                Box(
                     modifier = Modifier
                         .size(36.dp)
                         .clip(RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
                         .clickable {
                             showProfileDialog = true
-                        }
-                )
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    val avatarModel = selectedAvatarUri
+                        ?: avatarImageUrl.takeIf { it.isNotBlank() }
+
+                    if (avatarModel != null) {
+                        CoilImage(
+                            imageModel = { avatarModel },
+                            imageOptions = ImageOptions(
+                                contentScale = ContentScale.Crop
+                            ),
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = "個人頭像",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                }
 
                 Spacer(
                     modifier = Modifier.width(12.dp)
@@ -313,21 +321,12 @@ private fun HomeTopAppBar(
                 )
             }
 
-            Spacer(
-                modifier = Modifier.width(4.dp)
-            )
-
-            Button(
-                onClick = onAddBookmarkClick,
-                shape = RoundedCornerShape(8.dp),
-                contentPadding = PaddingValues(
-                    horizontal = 12.dp,
-                    vertical = 8.dp
-                )
+            IconButton(
+                onClick = onAddBookmarkClick
             ) {
-                Text(
-                    text = "＋ 新增書籤",
-                    style = MaterialTheme.typography.labelLarge
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "新增書籤"
                 )
             }
 
@@ -384,49 +383,58 @@ private fun DailyPicksCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(18.dp),
+                .height(IntrinsicSize.Min),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = "今日拾藏 • 3 則收藏已抽出",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-
-                Spacer(
-                    modifier = Modifier.height(8.dp)
-                )
-
-                Text(
-                    text = "沉澱數位碎片，翻開為你挑選的安靜篇章。",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            Spacer(
-                modifier = Modifier.width(12.dp)
-            )
-
+            // 左側主色裝飾線
             Box(
                 modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(
-                        MaterialTheme.colorScheme.surfaceVariant
-                    ),
-                contentAlignment = Alignment.Center
+                    .width(6.dp)
+                    .fillMaxHeight()
+                    .background(MaterialTheme.colorScheme.primary)
+            )
+
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(18.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.Outlined.AutoStories,
-                    contentDescription = "今日拾藏",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp)
-                )
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = "今日拾藏",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = "從遺忘的角落拾起3則收藏。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.AutoStories,
+                        contentDescription = "今日拾藏",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
             }
         }
     }
@@ -448,10 +456,8 @@ private fun FolderSection(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(
-                horizontal = 20.dp,
-                vertical = 28.dp
-            )
+            .padding(horizontal = 20.dp)
+            .padding(top = 16.dp, bottom = 20.dp)
     ) {
         // Section Header
         Row(
@@ -465,7 +471,7 @@ private fun FolderSection(
             ) {
                 Text(
                     text = "我的收藏",
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onBackground
                 )
@@ -481,95 +487,77 @@ private fun FolderSection(
 
             // SpaceBetween右側：顯示方式與編輯按鈕
             Row(
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 // GRID、LIST 切換，編輯按鈕
-                Row(
-                    modifier = Modifier
-                        .background(
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(
-                                alpha = 0.5f
-                            ),
-                            shape = RoundedCornerShape(8.dp)
-                        )
-                        .padding(3.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // 區塊顯示
-                    IconButton(
-                        onClick = {
-                            onDisplayModeChange(FolderDisplayMode.GRID)
-                        },
-                        modifier = Modifier.size(34.dp),
-                        colors = IconButtonDefaults.iconButtonColors(
-                            containerColor = if (displayMode == FolderDisplayMode.GRID) {
-                                MaterialTheme.colorScheme.surface
-                            } else {
-                                Color.Transparent
-                            }
-                        )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.GridView,
-                            contentDescription = "區塊顯示",
-                            tint = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-
-                    // 列表顯示
-                    IconButton(
-                        onClick = {
-                            onDisplayModeChange(FolderDisplayMode.LIST)
-                        },
-                        modifier = Modifier.size(34.dp),
-                        colors = IconButtonDefaults.iconButtonColors(
-                            containerColor = if (displayMode == FolderDisplayMode.LIST) {
-                                MaterialTheme.colorScheme.surface
-                            } else {
-                                Color.Transparent
-                            }
-                        )
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Outlined.ViewList,
-                            contentDescription = "列表顯示",
-                            tint = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                TextButton(
-                    onClick = onEditClick,
-                    contentPadding = PaddingValues(
-                        horizontal = 4.dp,
-                        vertical = 0.dp
+                // 區塊顯示
+                IconButton(
+                    onClick = {
+                        onDisplayModeChange(FolderDisplayMode.GRID)
+                    },
+                    modifier = Modifier.size(36.dp),
+                    colors = IconButtonDefaults.iconButtonColors(
+                        containerColor = if (displayMode == FolderDisplayMode.GRID) {
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                        } else {
+                            Color.Transparent
+                        }
                     )
                 ) {
                     Icon(
+                        imageVector = Icons.Outlined.GridView,
+                        contentDescription = "區塊顯示",
+                        tint = if (displayMode == FolderDisplayMode.GRID) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                // 列表顯示
+                IconButton(
+                    onClick = {
+                        onDisplayModeChange(FolderDisplayMode.LIST)
+                    },
+                    modifier = Modifier.size(36.dp),
+                    colors = IconButtonDefaults.iconButtonColors(
+                        containerColor = if (displayMode == FolderDisplayMode.LIST) {
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                        } else {
+                            Color.Transparent
+                        }
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.ViewList,
+                        contentDescription = "列表顯示",
+                        tint = if (displayMode == FolderDisplayMode.LIST) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                IconButton(
+                    onClick = onEditClick
+                ) {
+                    Icon(
                         imageVector = Icons.Outlined.Edit,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
+                        contentDescription = "編輯",
+                        modifier = Modifier.size(20.dp),
                         tint = MaterialTheme.colorScheme.primary
-                    )
-
-                    Spacer(
-                        modifier = Modifier.width(4.dp)
-                    )
-
-                    Text(
-                        text = "編輯",
-                        color = MaterialTheme.colorScheme.primary
                     )
                 }
             }
         }
 
         Spacer(
-            modifier = Modifier.height(14.dp)
+            modifier = Modifier.height(12.dp)
         )
 
         // 根據顯示方式切換內容
@@ -652,26 +640,61 @@ private fun FolderCard(
         )
     ) {
         Column {
-            CoilImage(
-                imageModel = { folder.imageUrl },
-                imageOptions = ImageOptions(
-                    contentScale = ContentScale.Crop
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1.52f)
-            )
+            if (folder.imageUrl.isNotBlank()) {
+                CoilImage(
+                    imageModel = { folder.imageUrl },
+                    imageOptions = ImageOptions(
+                        contentScale = ContentScale.Crop
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(1.52f)
+                )
+            } else {
+                // 尚無封面圖片時，顯示預設資料夾 Icon
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(1.52f)
+                        .background(MaterialTheme.colorScheme.surfaceContainerLow),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.FolderOpen,
+                        contentDescription = "預設資料夾封面",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(40.dp)
+                    )
+                }
+            }
 
-            Text(
-                text = "${folder.title} (${folder.count})",
+            Row(
                 modifier = Modifier.padding(
-                    horizontal = 12.dp,
-                    vertical = 12.dp
+                    horizontal = 10.dp,
+                    vertical = 10.dp
                 ),
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = folder.title,
+                    modifier = Modifier.weight(1f, fill = false),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Spacer(modifier = Modifier.width(4.dp))
+
+                Text(
+                    text = "(${folder.count})",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1
+                )
+            }
         }
     }
 }
@@ -710,15 +733,32 @@ private fun FolderListItem(
             verticalAlignment = Alignment.CenterVertically
         ) {
             // 收藏夾縮圖
-            CoilImage(
-                imageModel = { folder.imageUrl },
-                imageOptions = ImageOptions(
-                    contentScale = ContentScale.Crop
-                ),
-                modifier = Modifier
-                    .size(70.dp)
-                    .clip(RoundedCornerShape(6.dp))
-            )
+            if (folder.imageUrl.isNotBlank()) {
+                CoilImage(
+                    imageModel = { folder.imageUrl },
+                    imageOptions = ImageOptions(
+                        contentScale = ContentScale.Crop
+                    ),
+                    modifier = Modifier
+                        .size(70.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(70.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(MaterialTheme.colorScheme.surfaceContainerLow),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.FolderOpen,
+                        contentDescription = "資料夾封面",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+            }
 
             Spacer(
                 modifier = Modifier.width(14.dp)

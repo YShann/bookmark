@@ -193,7 +193,7 @@ private fun BookmarkNote(note: String) {
             tint = MaterialTheme.colorScheme.primary
         )
         Text(
-            text = "筆記：$note",
+            text = note,
             modifier = Modifier.weight(1f),
             color = BookmarkTextSecondary,
             style = MaterialTheme.typography.bodySmall

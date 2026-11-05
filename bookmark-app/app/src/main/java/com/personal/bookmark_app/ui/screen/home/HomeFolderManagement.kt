@@ -1,5 +1,6 @@
 package com.personal.bookmark_app.ui.screen.home
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -106,7 +107,7 @@ fun FolderManagementSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .fillMaxHeight(0.85f)
-                .padding(horizontal = 20.dp)
+                .padding(horizontal = 16.dp)
         ) {
 
             // 標題與關閉按鈕
@@ -129,7 +130,7 @@ fun FolderManagementSheet(
                     Spacer(Modifier.width(8.dp))
 
                     Text(
-                        text = "收藏分類夾",
+                        text = "管理收藏夾",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -155,7 +156,7 @@ fun FolderManagementSheet(
 
             Spacer(Modifier.height(16.dp))
 
-            // 新增分類夾按鈕
+            // 新增收藏夾按鈕
             OutlinedButton(
                 onClick = {
                     showAddDialog = true
@@ -182,18 +183,20 @@ fun FolderManagementSheet(
                 Spacer(Modifier.width(8.dp))
 
                 Text(
-                    text = "新增分類夾",
+                    text = "新增收藏夾",
                     style = MaterialTheme.typography.labelLarge
                 )
             }
 
             Spacer(Modifier.height(16.dp))
 
-            // 分類夾清單
+            // 收藏夾清單
             LazyColumn(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
-                contentPadding = PaddingValues(bottom = 16.dp)
+                contentPadding = PaddingValues(bottom = 20.dp)
             ) {
                 items(
                     items = folders,
@@ -205,7 +208,8 @@ fun FolderManagementSheet(
                             onRename(folder.id, newTitle)
                         },
                         onDelete = {
-                            onDelete(folder.id)
+                            folderToDelete = folder
+
                             // 每次開啟 Dialog，預設選擇移至未分類
                             deleteAction = FolderDeleteAction.MOVE_TO_UNCLASSIFIED
                         }
@@ -230,20 +234,13 @@ fun FolderManagementSheet(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
-
-                Spacer(Modifier.width(8.dp))
-
-                Icon(
-                    imageVector = Icons.Outlined.Check,
-                    contentDescription = null
-                )
             }
 
             Spacer(Modifier.height(16.dp))
         }
     }
 
-    // 新增分類夾 Dialog
+    // 新增收藏夾 Dialog
     if (showAddDialog) {
         AddFolderDialog(
             onDismiss = {
@@ -307,7 +304,9 @@ private fun FolderManagementItem(
     }
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .animateContentSize(),
         shape = RoundedCornerShape(10.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
@@ -319,7 +318,7 @@ private fun FolderManagementItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(10.dp),
+                .padding(vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
 
@@ -355,33 +354,48 @@ private fun FolderManagementItem(
                     textStyle = MaterialTheme.typography.bodyLarge,
                     shape = RoundedCornerShape(8.dp),
                     placeholder = {
-                        Text("輸入分類夾名稱")
+                        Text("輸入收藏夾名稱")
                     }
                 )
 
                 Spacer(Modifier.width(8.dp))
 
                 // 確認修改
-                IconButton(
-                    onClick = {
-                        val newTitle = editedTitle.trim()
-
-                        if (newTitle.isNotEmpty()) {
-                            onRename(newTitle)
-                            isEditing = false
-                        }
-                    },
-                    enabled = editedTitle.isNotBlank(),
+                Box(
                     modifier = Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(MaterialTheme.colorScheme.primary)
+                        .size(48.dp)
+                        .clickable(
+                            enabled = editedTitle.isNotBlank(),
+                            onClick = {
+                                val newTitle = editedTitle.trim()
+                                if (newTitle.isNotEmpty()) {
+                                    onRename(newTitle)
+                                    isEditing = false
+                                }
+                            }
+                        ),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Check,
-                        contentDescription = "確認修改",
-                        tint = MaterialTheme.colorScheme.onPrimary
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(
+                                if (editedTitle.isNotBlank()) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceVariant
+                                }
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Check,
+                            contentDescription = "確認修改",
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
 
             } else {
@@ -416,7 +430,7 @@ private fun FolderManagementItem(
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Edit,
-                        contentDescription = "修改分類夾名稱",
+                        contentDescription = "修改收藏夾名稱",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -427,7 +441,7 @@ private fun FolderManagementItem(
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.DeleteOutline,
-                        contentDescription = "刪除分類夾",
+                        contentDescription = "刪除收藏夾",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -449,7 +463,7 @@ private fun AddFolderDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = "新增分類夾",
+                text = "新增收藏夾",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
@@ -463,7 +477,14 @@ private fun AddFolderDialog(
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 placeholder = {
-                    Text("請輸入分類夾名稱")
+                    Text("請輸入收藏夾名稱")
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Outlined.FolderOpen,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 },
                 shape = RoundedCornerShape(8.dp)
             )
@@ -518,9 +539,9 @@ private fun DeleteFolderDialog(
                 // 顯示收藏數量
                 Text(
                     text = if (hasBookmarks) {
-                        "此分類夾共有 ${folder.count} 篇收藏，請選擇處理方式。"
+                        "此收藏夾共有 ${folder.count} 篇收藏，請選擇處理方式。"
                     } else {
-                        "此分類夾目前尚無任何內容。"
+                        "此收藏夾目前尚無任何內容。"
                     },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -532,7 +553,7 @@ private fun DeleteFolderDialog(
                     // 選項一：移至未分類
                     DeleteFolderOption(
                         title = "移至「未分類」收藏夾",
-                        description = "保留所有收藏，只刪除這個分類夾。",
+                        description = "保留所有收藏，只刪除這個收藏夾。",
                         selected = selectedAction ==
                                 FolderDeleteAction.MOVE_TO_UNCLASSIFIED,
                         onClick = {
@@ -568,6 +589,7 @@ private fun DeleteFolderDialog(
                         selectedAction ==
                                 FolderDeleteAction.MOVE_TO_UNCLASSIFIED ->
                             "確認並移至未分類"
+
                         else -> "確認刪除全部"
                     },
                     color = if (
