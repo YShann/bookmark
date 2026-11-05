@@ -1,7 +1,7 @@
 package com.personal.bookmark_app.ui.screen.register
 
 data class RegisterUiState(
-    val nickname: String = "",
+    // val nickname: String = "",
     val email: String = "",
     val password: String = "",
     val confirmPassword: String = "",
@@ -9,7 +9,10 @@ data class RegisterUiState(
 
     // 密碼顯示狀態
     val isPasswordVisible: Boolean = false,
-    val isConfirmPasswordVisible: Boolean = false
+    val isConfirmPasswordVisible: Boolean = false,
+
+    // 是否已經點擊過註冊
+    val hasSubmitted: Boolean = false
 ) {
     // 密碼至少 8 個字元
     val hasValidLength: Boolean
@@ -28,10 +31,37 @@ data class RegisterUiState(
 
     // 所有欄位是否符合註冊條件
     val isFormValid: Boolean
-        get() = nickname.isNotBlank() &&
-                isEmailValid &&
+        get() = isEmailValid &&
                 hasValidLength &&
                 hasLetterAndNumber &&
-                password == confirmPassword &&
-                isTermsAccepted
+                confirmPassword.isNotBlank() &&
+                password == confirmPassword
+
+    // Email 錯誤訊息
+    val emailError: String?
+        get() = when {
+            !hasSubmitted -> null
+            email.isBlank() -> "請輸入電子郵件"
+            !isEmailValid -> "請輸入有效的電子郵件"
+            else -> null
+        }
+
+    // 密碼錯誤訊息
+    val passwordError: String?
+        get() = when {
+            !hasSubmitted -> null
+            password.isBlank() -> "請設定密碼"
+            !hasValidLength -> "密碼至少需要 8 個字元"
+            !hasLetterAndNumber -> "密碼需包含英文字母及數字"
+            else -> null
+        }
+
+    // 確認密碼錯誤訊息
+    val confirmPasswordError: String?
+        get() = when {
+            !hasSubmitted -> null
+            confirmPassword.isBlank() -> "請再次輸入密碼"
+            password != confirmPassword -> "兩次輸入的密碼不一致"
+            else -> null
+        }
 }

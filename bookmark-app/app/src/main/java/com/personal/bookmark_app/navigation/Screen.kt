@@ -1,7 +1,5 @@
 package com.personal.bookmark_app.navigation
 
-import android.net.Uri
-
 object Screen {
 
     // Auth
@@ -19,7 +17,7 @@ object Screen {
     // Folder Bookmark
     const val FOLDER_BOOKMARK = "folderBookmark/{folderId}"
 
-    fun folderBookmark(folderName: String): String {
-        return "folderBookmark/${Uri.encode(folderName)}"
+    fun folderBookmark(folderId: Long): String {
+        return "folderBookmark/$folderId"
     }
 }

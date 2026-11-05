@@ -7,7 +7,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -58,7 +59,7 @@ fun TextFieldView(
                     // 左側 Icon
                     if (leadingIcon != null) {
                         leadingIcon()
-                        Spacer(Modifier.width(8.dp))
+                        Spacer(Modifier.width(12.dp))
                     }
 
                     // 輸入文字與 Placeholder
@@ -80,9 +81,11 @@ fun TextFieldView(
 
                     // 右側 Icon
                     if (trailingIcon != null) {
-                        Spacer(Modifier.width(8.dp))
-                        trailingIcon()
-                    }
+                        Box(
+                            modifier = Modifier.offset(x = 6.dp)
+                        ) {
+                            trailingIcon()
+                        }                    }
                 }
             }
         )
@@ -97,7 +100,7 @@ private fun TextFieldContainer(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .heightIn(min = 48.dp)
+            .height(60.dp)
             .background(
                 color = MaterialTheme.colorScheme.surface,
                 shape = RoundedCornerShape(8.dp)

@@ -13,9 +13,11 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.personal.bookmark_app.data.repository.FakeAuthRepository
+import com.personal.bookmark_app.ui.mockdata.FolderMockData
 import com.personal.bookmark_app.ui.screen.DailyPicksScreen
 import com.personal.bookmark_app.ui.screen.SearchBookmarkScreen
 import com.personal.bookmark_app.ui.screen.addbookmark.AddBookmarkScreen
@@ -35,6 +37,19 @@ fun AppNavigation() {
 
     val navController = rememberNavController()
     val context = LocalContext.current
+
+    // 觀察目前所在的 Navigation 頁面
+    val currentBackStackEntry by navController.currentBackStackEntryAsState()
+
+    // 防止返回操作被連續執行
+    var isBackNavigationInProgress by remember {
+        mutableStateOf(false)
+    }
+
+    // 當頁面成功切換後，解除返回鎖定
+    LaunchedEffect(currentBackStackEntry) {
+        isBackNavigationInProgress = false
+    }
 
     // ------------------------------------------------
     // 建立 AuthViewModel
@@ -86,6 +101,27 @@ fun AppNavigation() {
                 inclusive = true
             }
             launchSingleTop = true
+        }
+    }
+
+    // 安全返回上一頁，避免快速連點造成連續返回
+    fun navigateBackSafely() {
+
+        // 如果上一個返回操作還沒完成，就不再執行
+        if (isBackNavigationInProgress) return
+
+        // 如果沒有上一頁，就不執行返回
+        if (navController.previousBackStackEntry == null) return
+
+        // 鎖定返回操作
+        isBackNavigationInProgress = true
+
+        // 執行返回
+        val isPopped = navController.popBackStack()
+
+        // 如果返回失敗，解除鎖定
+        if (!isPopped) {
+            isBackNavigationInProgress = false
         }
     }
 
@@ -149,27 +185,18 @@ fun AppNavigation() {
 
             LoginScreen(
                 uiState = loginUiState,
-
                 onEmailChange = authViewModel::onLoginEmailChange,
-
                 onPasswordChange = authViewModel::onLoginPasswordChange,
-
-                onRememberMeChange = authViewModel::onRememberMeChange,
-
-                onPasswordVisibilityChange =
-                    authViewModel::onLoginPasswordVisibilityChange,
-
+//                onRememberMeChange = authViewModel::onRememberMeChange,
+                onPasswordVisibilityChange = authViewModel::onLoginPasswordVisibilityChange,
                 onLoginClick = authViewModel::login,
-
                 onGoogleLoginClick = {
                     // 暫時模擬 Google 登入成功
                     navigateToHome()
                 },
-
                 onForgotPasswordClick = {
                     navController.navigate(Screen.FORGOT_PASSWORD)
                 },
-
                 onRegisterClick = {
                     navController.navigate(Screen.REGISTER)
                 }
@@ -181,39 +208,21 @@ fun AppNavigation() {
 
             RegisterScreen(
                 uiState = registerUiState,
-
-                onNicknameChange = authViewModel::onNicknameChange,
-
+//                onNicknameChange = authViewModel::onNicknameChange,
                 onEmailChange = authViewModel::onRegisterEmailChange,
-
                 onPasswordChange = authViewModel::onRegisterPasswordChange,
-
-                onConfirmPasswordChange =
-                    authViewModel::onConfirmPasswordChange,
-
-                onPasswordVisibilityChange =
-                    authViewModel::onRegisterPasswordVisibilityChange,
-
-                onConfirmPasswordVisibilityChange =
-                    authViewModel::onConfirmPasswordVisibilityChange,
-
-                onTermsAcceptedChange =
-                    authViewModel::onTermsAcceptedChange,
-
+                onConfirmPasswordChange = authViewModel::onConfirmPasswordChange,
+                onPasswordVisibilityChange = authViewModel::onRegisterPasswordVisibilityChange,
+                onConfirmPasswordVisibilityChange = authViewModel::onConfirmPasswordVisibilityChange,
+//                onTermsAcceptedChange =
+//                    authViewModel::onTermsAcceptedChange,
                 onRegisterClick = authViewModel::register,
-
                 onGoogleRegisterClick = {
                     // 暫時模擬 Google 註冊成功
                     navigateToHome()
                 },
-
-                onBackClick = {
-                    navController.popBackStack()
-                },
-
-                onLoginClick = {
-                    navController.popBackStack()
-                }
+                onBackClick = { navigateBackSafely() },
+                onLoginClick = { navigateBackSafely() }
             )
         }
 
@@ -222,14 +231,9 @@ fun AppNavigation() {
 
             VerifyEmailScreen(
                 uiState = verifyEmailUiState,
-
-                onCodeChange =
-                    authViewModel::onVerificationCodeChange,
-
+                onCodeChange = authViewModel::onVerificationCodeChange,
                 onVerifyClick = authViewModel::verifyEmail,
-
-                onResendClick =
-                    authViewModel::resendVerificationCode
+                onResendClick = authViewModel::resendVerificationCode
             )
         }
 
@@ -238,16 +242,9 @@ fun AppNavigation() {
 
             ForgotPasswordScreen(
                 uiState = forgotPasswordUiState,
-
-                onEmailChange =
-                    authViewModel::onForgotPasswordEmailChange,
-
-                onBackClick = {
-                    navController.popBackStack()
-                },
-
-                onSendResetLinkClick =
-                    authViewModel::sendPasswordResetLink
+                onEmailChange = authViewModel::onForgotPasswordEmailChange,
+                onBackClick = { navigateBackSafely() },
+                onSendResetLinkClick = authViewModel::sendPasswordResetLink
             )
         }
 
@@ -259,26 +256,14 @@ fun AppNavigation() {
         composable(Screen.HOME) {
 
             HomeScreen(
-                onSearchClick = {
-                    navController.navigate(Screen.SEARCH_BOOKMARK)
-                },
-
-                onAddBookmarkClick = {
-                    navController.navigate(Screen.ADD_BOOKMARK)
-                },
-
-                onDailyPicksClick = {
-                    navController.navigate(Screen.DAILY_PICKS)
-                },
-
+                onSearchClick = { navController.navigate(Screen.SEARCH_BOOKMARK) },
+                onAddBookmarkClick = { navController.navigate(Screen.ADD_BOOKMARK) },
+                onDailyPicksClick = { navController.navigate(Screen.DAILY_PICKS) },
                 onEditFoldersClick = {
                     // 編輯收藏夾畫面尚未設計，暫時不處理
                 },
-
                 onFolderClick = { folder ->
-                    navController.navigate(
-                        Screen.folderBookmark(folder.title)
-                    )
+                    navController.navigate(Screen.folderBookmark(folder.id))
                 }
             )
         }
@@ -287,10 +272,7 @@ fun AppNavigation() {
         composable(Screen.DAILY_PICKS) {
 
             DailyPicksScreen(
-                onBackClick = {
-                    navController.popBackStack()
-                },
-
+                onBackClick = { navigateBackSafely() },
                 onRefreshClick = {
                     // 第四階段再接上每日推薦邏輯
                 }
@@ -301,9 +283,7 @@ fun AppNavigation() {
         composable(Screen.SEARCH_BOOKMARK) {
 
             SearchBookmarkScreen(
-                onBackClick = {
-                    navController.popBackStack()
-                }
+                onBackClick = { navigateBackSafely() }
             )
         }
 
@@ -327,7 +307,6 @@ fun AppNavigation() {
                         selectedSource = source
                     )
                 },
-
 //                onFolderClick = {
 //                    addBookmarkUiState = addBookmarkUiState.copy(
 //                        isFolderSelectorVisible = true
@@ -371,11 +350,9 @@ fun AppNavigation() {
                 onSaveClick = {
                     // 暫時模擬儲存成功
                     addBookmarkUiState = AddBookmarkUiState()
-                    navController.popBackStack()
+                    navigateBackSafely()
                 },
-                onBackClick = {
-                    navController.popBackStack()
-                }
+                onBackClick = { navigateBackSafely() }
             )
         }
 
@@ -386,27 +363,24 @@ fun AppNavigation() {
         composable(
             route = Screen.FOLDER_BOOKMARK,
             arguments = listOf(
-                navArgument("folderName") {
-                    type = NavType.StringType
+                navArgument("folderId") {
+                    type = NavType.LongType
                 }
             )
         ) { backStackEntry ->
 
-            val folderName = backStackEntry.arguments
-                ?.getString("folderName")
-                .orEmpty()
+            val folderId = backStackEntry.arguments?.getLong("folderId") ?: 0L
+            val folderName = FolderMockData
+                .firstOrNull { it.id == folderId }
+                ?.title
+                ?: "資料夾 $folderId"
 
             FolderBookmarkScreen(
                 folderName = folderName,
-
-                onBackClick = {
-                    navController.popBackStack()
-                },
-
+                onBackClick = { navigateBackSafely() },
                 onBatchManageClick = {
                     // 畫面目前自行管理批量模式
                 },
-
                 onBookmarkClick = { bookmarkId ->
                     // 收藏詳情頁尚未設計，暫時不處理
                 }

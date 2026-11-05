@@ -77,11 +77,11 @@ class AuthViewModel(
         }
     }
 
-    fun onRememberMeChange(checked: Boolean) {
-        _loginUiState.update {
-            it.copy(rememberMe = checked)
-        }
-    }
+//    fun onRememberMeChange(checked: Boolean) {
+//        _loginUiState.update {
+//            it.copy(rememberMe = checked)
+//        }
+//    }
 
     fun onLoginPasswordVisibilityChange() {
         _loginUiState.update {
@@ -90,18 +90,28 @@ class AuthViewModel(
     }
 
     fun login() {
-        val state = _loginUiState.value
-
-        if (state.email.isBlank() || state.password.isBlank()) {
-            _loginUiState.update {
-                it.copy(errorMessage = "請輸入 Email 和密碼")
-            }
-            return
+        // 點擊登入後，開始顯示欄位錯誤
+        _loginUiState.update {
+            it.copy(
+                hasSubmitted = true,
+                errorMessage = null
+            )
         }
 
+        // 取得最新的表單狀態
+        val state = _loginUiState.value
+
+        // 前端欄位驗證失敗就停止登入
+        if (!state.isFormValid) return
+
         viewModelScope.launch {
+
+            // 開始登入，顯示 Loading
             _loginUiState.update {
-                it.copy(isLoading = true, errorMessage = null)
+                it.copy(
+                    isLoading = true,
+                    errorMessage = null
+                )
             }
 
             val result = authRepository.login(
@@ -109,12 +119,14 @@ class AuthViewModel(
                 password = state.password
             )
 
+            // 登入完成，關閉 Loading
             _loginUiState.update {
                 it.copy(isLoading = false)
             }
 
             result.onSuccess {
                 _authEvent.emit(AuthEvent.Authenticated)
+
             }.onFailure { error ->
                 _loginUiState.update {
                     it.copy(
@@ -129,11 +141,11 @@ class AuthViewModel(
     // Register
     // ==================================================
 
-    fun onNicknameChange(nickname: String) {
-        _registerUiState.update {
-            it.copy(nickname = nickname)
-        }
-    }
+//    fun onNicknameChange(nickname: String) {
+//        _registerUiState.update {
+//            it.copy(nickname = nickname)
+//        }
+//    }
 
     fun onRegisterEmailChange(email: String) {
         _registerUiState.update {
@@ -172,13 +184,19 @@ class AuthViewModel(
     }
 
     fun register() {
+        // 先標記使用者已經嘗試註冊
+        _registerUiState.update {
+            it.copy(hasSubmitted = true)
+        }
+
+        // 取得最新的表單狀態
         val state = _registerUiState.value
 
+        // 驗證失敗就停止，讓畫面顯示錯誤提示
         if (!state.isFormValid) return
 
         viewModelScope.launch {
             val result = authRepository.register(
-                nickname = state.nickname,
                 email = state.email,
                 password = state.password
             )
@@ -304,27 +322,29 @@ class AuthViewModel(
         _forgotPasswordUiState.update {
             it.copy(
                 email = email,
-                emailError = null
+                errorMessage = null
             )
         }
     }
 
     fun sendPasswordResetLink() {
+        // 點擊發送後，開始顯示欄位錯誤
+        _forgotPasswordUiState.update {
+            it.copy(
+                hasSubmitted = true,
+                errorMessage = null
+            )
+        }
+
+        // 取得最新表單狀態
         val state = _forgotPasswordUiState.value
 
-        val emailPattern =
-            Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")
-
-        if (!emailPattern.matches(state.email)) {
-            _forgotPasswordUiState.update {
-                it.copy(emailError = "請輸入有效的 Email")
-            }
-            return
-        }
+        // Email 格式不正確就停止發送
+        if (!state.isFormValid) return
 
         viewModelScope.launch {
             _forgotPasswordUiState.update {
-                it.copy(isLoading = true, emailError = null)
+                it.copy(isLoading = true)
             }
 
             val result = authRepository.sendPasswordResetLink(
@@ -340,7 +360,8 @@ class AuthViewModel(
             }.onFailure { error ->
                 _forgotPasswordUiState.update {
                     it.copy(
-                        emailError = error.message ?: "寄送失敗，請稍後再試"
+                        errorMessage = error.message
+                            ?: "寄送失敗，請稍後再試"
                     )
                 }
             }
