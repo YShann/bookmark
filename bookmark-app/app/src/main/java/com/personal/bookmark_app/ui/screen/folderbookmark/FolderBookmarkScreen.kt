@@ -640,16 +640,27 @@ private fun FolderTagFilter(
 
                     Spacer(Modifier.width(6.dp))
 
-                    Icon(
-                        imageVector = Icons.Default.Info,
-                        contentDescription = "標籤篩選說明",
-                        modifier = Modifier
-                            .size(18.dp)
-                            .clickable {
-                                showTagInfo = !showTagInfo
-                            },
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Box {
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = "標籤篩選說明",
+                            modifier = Modifier
+                                .size(18.dp)
+                                .clickable {
+                                    showTagInfo = !showTagInfo
+                                },
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        if (showTagInfo) {
+                            TagInfoPopup(
+                                onDismiss = {
+                                    showTagInfo = false
+                                },
+                                message = "標籤由收藏自動彙整，若該標籤的文章全數刪除或移出，標籤亦會同步移除。"
+                            )
+                        }
+                    }
 
                     Spacer(Modifier.weight(1f))
 
@@ -701,14 +712,6 @@ private fun FolderTagFilter(
                         contentDescription = if (isExpanded) "收合標籤" else "展開標籤",
                         modifier = Modifier.size(20.dp),
                         tint = MaterialTheme.colorScheme.primary
-                    )
-                }
-
-                if (showTagInfo) {
-                    TagInfoPopup(
-                        onDismiss = {
-                            showTagInfo = false
-                        }
                     )
                 }
             }

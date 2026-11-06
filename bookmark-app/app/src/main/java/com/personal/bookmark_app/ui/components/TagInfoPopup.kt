@@ -21,6 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -29,11 +30,15 @@ import androidx.compose.ui.window.PopupProperties
 
 @Composable
 fun TagInfoPopup(
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    message: String
 ) {
     Popup(
         alignment = Alignment.TopStart,
-        offset = IntOffset(0, 28),
+        offset = IntOffset(
+            x = with(LocalDensity.current) { (-72).dp.roundToPx() },
+            y = with(LocalDensity.current) { 24.dp.roundToPx() }
+        ),
         onDismissRequest = onDismiss,
         properties = PopupProperties(
             focusable = true
@@ -68,7 +73,7 @@ fun TagInfoPopup(
                         )
 
                         Text(
-                            text = "標籤產生說明",
+                            text = "標籤說明",
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.onSurface
@@ -87,7 +92,7 @@ fun TagInfoPopup(
                 }
 
                 Text(
-                    text = "標籤由收藏自動彙整，若該標籤的文章全數刪除或移出，標籤亦會同步移除。",
+                    text = message,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
