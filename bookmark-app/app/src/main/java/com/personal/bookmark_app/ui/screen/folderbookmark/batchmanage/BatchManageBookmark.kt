@@ -1,22 +1,19 @@
-package com.personal.bookmark_app.ui.screen.folderbookmark
+package com.personal.bookmark_app.ui.screen.folderbookmark.batchmanage
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
-import androidx.compose.material.icons.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.CheckBox
+import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -26,8 +23,6 @@ import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -42,6 +37,7 @@ fun BatchManageBottomBar(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
+            .navigationBarsPadding()
             .padding(
                 horizontal = 24.dp,
                 vertical = 12.dp
@@ -65,7 +61,11 @@ fun BatchManageBottomBar(
                 modifier = Modifier.weight(1f)
             ) {
                 Icon(
-                    imageVector = Icons.Default.CheckBox,
+                    imageVector = if (isAllSelected) {
+                        Icons.Default.CheckBox
+                    } else {
+                        Icons.Default.CheckBoxOutlineBlank
+                    },
                     contentDescription = null,
                     modifier = Modifier.size(20.dp)
                 )
@@ -73,11 +73,7 @@ fun BatchManageBottomBar(
                 Spacer(Modifier.width(6.dp))
 
                 Text(
-                    text = if (isAllSelected) {
-                        "取消全選"
-                    } else {
-                        "全選"
-                    },
+                    text = "全選",
                     style = MaterialTheme.typography.labelLarge
                 )
             }
@@ -143,86 +139,5 @@ fun BatchManageBottomBar(
                 )
             }
         }
-    }
-}
-
-@Composable
-fun MoveBookmarkSheet(
-    selectedCount: Int,
-    folders: List<String>,
-    onFolderClick: (String) -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(
-                horizontal = 24.dp,
-                vertical = 8.dp
-            )
-    ) {
-        Text(
-            text = "移動收藏到",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold
-        )
-
-        Spacer(Modifier.height(8.dp))
-
-        Text(
-            text = "將 $selectedCount 筆收藏移動至指定資料夾",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
-        Spacer(Modifier.height(16.dp))
-
-        HorizontalDivider(
-            color = MaterialTheme.colorScheme.outlineVariant
-        )
-
-        folders.forEach { folder ->
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
-                    .clickable {
-                        onFolderClick(folder)
-                    }
-                    .padding(vertical = 16.dp),
-
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Folder,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp)
-                )
-
-                Spacer(Modifier.width(16.dp))
-
-                Text(
-                    text = folder,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-
-                Spacer(Modifier.weight(1f))
-
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            HorizontalDivider(
-                color = MaterialTheme.colorScheme.outlineVariant
-            )
-        }
-
-        Spacer(Modifier.height(24.dp))
     }
 }

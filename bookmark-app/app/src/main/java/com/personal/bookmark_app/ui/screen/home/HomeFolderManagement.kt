@@ -1,5 +1,6 @@
 package com.personal.bookmark_app.ui.screen.home
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -7,12 +8,15 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -20,7 +24,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.AddCircleOutline
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.DeleteOutline
@@ -37,6 +41,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ModalBottomSheetProperties
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
@@ -55,17 +60,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.personal.bookmark_app.ui.model.FolderUiModel
+import com.personal.bookmark_app.ui.screen.addbookmark.AddFolderDialog
 
 private enum class FolderDeleteAction {
     MOVE_TO_UNCLASSIFIED,
     DELETE_ALL
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun FolderManagementSheet(
     folders: List<FolderUiModel>,
@@ -75,6 +82,17 @@ fun FolderManagementSheet(
     onMoveToUnclassified: (Long) -> Unit,
     onAdd: (String) -> Unit
 ) {
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val isKeyboardVisible = WindowInsets.isImeVisible
+
+    BackHandler {
+        if (isKeyboardVisible) {
+            keyboardController?.hide()
+        } else {
+            onDismiss()
+        }
+    }
+
     var showAddDialog by rememberSaveable {
         mutableStateOf(false)
     }
@@ -96,6 +114,9 @@ fun FolderManagementSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
+        properties = ModalBottomSheetProperties(
+            shouldDismissOnBackPress = false
+        ),
         containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = {
             BottomSheetDefaults.DragHandle(
@@ -175,7 +196,7 @@ fun FolderManagementSheet(
                 )
             ) {
                 Icon(
-                    imageVector = Icons.Outlined.AddCircleOutline,
+                    imageVector = Icons.Default.Add,
                     contentDescription = null,
                     modifier = Modifier.size(20.dp)
                 )
@@ -183,7 +204,7 @@ fun FolderManagementSheet(
                 Spacer(Modifier.width(8.dp))
 
                 Text(
-                    text = "新增收藏夾",
+                    text = "新建收藏夾",
                     style = MaterialTheme.typography.labelLarge
                 )
             }
@@ -449,67 +470,6 @@ private fun FolderManagementItem(
         }
     }
 }
-
-@Composable
-private fun AddFolderDialog(
-    onDismiss: () -> Unit,
-    onConfirm: (String) -> Unit
-) {
-    var folderName by rememberSaveable {
-        mutableStateOf("")
-    }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = "新增收藏夾",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-        },
-        text = {
-            OutlinedTextField(
-                value = folderName,
-                onValueChange = {
-                    folderName = it
-                },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                placeholder = {
-                    Text("請輸入收藏夾名稱")
-                },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Outlined.FolderOpen,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
-                shape = RoundedCornerShape(8.dp)
-            )
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    onConfirm(folderName.trim())
-                },
-                enabled = folderName.isNotBlank()
-            ) {
-                Text("新增")
-            }
-        },
-        dismissButton = {
-            TextButton(
-                onClick = onDismiss
-            ) {
-                Text("取消")
-            }
-        },
-        containerColor = MaterialTheme.colorScheme.surface
-    )
-}
-
 
 @Composable
 private fun DeleteFolderDialog(

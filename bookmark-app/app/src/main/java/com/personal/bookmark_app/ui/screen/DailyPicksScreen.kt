@@ -198,16 +198,13 @@ private fun DailyPicksFooter(
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Button(
             onClick = onRefreshClick,
             modifier = Modifier
                 .fillMaxWidth()
-//                .height(56.dp)
                 .padding(
-                    horizontal = 20.dp,
-                    vertical = 16.dp
+                    vertical = 12.dp
                 ),
             shape = RoundedCornerShape(12.dp),
             colors = ButtonDefaults.buttonColors(
@@ -219,9 +216,6 @@ private fun DailyPicksFooter(
                 imageVector = Icons.Default.Refresh,
                 contentDescription = null
             )
-
-            Spacer(modifier = Modifier.height(0.dp))
-
             Text(
                 text = "換一組推薦",
                 modifier = Modifier.padding(start = 8.dp),
@@ -230,9 +224,12 @@ private fun DailyPicksFooter(
         }
 
         Text(
-            text = "每日清晨 06:00 固定拾新，亦可隨時手動刷新。",
+            text = "每日清晨 06:00 更新，亦可手動更換。",
             color = BookmarkTextSecondary,
             style = MaterialTheme.typography.bodySmall
         )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
     }
 }

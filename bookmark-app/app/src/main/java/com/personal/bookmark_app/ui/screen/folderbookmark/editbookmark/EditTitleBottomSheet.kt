@@ -1,14 +1,18 @@
-package com.personal.bookmark_app.ui.screen.folderbookmark.editbottomsheet
+package com.personal.bookmark_app.ui.screen.folderbookmark.editbookmark
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -17,7 +21,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Lightbulb
@@ -28,6 +31,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ModalBottomSheetProperties
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -41,6 +45,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.personal.bookmark_app.ui.components.BottomSheetDragHandle
@@ -49,7 +54,7 @@ import com.personal.bookmark_app.ui.model.FolderBookmarkUiModel
 import com.skydoves.landscapist.ImageOptions
 import com.skydoves.landscapist.coil3.CoilImage
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun EditTitleBottomSheet(
     item: FolderBookmarkUiModel,
@@ -71,9 +76,23 @@ fun EditTitleBottomSheet(
         skipPartiallyExpanded = true
     )
 
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val isKeyboardVisible = WindowInsets.isImeVisible
+
+    BackHandler {
+        if (isKeyboardVisible) {
+            keyboardController?.hide()
+        } else {
+            onDismiss()
+        }
+    }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
+        properties = ModalBottomSheetProperties(
+            shouldDismissOnBackPress = false
+        ),
         containerColor = MaterialTheme.colorScheme.background,
         shape = RoundedCornerShape(
             topStart = 28.dp,
@@ -83,7 +102,6 @@ fun EditTitleBottomSheet(
             BottomSheetDragHandle()
         }
     ) {
-
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -123,27 +141,11 @@ fun EditTitleBottomSheet(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "典藏標題",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-
-                        Spacer(Modifier.width(5.dp))
-
-                        Box(
-                            modifier = Modifier
-                                .size(4.dp)
-                                .background(
-                                    color = MaterialTheme.colorScheme.tertiary,
-                                    shape = CircleShape
-                                )
-                        )
-                    }
+                    Text(
+                        text = "典藏標題",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
 
                     Text(
                         text = "${editedTitle.length} / $maxTitleLength",
@@ -202,7 +204,7 @@ fun EditTitleBottomSheet(
                     Spacer(Modifier.width(6.dp))
 
                     Text(
-                        text = "建議保留清晰關鍵字，便於日後快速檢索與回顧",
+                        text = "建議保留清晰關鍵字，便於日後檢索與回顧",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -231,14 +233,6 @@ fun EditTitleBottomSheet(
                     defaultElevation = 2.dp
                 )
             ) {
-                Icon(
-                    imageVector = Icons.Default.Check,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
-
-                Spacer(Modifier.width(6.dp))
-
                 Text(
                     text = "儲存標題變更",
                     style = MaterialTheme.typography.labelLarge

@@ -1,17 +1,20 @@
-package com.personal.bookmark_app.ui.screen.folderbookmark.editbottomsheet
+package com.personal.bookmark_app.ui.screen.folderbookmark.editbookmark
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material3.BottomSheetDefaults
@@ -22,10 +25,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ModalBottomSheetProperties
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -33,10 +38,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun EditNoteBottomSheet(
     currentNote: String,
@@ -47,8 +53,29 @@ fun EditNoteBottomSheet(
         mutableStateOf(currentNote)
     }
 
+    val isNoteChanged = note != currentNote
+
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val isKeyboardVisible = WindowInsets.isImeVisible
+
+    BackHandler {
+        if (isKeyboardVisible) {
+            keyboardController?.hide()
+        } else {
+            onDismiss()
+        }
+    }
+
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true
+    )
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
+        sheetState=sheetState,
+        properties = ModalBottomSheetProperties(
+            shouldDismissOnBackPress = false
+        ),
         containerColor = MaterialTheme.colorScheme.background,
         shape = RoundedCornerShape(
             topStart = 28.dp,
@@ -177,28 +204,23 @@ fun EditNoteBottomSheet(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            // 儲存按鈕
+            // 儲存
             Button(
                 onClick = {
                     onSave(note)
                 },
+                enabled = isNoteChanged,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp),
                 shape = RoundedCornerShape(8.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             ) {
-                Icon(
-                    imageVector = Icons.Default.Check,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .padding(end = 6.dp)
-                        .size(18.dp)
-                )
-
                 Text(
                     text = "儲存筆記變更",
                     style = MaterialTheme.typography.labelLarge

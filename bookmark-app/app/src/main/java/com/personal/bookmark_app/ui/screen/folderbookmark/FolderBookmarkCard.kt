@@ -1,6 +1,7 @@
 package com.personal.bookmark_app.ui.screen.folderbookmark
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,12 +13,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -37,10 +41,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.personal.bookmark_app.ui.model.FolderBookmarkUiModel
-import com.personal.bookmark_app.ui.screen.folderbookmark.editbottomsheet.DeleteBookmarkBottomSheet
-import com.personal.bookmark_app.ui.screen.folderbookmark.editbottomsheet.EditNoteBottomSheet
-import com.personal.bookmark_app.ui.screen.folderbookmark.editbottomsheet.EditTagsBottomSheet
-import com.personal.bookmark_app.ui.screen.folderbookmark.editbottomsheet.EditTitleBottomSheet
+import com.personal.bookmark_app.ui.screen.folderbookmark.editbookmark.DeleteBookmarkBottomSheet
+import com.personal.bookmark_app.ui.screen.folderbookmark.editbookmark.EditNoteBottomSheet
+import com.personal.bookmark_app.ui.screen.folderbookmark.editbookmark.EditTagsBottomSheet
+import com.personal.bookmark_app.ui.screen.folderbookmark.editbookmark.EditTitleBottomSheet
+import com.personal.bookmark_app.ui.screen.folderbookmark.editbookmark.FolderBookmarkOptionsMenu
+import com.personal.bookmark_app.ui.theme.BookmarkTextSecondary
 import com.skydoves.landscapist.ImageOptions
 import com.skydoves.landscapist.coil3.CoilImage
 
@@ -87,154 +93,167 @@ fun FolderBookmarkCard(
         color = MaterialTheme.colorScheme.surface,
         shadowElevation = 1.dp
     ) {
-        Row(
-            modifier = Modifier.padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            modifier = Modifier.padding(12.dp)
         ) {
-
-            // 批量管理 Checkbox
-            if (isBatchManaging) {
-                Surface(
-                    modifier = Modifier
-                        .size(24.dp)
-                        .clickable(
-                            onClick = onSelectionClick
-                        ),
-                    shape = CircleShape,
-                    color = if (isSelected) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.surfaceVariant
-                    },
-                    border = if (isSelected) {
-                        null
-                    } else {
-                        BorderStroke(
-                            1.dp,
-                            MaterialTheme.colorScheme.outlineVariant
-                        )
-                    }
-                ) {
-                    if (isSelected) {
-                        Box(
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = "已選取",
-                                modifier = Modifier.size(16.dp),
-                                tint = MaterialTheme.colorScheme.onPrimary
-                            )
-                        }
-                    }
-                }
-                Spacer(Modifier.width(12.dp))
-            }
-
-            // 收藏縮圖
-            CoilImage(
-                imageModel = { item.imageUrl },
-                imageOptions = ImageOptions(
-                    contentScale = ContentScale.Crop
-                ),
-                modifier = Modifier
-                    .size(80.dp)
-                    .clip(RoundedCornerShape(7.dp))
-            )
-
-            Spacer(Modifier.width(14.dp))
-
-            Column(
-                modifier = Modifier.weight(1f)
+            // Header：來源、日期、更多操作
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "${item.source} · ${item.date}",
-                        modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-
-                    // 更多操作按鈕
-                    Box {
-                        IconButton(
-                            onClick = {
-                                expanded = true
-                            },
-                            modifier = Modifier.size(28.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.MoreVert,
-                                contentDescription = "更多操作",
-                                modifier = Modifier.size(20.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                // 批量管理 Checkbox
+                if (isBatchManaging) {
+                    Surface(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clickable(onClick = onSelectionClick),
+                        shape = CircleShape,
+                        color = if (isSelected) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.surfaceVariant
+                        },
+                        border = if (isSelected) {
+                            null
+                        } else {
+                            BorderStroke(
+                                1.dp,
+                                MaterialTheme.colorScheme.outlineVariant
                             )
                         }
-
-                        // 更多操作選單
-                        FolderBookmarkOptionsMenu(
-                            expanded = expanded,
-                            onDismissRequest = {
-                                expanded = false
-                            },
-                            onEditTitleClick = {
-                                expanded = false
-                                showEditTitleSheet = true
-                            },
-                            onEditNoteClick = {
-                                expanded = false
-                                showEditNoteSheet = true
-                            },
-                            onEditTagsClick = {
-                                expanded = false
-                                showEditTagsSheet = true
-                            },
-                            onDeleteClick = {
-                                expanded = false
-                                onDeleteClick()
+                    ) {
+                        if (isSelected) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "已選取",
+                                    modifier = Modifier.size(16.dp),
+                                    tint = MaterialTheme.colorScheme.onPrimary
+                                )
                             }
-                        )
+                        }
                     }
+
+                    Spacer(Modifier.width(8.dp))
                 }
 
                 Text(
-                    text = item.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                Spacer(Modifier.height(2.dp))
-
-                Text(
-                    text = item.description,
-                    style = MaterialTheme.typography.bodySmall,
+                    text = "${item.source} · ${item.date}",
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
 
-                item.note?.let { note ->
-                    Spacer(Modifier.height(8.dp))
+                Box {
+                    IconButton(
+                        onClick = { expanded = true },
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "更多操作",
+                            modifier = Modifier.size(20.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
 
-                    BookmarkNote(note = note)
+                    FolderBookmarkOptionsMenu(
+                        expanded = expanded,
+                        onDismissRequest = {
+                            expanded = false
+                        },
+                        onEditTitleClick = {
+                            expanded = false
+                            showEditTitleSheet = true
+                        },
+                        onEditNoteClick = {
+                            expanded = false
+                            showEditNoteSheet = true
+                        },
+                        onEditTagsClick = {
+                            expanded = false
+                            showEditTagsSheet = true
+                        },
+                        onDeleteClick = {
+                            expanded = false
+                            showDeleteSheet = true
+                        }
+                    )
                 }
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            // 標題：獨立一整列
+            Text(
+                text = item.title,
+                modifier = Modifier.fillMaxWidth(),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Spacer(Modifier.height(8.dp))
+
+            // 收藏主要內容：左側縮圖，右側描述與標籤
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    // 文章描述
+                    Text(
+                        text = item.description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    // 標籤：單行橫向滑動
+                    if (item.tags.isNotEmpty()) {
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            items(count = item.tags.size) { index ->
+                                BookmarkTag(tag = item.tags[index])
+                            }
+                        }
+                    }
+                }
+
+                Spacer(Modifier.width(12.dp))
+
+                // 收藏縮圖
+                CoilImage(
+                    imageModel = { item.imageUrl },
+                    imageOptions = ImageOptions(
+                        contentScale = ContentScale.Crop
+                    ),
+                    modifier = Modifier
+                        .size(70.dp)
+                        .clip(RoundedCornerShape(7.dp))
+                )
+            }
+
+            // 筆記
+            item.note?.takeIf { it.isNotBlank() }?.let { note ->
+                Spacer(Modifier.height(8.dp))
+
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outlineVariant
+                )
 
                 Spacer(Modifier.height(8.dp))
 
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    item.tags.forEach { tag ->
-                        BookmarkTag(tag = tag)
-                    }
-                }
+                BookmarkNote(note = note)
             }
         }
     }
@@ -294,50 +313,51 @@ fun FolderBookmarkCard(
 
 
 @Composable
-private fun BookmarkNote(
-    note: String
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(6.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant
-    ) {
-        Column(
-            modifier = Modifier.padding(10.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "筆記",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.SemiBold
-                )
+private fun BookmarkNote(note: String) {
+    var isExpanded by remember {
+        mutableStateOf(false)
+    }
 
-                Spacer(Modifier.weight(1f))
-
-                Icon(
-                    imageVector = Icons.Default.ExpandLess,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(4.dp))
+            .background(
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.06f)
+            )
+            .clickable {
+                isExpanded = !isExpanded
             }
+            .padding(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.EditNote,
+            contentDescription = "個人筆記",
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(20.dp)
+        )
 
-            HorizontalDivider(
-                modifier = Modifier.padding(vertical = 6.dp),
-                color = MaterialTheme.colorScheme.outlineVariant
-            )
+        Text(
+            text = note,
+            modifier = Modifier.weight(1f),
+            color = BookmarkTextSecondary,
+            style = MaterialTheme.typography.bodySmall,
+            maxLines = if (isExpanded) Int.MAX_VALUE else 1,
+            overflow = TextOverflow.Ellipsis
+        )
 
-            Text(
-                text = note,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 4,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
+        Icon(
+            imageVector = if (isExpanded) {
+                Icons.Default.ExpandLess
+            } else {
+                Icons.Default.ExpandMore
+            },
+            contentDescription = if (isExpanded) "收合筆記" else "展開筆記",
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(18.dp)
+        )
     }
 }
 
@@ -346,18 +366,18 @@ private fun BookmarkTag(
     tag: String
 ) {
     Surface(
-        shape = CircleShape,
+        shape = RoundedCornerShape(10.dp),
         color = MaterialTheme.colorScheme.surfaceVariant
-    ) {
+        ) {
         Text(
-            text = tag,
+            text = "# $tag",
             modifier = Modifier.padding(
                 horizontal = 9.dp,
                 vertical = 3.dp
             ),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontWeight = FontWeight.SemiBold
+            fontWeight = FontWeight.Normal
         )
     }
 }

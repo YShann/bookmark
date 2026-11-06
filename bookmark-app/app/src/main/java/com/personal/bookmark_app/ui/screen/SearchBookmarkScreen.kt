@@ -14,11 +14,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowLeft
-import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -26,7 +23,6 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -38,10 +34,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.personal.bookmark_app.ui.components.BookmarkCard
+import com.personal.bookmark_app.ui.components.SearchInputField
 import com.personal.bookmark_app.ui.mockdata.bookmarkMockData
 import com.personal.bookmark_app.ui.model.BookmarkSource
 import com.personal.bookmark_app.ui.model.BookmarkUiModel
@@ -162,60 +157,13 @@ private fun SearchBookmarkTopBar(
         title = {
             SearchInputField(
                 query = searchQuery,
-                onQueryChange = onSearchQueryChange
+                onQueryChange = onSearchQueryChange,
+                placeholder = "搜尋標題、網址或筆記..."
             )
         },
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = MaterialTheme.colorScheme.background,
             titleContentColor = MaterialTheme.colorScheme.onBackground
-        )
-    )
-}
-
-// --------------------------------------------------
-// 搜尋欄
-// --------------------------------------------------
-
-@Composable
-private fun SearchInputField(
-    query: String,
-    onQueryChange: (String) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    OutlinedTextField(
-        value = query,
-        onValueChange = onQueryChange,
-        modifier = modifier
-            .fillMaxWidth()
-            .height(52.dp),
-        placeholder = {
-            Text(
-                text = "搜尋標題、網址或筆記...",
-                style = MaterialTheme.typography.bodyMedium
-            )
-        },
-        leadingIcon = {
-            Icon(
-                imageVector = Icons.Outlined.Search,
-                contentDescription = "搜尋"
-            )
-        },
-        trailingIcon = {
-            if (query.isNotEmpty()) {
-                IconButton(
-                    onClick = { onQueryChange("") }
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Close,
-                        contentDescription = "清除搜尋"
-                    )
-                }
-            }
-        },
-        singleLine = true,
-        shape = RoundedCornerShape(14.dp),
-        keyboardOptions = KeyboardOptions(
-            imeAction = ImeAction.Search
         )
     )
 }
@@ -253,7 +201,7 @@ private fun SourceFilterSection(
             },
             colors = FilterChipDefaults.filterChipColors(
                 selectedContainerColor = MaterialTheme.colorScheme.primary,
-                selectedLabelColor = Color.White
+                selectedLabelColor = MaterialTheme.colorScheme.surface
             )
         )
 
@@ -273,7 +221,7 @@ private fun SourceFilterSection(
                 },
                 colors = FilterChipDefaults.filterChipColors(
                     selectedContainerColor = MaterialTheme.colorScheme.primary,
-                    selectedLabelColor = Color.White
+                    selectedLabelColor = MaterialTheme.colorScheme.surface
                 )
             )
         }

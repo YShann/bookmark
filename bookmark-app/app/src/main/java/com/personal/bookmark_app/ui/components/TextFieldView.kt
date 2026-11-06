@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -31,6 +32,7 @@ fun TextFieldView(
     placeholder: String = "",
     textStyle: TextStyle = MaterialTheme.typography.bodyLarge,
     modifier: Modifier = Modifier,
+    height: Dp = 60.dp,
     leadingIcon: (@Composable () -> Unit)? = null,
     trailingIcon: (@Composable () -> Unit)? = null,
     visualTransformation: VisualTransformation = VisualTransformation.None,
@@ -38,7 +40,8 @@ fun TextFieldView(
     enabled: Boolean = true
 ) {
     TextFieldContainer(
-        modifier = modifier
+        modifier = modifier,
+        height = height
     ) {
         BasicTextField(
             value = value,
@@ -85,7 +88,8 @@ fun TextFieldView(
                             modifier = Modifier.offset(x = 6.dp)
                         ) {
                             trailingIcon()
-                        }                    }
+                        }
+                    }
                 }
             }
         )
@@ -95,12 +99,13 @@ fun TextFieldView(
 @Composable
 private fun TextFieldContainer(
     modifier: Modifier = Modifier,
+    height: Dp = 60.dp,
     content: @Composable RowScope.() -> Unit
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(60.dp)
+            .height(height)
             .background(
                 color = MaterialTheme.colorScheme.surface,
                 shape = RoundedCornerShape(8.dp)
@@ -110,7 +115,7 @@ private fun TextFieldContainer(
                 color = MaterialTheme.colorScheme.outlineVariant,
                 shape = RoundedCornerShape(8.dp)
             )
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .padding(horizontal = 14.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         content = content
     )

@@ -1,15 +1,19 @@
-package com.personal.bookmark_app.ui.screen.folderbookmark.editbottomsheet
+package com.personal.bookmark_app.ui.screen.folderbookmark.editbookmark
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -21,19 +25,21 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.LocalOffer
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.ModalBottomSheetProperties
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -42,10 +48,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
+import com.personal.bookmark_app.ui.components.TextFieldView
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun EditTagsBottomSheet(
     currentTags: List<String>,
@@ -53,10 +61,27 @@ fun EditTagsBottomSheet(
     onDismiss: () -> Unit,
     onSave: (List<String>) -> Unit
 ) {
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val isKeyboardVisible = WindowInsets.isImeVisible
+
+    BackHandler {
+        if (isKeyboardVisible) {
+            keyboardController?.hide()
+        } else {
+            onDismiss()
+        }
+    }
+
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true
+    )
+
     // 暫存目前選取的標籤，按下儲存前不會修改原始資料
     var selectedTags by rememberSaveable(currentTags) {
         mutableStateOf(currentTags)
     }
+
+    val isTagsChanged = selectedTags != currentTags
 
     // 自訂標籤輸入文字
     var newTag by rememberSaveable {
@@ -73,6 +98,10 @@ fun EditTagsBottomSheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        properties = ModalBottomSheetProperties(
+            shouldDismissOnBackPress = false
+        ),
         containerColor = MaterialTheme.colorScheme.background,
         shape = RoundedCornerShape(
             topStart = 24.dp,
@@ -156,7 +185,7 @@ fun EditTagsBottomSheet(
                 )
 
                 Text(
-                    text = "點擊 ✕ 移除",
+                    text = "點擊移除",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -259,40 +288,17 @@ fun EditTagsBottomSheet(
                 Column(
                     modifier = Modifier.padding(12.dp)
                 ) {
-                    Text(
-                        text = "自訂新標籤",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-
-                    Spacer(Modifier.height(10.dp))
-
+                    // 標題與新增按鈕
                     Row(
-                        verticalAlignment = Alignment.CenterVertically
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        OutlinedTextField(
-                            value = newTag,
-                            onValueChange = {
-                                if (it.length <= maxTagLength) {
-                                    newTag = it
-                                }
-                            },
-                            modifier = Modifier.weight(1f),
-                            placeholder = {
-                                Text("輸入標籤名稱")
-                            },
-                            singleLine = true,
-                            shape = RoundedCornerShape(8.dp),
-                            keyboardOptions = KeyboardOptions(
-                                capitalization = KeyboardCapitalization.None
-                            ),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
-                            )
+                        Text(
+                            text = "自訂新標籤",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
-
-                        Spacer(Modifier.width(8.dp))
 
                         FilledTonalButton(
                             onClick = {
@@ -303,22 +309,58 @@ fun EditTagsBottomSheet(
                             },
                             enabled = canAddTag,
                             contentPadding = PaddingValues(
-                                horizontal = 12.dp,
-                                vertical = 12.dp
+                                horizontal = 12.dp
+                            ),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.filledTonalButtonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary,
+                                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Add,
                                 contentDescription = null,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(16.dp)
                             )
                             Spacer(Modifier.width(4.dp))
-                            Text("新增")
+                            Text(
+                                text = "新增",
+                                style = MaterialTheme.typography.titleSmall,
+                            )
                         }
                     }
 
+                    Spacer(Modifier.height(10.dp))
+
+                    // 標籤輸入欄位
+                    TextFieldView(
+                        value = newTag,
+                        onValueChange = {
+                            if (it.length <= maxTagLength) {
+                                newTag = it
+                            }
+                        },
+                        placeholder = "輸入標籤名稱",
+                        textStyle = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.fillMaxWidth(),
+                        height = 52.dp,
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.LocalOffer,
+                                contentDescription = "標籤",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
+                        keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.None
+                        )
+                    )
+
                     Spacer(Modifier.height(8.dp))
 
+                    // 提示文字與字數
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
@@ -353,17 +395,23 @@ fun EditTagsBottomSheet(
                     onSave(selectedTags)
                     onDismiss()
                 },
+                enabled = isTagsChanged,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
-                shape = RoundedCornerShape(8.dp)
+                shape = RoundedCornerShape(8.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             ) {
                 Text(
                     text = "完成標籤設定",
                     style = MaterialTheme.typography.labelLarge
                 )
             }
-
             TextButton(
                 onClick = onDismiss,
                 modifier = Modifier

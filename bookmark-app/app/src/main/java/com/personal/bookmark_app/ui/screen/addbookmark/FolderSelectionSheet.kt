@@ -18,25 +18,17 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.personal.bookmark_app.ui.model.FolderUiModel
 
@@ -269,61 +261,4 @@ private fun FolderSelectionItem(
             }
         }
     }
-}
-
-@Composable
-fun AddFolderDialog(
-    onDismiss: () -> Unit,
-    onConfirm: (String) -> Unit
-) {
-    var folderName by rememberSaveable {
-        mutableStateOf("")
-    }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = "新增收藏夾",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-        },
-        text = {
-            OutlinedTextField(
-                value = folderName,
-                onValueChange = {
-                    folderName = it
-                },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                placeholder = {
-                    Text("請輸入收藏夾名稱")
-                },
-                shape = RoundedCornerShape(8.dp)
-            )
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    val name = folderName.trim()
-
-                    if (name.isNotEmpty()) {
-                        onConfirm(name)
-                    }
-                },
-                enabled = folderName.isNotBlank()
-            ) {
-                Text("新增")
-            }
-        },
-        dismissButton = {
-            TextButton(
-                onClick = onDismiss
-            ) {
-                Text("取消")
-            }
-        },
-        containerColor = MaterialTheme.colorScheme.surface
-    )
 }
