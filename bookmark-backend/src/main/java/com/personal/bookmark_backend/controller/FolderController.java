@@ -113,13 +113,14 @@ public class FolderController {
     @DeleteMapping("/{folderId}")
     public ResponseEntity<Void> deleteFolder(
             @PathVariable Long folderId,
+            @RequestParam(defaultValue = "false") boolean deleteBookmarks,
             Authentication authentication
     ) {
 
         Long userId = getUserId(authentication);
 
-        // 呼叫 Service 執行刪除及收藏搬移
-        folderService.deleteFolder(userId, folderId);
+        // 依照選項刪除收藏夾，並決定保留或一併刪除其中的收藏
+        folderService.deleteFolder(userId, folderId, deleteBookmarks);
 
         // 刪除成功回傳 HTTP 204
         return ResponseEntity.noContent().build();

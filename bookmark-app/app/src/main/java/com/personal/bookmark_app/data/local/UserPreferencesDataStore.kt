@@ -8,6 +8,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.personal.bookmark_app.ui.model.FolderDisplayMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.first
 
 private val Context.dataStore by preferencesDataStore(
     name = "user_preferences"
@@ -59,4 +60,8 @@ class UserPreferencesRepository(
             preferences.remove(REFRESH_TOKEN)
         }
     }
+
+    suspend fun accessToken(): String? = context.dataStore.data.first()[ACCESS_TOKEN]
+
+    suspend fun refreshToken(): String? = context.dataStore.data.first()[REFRESH_TOKEN]
 }

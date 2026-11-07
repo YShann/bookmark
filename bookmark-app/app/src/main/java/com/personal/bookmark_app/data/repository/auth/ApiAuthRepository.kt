@@ -1,12 +1,13 @@
-package com.personal.bookmark_app.data.repository
+package com.personal.bookmark_app.data.repository.auth
 
+import com.google.gson.Gson
 import com.personal.bookmark_app.data.local.UserPreferencesRepository
 import com.personal.bookmark_app.data.remote.api.AuthApi
 import com.personal.bookmark_app.data.remote.dto.request.auth.EmailRequest
 import com.personal.bookmark_app.data.remote.dto.request.auth.LoginRequest
+import com.personal.bookmark_app.data.remote.dto.request.auth.LogoutRequest
 import com.personal.bookmark_app.data.remote.dto.request.auth.RegisterRequest
 import com.personal.bookmark_app.data.remote.dto.response.ApiErrorResponse
-import com.google.gson.Gson
 import retrofit2.HttpException
 
 class ApiAuthRepository(
@@ -46,6 +47,14 @@ class ApiAuthRepository(
 
     override suspend fun sendPasswordResetLink(email: String): Result<Unit> =
         Result.failure(UnsupportedOperationException("後端尚未提供忘記密碼 API"))
+
+    override suspend fun logout(): Result<Unit> {
+        val result = runCatching {
+            preferences.refreshToken()?.let { api.logout(LogoutRequest(it)) }
+        }.mapNetworkFailure()
+        preferences.clearTokens()
+        return result.map { Unit }
+    }
 }
 
 private fun <T> Result<T>.mapNetworkFailure(): Result<T> = fold(

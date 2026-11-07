@@ -37,6 +37,7 @@ import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -44,12 +45,13 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -63,13 +65,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.personal.bookmark_app.ui.mockdata.FolderMockData
 import com.personal.bookmark_app.ui.model.FolderDisplayMode
 import com.personal.bookmark_app.ui.model.FolderUiModel
 import com.personal.bookmark_app.ui.viewmodel.HomeViewModel
 import com.skydoves.landscapist.ImageOptions
 import com.skydoves.landscapist.coil3.CoilImage
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     onSearchClick: () -> Unit = {},
@@ -80,13 +82,6 @@ fun HomeScreen(
     onAvatarSelected: (Uri) -> Unit = {},
     onLogoutClick: () -> Unit = {}
 ) {
-    // 將假資料轉成可觀察、可修改的 Compose 狀態
-    val folders = remember {
-        mutableStateListOf<FolderUiModel>().apply {
-            addAll(FolderMockData)
-        }
-    }
-
     var showFolderManagement by rememberSaveable {
         mutableStateOf(false)
     }
@@ -100,6 +95,9 @@ fun HomeScreen(
 
     // 觀察本地端儲存的顯示方式
     val displayMode by homeViewModel.folderDisplayMode.collectAsState()
+    val folders by homeViewModel.folders.collectAsState()
+    val isRefreshingFolders by homeViewModel.isRefreshingFolders.collectAsState()
+    val profile by homeViewModel.profile.collectAsState()
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -107,9 +105,12 @@ fun HomeScreen(
             HomeTopAppBar(
                 onSearchClick = onSearchClick,
                 onAddBookmarkClick = onAddBookmarkClick,
-                email = "mokuhaku.gather@gmail.com",
-                avatarImageUrl = "https://storage.googleapis.com/tagjs-prod.appspot.com/v1/dgVhxlMbDH/m1gw1n0e_expires_30_days.png",
-                onAvatarSelected = onAvatarSelected,
+                email = profile.email,
+                avatarImageUrl = profile.avatarImageUrl,
+                onAvatarSelected = { uri ->
+                    homeViewModel.updateAvatar(uri)
+                    onAvatarSelected(uri)
+                },
                 onLogoutClick = onLogoutClick
             )
         }
@@ -123,24 +124,32 @@ fun HomeScreen(
                 onClick = onDailyPicksClick
             )
 
-            FolderSection(
-                folders = folders,
-                modifier = Modifier.weight(1f),
-                displayMode = displayMode,
-                onDisplayModeChange = homeViewModel::updateFolderDisplayMode,
-                onEditClick = {
-                    showFolderManagement = true
-                },
-                onFolderClick = { folder ->
-                    // 判斷資料夾是否有收藏
-                    if (folder.count == 0) {
-                        selectedEmptyFolder = folder
-                    } else {
-                        // 有收藏則維持原本的導頁行為
-                        onFolderClick(folder)
+            PullToRefreshBox(
+                isRefreshing = isRefreshingFolders,
+                onRefresh = homeViewModel::refreshFolders,
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+            ) {
+                FolderSection(
+                    folders = folders,
+                    modifier = Modifier.fillMaxSize(),
+                    displayMode = displayMode,
+                    onDisplayModeChange = homeViewModel::updateFolderDisplayMode,
+                    onEditClick = {
+                        showFolderManagement = true
+                    },
+                    onFolderClick = { folder ->
+                        // 判斷資料夾是否有收藏
+                        if (folder.count == 0) {
+                            selectedEmptyFolder = folder
+                        } else {
+                            // 有收藏則維持原本的導頁行為
+                            onFolderClick(folder)
+                        }
                     }
-                }
-            )
+                )
+            }
         }
     }
 
@@ -153,70 +162,19 @@ fun HomeScreen(
             },
             // 修改資料夾名稱
             onRename = { folderId, newTitle ->
-                val index = folders.indexOfFirst {
-                    it.id == folderId
-                }
-
-                if (index != -1) {
-                    folders[index] = folders[index].copy(
-                        title = newTitle
-                    )
-                }
+                homeViewModel.renameFolder(folderId, newTitle)
             },
             // 直接刪除資料夾及其收藏
             onDelete = { folderId ->
-                folders.removeAll {
-                    it.id == folderId
-                }
+                homeViewModel.deleteFolder(folderId)
             },
             // 將收藏移至「未分類」後刪除原資料夾
             onMoveToUnclassified = { folderId ->
-
-                // 找到要刪除的資料夾
-                val sourceFolder = folders.find {
-                    it.id == folderId
-                }
-
-                // 找到「未分類」資料夾
-                val unclassifiedIndex = folders.indexOfFirst {
-                    it.title == "未分類"
-                }
-
-                // 確認兩個資料夾都存在，而且不是同一個
-                if (
-                    sourceFolder != null &&
-                    unclassifiedIndex != -1 &&
-                    sourceFolder.id != folders[unclassifiedIndex].id
-                ) {
-                    // 取得「未分類」資料夾
-                    val unclassifiedFolder = folders[unclassifiedIndex]
-
-                    // 更新「未分類」的收藏數量
-                    folders[unclassifiedIndex] = unclassifiedFolder.copy(
-                        count = unclassifiedFolder.count + sourceFolder.count
-                    )
-
-                    // 刪除原本的資料夾
-                    folders.removeAll {
-                        it.id == folderId
-                    }
-                }
+                homeViewModel.moveFolderBookmarksToUnclassified(folderId)
             },
             // 新增資料夾
             onAdd = { folderName ->
-                val newId = (folders.maxOfOrNull {
-                    it.id
-                } ?: 0L) + 1L
-
-                folders.add(
-                    FolderUiModel(
-                        id = newId,
-                        title = folderName,
-                        count = 0,
-                        imageUrl = "https://placehold.co/600x420/png?text=New",
-                        latestSavedAt = null
-                    )
-                )
+                homeViewModel.createFolder(folderName)
             }
         )
     }
@@ -249,17 +207,15 @@ private fun HomeTopAppBar(
     onSearchClick: () -> Unit,
     onAddBookmarkClick: () -> Unit,
     email: String,
-    avatarImageUrl: String,
+    avatarImageUrl: String?,
     onAvatarSelected: (Uri) -> Unit,
     onLogoutClick: () -> Unit
 ) {
     var showProfileDialog by rememberSaveable {
         mutableStateOf(false)
     }
-
-    // 暫存使用者選擇的新頭像
-    var selectedAvatarUri by remember {
-        mutableStateOf<Uri?>(null)
+    var showLogoutConfirmation by rememberSaveable {
+        mutableStateOf(false)
     }
 
     TopAppBar(
@@ -277,8 +233,7 @@ private fun HomeTopAppBar(
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    val avatarModel = selectedAvatarUri
-                        ?: avatarImageUrl.takeIf { it.isNotBlank() }
+                    val avatarModel = avatarImageUrl?.takeIf { it.isNotBlank() }
 
                     if (avatarModel != null) {
                         CoilImage(
@@ -286,6 +241,19 @@ private fun HomeTopAppBar(
                             imageOptions = ImageOptions(
                                 contentScale = ContentScale.Crop
                             ),
+                            failure = {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Person,
+                                        contentDescription = "個人頭像載入失敗",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
+                            },
                             modifier = Modifier.fillMaxSize()
                         )
                     } else {
@@ -343,17 +311,40 @@ private fun HomeTopAppBar(
     if (showProfileDialog) {
         PersonalProfileDialog(
             email = email,
-            avatarImageUrl = selectedAvatarUri ?: avatarImageUrl,
+            avatarImageUrl = avatarImageUrl,
             onDismiss = {
                 showProfileDialog = false
             },
-            onAvatarSelected = { uri ->
-                selectedAvatarUri = uri
-                onAvatarSelected(uri)
+            onComplete = { uri ->
+                uri?.let(onAvatarSelected)
+                showProfileDialog = false
             },
             onLogoutClick = {
                 showProfileDialog = false
-                onLogoutClick()
+                showLogoutConfirmation = true
+            }
+        )
+    }
+
+    if (showLogoutConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showLogoutConfirmation = false },
+            title = { Text("確認登出") },
+            text = { Text("確定要登出目前帳號嗎？") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showLogoutConfirmation = false
+                        onLogoutClick()
+                    }
+                ) {
+                    Text("登出")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLogoutConfirmation = false }) {
+                    Text("取消")
+                }
             }
         )
     }
@@ -646,26 +637,25 @@ private fun FolderCard(
                     imageOptions = ImageOptions(
                         contentScale = ContentScale.Crop
                     ),
+                    failure = {
+                        FolderImageFallback(
+                            modifier = Modifier.fillMaxSize(),
+                            iconSize = 40.dp,
+                            contentDescription = "預設資料夾封面"
+                        )
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .aspectRatio(1.52f)
                 )
             } else {
-                // 尚無封面圖片時，顯示預設資料夾 Icon
-                Box(
+                FolderImageFallback(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .aspectRatio(1.52f)
-                        .background(MaterialTheme.colorScheme.surfaceContainerLow),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.FolderOpen,
-                        contentDescription = "預設資料夾封面",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(40.dp)
-                    )
-                }
+                        .aspectRatio(1.52f),
+                    iconSize = 40.dp,
+                    contentDescription = "預設資料夾封面"
+                )
             }
 
             Row(
@@ -696,6 +686,25 @@ private fun FolderCard(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun FolderImageFallback(
+    modifier: Modifier,
+    iconSize: androidx.compose.ui.unit.Dp,
+    contentDescription: String
+) {
+    Box(
+        modifier = modifier.background(MaterialTheme.colorScheme.surfaceContainerLow),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.FolderOpen,
+            contentDescription = contentDescription,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(iconSize)
+        )
     }
 }
 
@@ -739,25 +748,27 @@ private fun FolderListItem(
                     imageOptions = ImageOptions(
                         contentScale = ContentScale.Crop
                     ),
+                    failure = {
+                        FolderImageFallback(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(RoundedCornerShape(6.dp)),
+                            iconSize = 32.dp,
+                            contentDescription = "資料夾封面"
+                        )
+                    },
                     modifier = Modifier
                         .size(70.dp)
                         .clip(RoundedCornerShape(6.dp))
                 )
             } else {
-                Box(
+                FolderImageFallback(
                     modifier = Modifier
                         .size(70.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(MaterialTheme.colorScheme.surfaceContainerLow),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.FolderOpen,
-                        contentDescription = "資料夾封面",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(32.dp)
-                    )
-                }
+                        .clip(RoundedCornerShape(6.dp)),
+                    iconSize = 32.dp,
+                    contentDescription = "資料夾封面"
+                )
             }
 
             Spacer(

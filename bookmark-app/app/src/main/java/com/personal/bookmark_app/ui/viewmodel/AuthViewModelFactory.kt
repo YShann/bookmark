@@ -2,7 +2,7 @@ package com.personal.bookmark_app.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import com.personal.bookmark_app.data.repository.AuthRepository
+import com.personal.bookmark_app.data.repository.auth.AuthRepository
 
 class AuthViewModelFactory(
     private val authRepository: AuthRepository

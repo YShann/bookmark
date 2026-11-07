@@ -119,7 +119,7 @@ public class FolderService {
     // =====================================================
 
     @Transactional
-    public void deleteFolder(Long userId, Long folderId) {
+    public void deleteFolder(Long userId, Long folderId, boolean deleteBookmarks) {
 
         // 取得準備刪除的收藏夾
         Folder sourceFolder = findUserFolder(userId, folderId);
@@ -153,6 +153,21 @@ public class FolderService {
                         userId,
                         folderId
                 );
+
+        if (deleteBookmarks) {
+            bookmarkTagRepository.deleteAll(sourceAssociations);
+            bookmarkTagRepository.flush();
+
+            bookmarkRepository.deleteAll(bookmarks);
+            bookmarkRepository.flush();
+
+            tagRepository.deleteAll(sourceTags);
+            tagRepository.flush();
+
+            folderRepository.delete(sourceFolder);
+            folderRepository.flush();
+            return;
+        }
 
         // -------------------------------------------------
         // 步驟 A：整理來源收藏夾的標籤資料

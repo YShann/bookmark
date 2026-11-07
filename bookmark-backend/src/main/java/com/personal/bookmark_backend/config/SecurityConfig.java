@@ -110,6 +110,9 @@ public class SecurityConfig {
                         // Spring Boot 錯誤處理端點
                         .requestMatchers("/error").permitAll()
 
+                        // 頭像使用可公開讀取的圖片網址
+                        .requestMatchers(HttpMethod.GET, "/uploads/avatars/**").permitAll()
+
                         // 其他 API 都需要登入
                         .anyRequest().authenticated()
                 )

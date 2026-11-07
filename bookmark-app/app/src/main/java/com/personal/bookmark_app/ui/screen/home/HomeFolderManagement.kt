@@ -7,15 +7,16 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -106,6 +107,9 @@ fun FolderManagementSheet(
     var deleteAction by remember {
         mutableStateOf(FolderDeleteAction.MOVE_TO_UNCLASSIFIED)
     }
+    val orderedFolders = remember(folders) {
+        folders.sortedByDescending { it.title == "未分類" }
+    }
 
     val sheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = true
@@ -124,12 +128,22 @@ fun FolderManagementSheet(
             )
         }
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(0.85f)
-                .padding(horizontal = 16.dp)
+        BoxWithConstraints(
+            modifier = Modifier.fillMaxWidth()
         ) {
+            // 每列預留 78dp（列高與列間距），清單再保留 20dp 底部間距。
+            // 整個內容區最多使用 BottomSheet 可用高度的 80%。
+            val maxSheetHeight = maxHeight * 0.8f
+            val maxFolderListHeight = (maxSheetHeight - 240.dp).coerceAtLeast(0.dp)
+            val folderListHeight =
+                (folders.size * 78 + 20).dp.coerceAtMost(maxFolderListHeight)
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = maxSheetHeight)
+                    .padding(horizontal = 16.dp)
+            ) {
 
             // 標題與關閉按鈕
             Row(
@@ -215,24 +229,29 @@ fun FolderManagementSheet(
             LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f),
+                    .height(folderListHeight),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
                 contentPadding = PaddingValues(bottom = 20.dp)
             ) {
                 items(
-                    items = folders,
+                    items = orderedFolders,
                     key = { it.id }
                 ) { folder ->
                     FolderManagementItem(
                         folder = folder,
+                        isManageable = folder.title != "未分類",
                         onRename = { newTitle ->
-                            onRename(folder.id, newTitle)
+                            if (folder.title != "未分類") {
+                                onRename(folder.id, newTitle)
+                            }
                         },
                         onDelete = {
-                            folderToDelete = folder
+                            if (folder.title != "未分類") {
+                                folderToDelete = folder
 
-                            // 每次開啟 Dialog，預設選擇移至未分類
-                            deleteAction = FolderDeleteAction.MOVE_TO_UNCLASSIFIED
+                                // 每次開啟 Dialog，預設選擇移至未分類
+                                deleteAction = FolderDeleteAction.MOVE_TO_UNCLASSIFIED
+                            }
                         }
                     )
                 }
@@ -258,6 +277,7 @@ fun FolderManagementSheet(
             }
 
             Spacer(Modifier.height(16.dp))
+            }
         }
     }
 
@@ -313,6 +333,7 @@ fun FolderManagementSheet(
 @Composable
 private fun FolderManagementItem(
     folder: FolderUiModel,
+    isManageable: Boolean,
     onRename: (String) -> Unit,
     onDelete: () -> Unit
 ) {
@@ -363,7 +384,7 @@ private fun FolderManagementItem(
 
             Spacer(Modifier.width(12.dp))
 
-            if (isEditing) {
+            if (isManageable && isEditing) {
                 // 編輯模式：輸入框
                 OutlinedTextField(
                     value = editedTitle,
@@ -442,29 +463,31 @@ private fun FolderManagementItem(
                     )
                 }
 
-                // 編輯按鈕
-                IconButton(
-                    onClick = {
-                        editedTitle = folder.title
-                        isEditing = true
+                if (isManageable) {
+                    // 編輯按鈕
+                    IconButton(
+                        onClick = {
+                            editedTitle = folder.title
+                            isEditing = true
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Edit,
+                            contentDescription = "修改收藏夾名稱",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Edit,
-                        contentDescription = "修改收藏夾名稱",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
 
-                // 刪除按鈕
-                IconButton(
-                    onClick = onDelete
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.DeleteOutline,
-                        contentDescription = "刪除收藏夾",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    // 刪除按鈕
+                    IconButton(
+                        onClick = onDelete
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.DeleteOutline,
+                            contentDescription = "刪除收藏夾",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
         }

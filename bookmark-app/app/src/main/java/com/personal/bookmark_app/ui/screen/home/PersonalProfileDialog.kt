@@ -23,6 +23,7 @@ import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.PhotoLibrary
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -32,6 +33,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,19 +50,25 @@ import com.skydoves.landscapist.coil3.CoilImage
 @Composable
 fun PersonalProfileDialog(
     email: String,
-    avatarImageUrl: Any,
+    avatarImageUrl: Any?,
     onDismiss: () -> Unit,
-    onAvatarSelected: (Uri) -> Unit,
+    onComplete: (Uri?) -> Unit,
     onLogoutClick: () -> Unit
 ) {
+    var pendingAvatarUri by remember {
+        mutableStateOf<Uri?>(null)
+    }
+
     // 開啟手機相簿
     val imagePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
         uri?.let {
-            onAvatarSelected(it)
+            pendingAvatarUri = it
         }
     }
+
+    val displayedAvatar = pendingAvatarUri ?: avatarImageUrl
 
     Dialog(
         onDismissRequest = onDismiss
@@ -125,15 +136,45 @@ fun PersonalProfileDialog(
                         .size(88.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    CoilImage(
-                        imageModel = { avatarImageUrl },
-                        imageOptions = ImageOptions(
-                            contentScale = ContentScale.Crop
-                        ),
+                    Box(
                         modifier = Modifier
                             .fillMaxSize()
                             .clip(RoundedCornerShape(12.dp))
-                    )
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = "預設個人頭像",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(44.dp)
+                        )
+
+                        if (displayedAvatar?.toString()?.isNotBlank() == true) {
+                            CoilImage(
+                                imageModel = { displayedAvatar },
+                                imageOptions = ImageOptions(
+                                    contentScale = ContentScale.Crop
+                                ),
+                                failure = {
+                                    Box(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Person,
+                                            contentDescription = "預設個人頭像",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(44.dp)
+                                        )
+                                    }
+                                },
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(RoundedCornerShape(12.dp))
+                            )
+                        }
+                    }
 
                     // 頭像右下角編輯圖示
                     Box(
@@ -320,7 +361,7 @@ fun PersonalProfileDialog(
                 // --------------------------------
 
                 Button(
-                    onClick = onDismiss,
+                    onClick = { onComplete(pendingAvatarUri) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 25.dp),

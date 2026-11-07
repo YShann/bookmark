@@ -2,7 +2,7 @@ package com.personal.bookmark_app.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.personal.bookmark_app.data.repository.AuthRepository
+import com.personal.bookmark_app.data.repository.auth.AuthRepository
 import com.personal.bookmark_app.ui.screen.forgotpassword.ForgotPasswordUiState
 import com.personal.bookmark_app.ui.screen.login.LoginUiState
 import com.personal.bookmark_app.ui.screen.register.RegisterUiState
@@ -61,6 +61,17 @@ class AuthViewModel(
 
     private var countdownJob: Job? = null
 
+    fun logout() {
+        viewModelScope.launch {
+            authRepository.logout()
+                .onSuccess { _authEvent.emit(AuthEvent.LoggedOut) }
+                .onFailure { error ->
+                    _authEvent.emit(AuthEvent.ShowMessage(error.message ?: "已清除本機登入狀態"))
+                    _authEvent.emit(AuthEvent.LoggedOut)
+                }
+        }
+    }
+
     // ==================================================
     // Login
     // ==================================================
@@ -69,6 +80,10 @@ class AuthViewModel(
         _loginUiState.update {
             it.copy(email = email, errorMessage = null)
         }
+    }
+
+    fun resetLoginState() {
+        _loginUiState.value = LoginUiState()
     }
 
     fun onLoginPasswordChange(password: String) {

@@ -4,6 +4,8 @@ sealed interface AuthEvent {
 
     data object Authenticated : AuthEvent
 
+    data object LoggedOut : AuthEvent
+
     data object NavigateToVerifyEmail : AuthEvent
 
     data object PasswordResetLinkSent : AuthEvent

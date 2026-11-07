@@ -1,4 +1,4 @@
-package com.personal.bookmark_app.data.repository
+package com.personal.bookmark_app.data.repository.auth
 
 interface AuthRepository {
 
@@ -29,4 +29,6 @@ interface AuthRepository {
     suspend fun sendPasswordResetLink(
         email: String
     ): Result<Unit>
+
+    suspend fun logout(): Result<Unit>
 }

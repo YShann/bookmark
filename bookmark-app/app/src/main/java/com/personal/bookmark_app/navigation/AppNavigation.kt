@@ -18,8 +18,8 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.personal.bookmark_app.data.local.UserPreferencesRepository
 import com.personal.bookmark_app.data.remote.RetrofitClient
-import com.personal.bookmark_app.data.repository.ApiAuthRepository
-import com.personal.bookmark_app.data.repository.AuthRepository
+import com.personal.bookmark_app.data.repository.auth.ApiAuthRepository
+import com.personal.bookmark_app.data.repository.auth.AuthRepository
 import com.personal.bookmark_app.ui.mockdata.FolderMockData
 import com.personal.bookmark_app.ui.screen.DailyPicksScreen
 import com.personal.bookmark_app.ui.screen.SearchBookmarkScreen
@@ -145,6 +145,14 @@ fun AppNavigation() {
                     navigateToHome()
                 }
 
+                AuthEvent.LoggedOut -> {
+                    authViewModel.resetLoginState()
+                    navController.navigate(Screen.LOGIN) {
+                        popUpTo(0) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
+
                 // 註冊成功，前往信箱驗證
                 AuthEvent.NavigateToVerifyEmail -> {
                     authViewModel.resetRegisterState()
@@ -266,7 +274,8 @@ fun AppNavigation() {
                 },
                 onFolderClick = { folder ->
                     navController.navigate(Screen.folderBookmark(folder.id))
-                }
+                },
+                onLogoutClick = authViewModel::logout
             )
         }
 
