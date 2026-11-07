@@ -95,12 +95,10 @@ public class AuthService {
     public void verifyEmailAndRegister(
             String email,
             String verificationCode,
-            String nickname,
             String password
     ) {
 
         String normalizedEmail = normalizeEmail(email);
-        String normalizedNickname = validateNickname(nickname);
 
         validatePassword(password);
 
@@ -160,7 +158,6 @@ public class AuthService {
         User user = new User();
 
         user.setEmail(normalizedEmail);
-        user.setNickname(normalizedNickname);
         user.setPasswordHash(
                 passwordEncoder.encode(password)
         );
@@ -223,7 +220,6 @@ public class AuthService {
         return new AuthResponse(
                 user.getId(),
                 user.getEmail(),
-                user.getNickname(),
                 accessToken,
                 refreshToken
         );
@@ -256,7 +252,6 @@ public class AuthService {
         return new AuthResponse(
                 user.getId(),
                 user.getEmail(),
-                user.getNickname(),
                 newAccessToken,
                 result.refreshToken()
         );
@@ -337,28 +332,6 @@ public class AuthService {
     }
 
     /**
-     * 驗證暱稱
-     */
-    private String validateNickname(String nickname) {
-
-        if (nickname == null || nickname.isBlank()) {
-            throw new IllegalArgumentException(
-                    "暱稱不可為空"
-            );
-        }
-
-        String normalizedNickname = nickname.trim();
-
-        if (normalizedNickname.length() > 30) {
-            throw new IllegalArgumentException(
-                    "暱稱不可超過 30 個字"
-            );
-        }
-
-        return normalizedNickname;
-    }
-
-    /**
      * 驗證密碼
      * 至少 8 碼，且包含英文字母與數字
      */
@@ -404,7 +377,6 @@ public class AuthService {
     public record AuthResponse(
             Long userId,
             String email,
-            String nickname,
             String accessToken,
             String refreshToken
     ) {

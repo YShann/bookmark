@@ -77,12 +77,6 @@ class AuthViewModel(
         }
     }
 
-//    fun onRememberMeChange(checked: Boolean) {
-//        _loginUiState.update {
-//            it.copy(rememberMe = checked)
-//        }
-//    }
-
     fun onLoginPasswordVisibilityChange() {
         _loginUiState.update {
             it.copy(isPasswordVisible = !it.isPasswordVisible)
@@ -141,12 +135,6 @@ class AuthViewModel(
     // Register
     // ==================================================
 
-//    fun onNicknameChange(nickname: String) {
-//        _registerUiState.update {
-//            it.copy(nickname = nickname)
-//        }
-//    }
-
     fun onRegisterEmailChange(email: String) {
         _registerUiState.update {
             it.copy(email = email)
@@ -193,13 +181,17 @@ class AuthViewModel(
         val state = _registerUiState.value
 
         // 驗證失敗就停止，讓畫面顯示錯誤提示
-        if (!state.isFormValid) return
+        if (!state.isFormValid || state.isLoading) return
 
         viewModelScope.launch {
+            _registerUiState.update { it.copy(isLoading = true) }
+
             val result = authRepository.register(
                 email = state.email,
                 password = state.password
             )
+
+            _registerUiState.update { it.copy(isLoading = false) }
 
             result.onSuccess {
                 _verifyEmailUiState.update {
@@ -386,19 +378,3 @@ class AuthViewModel(
     }
 }
 
-// ==================================================
-// Auth Events
-// ==================================================
-
-sealed interface AuthEvent {
-
-    data object Authenticated : AuthEvent
-
-    data object NavigateToVerifyEmail : AuthEvent
-
-    data object PasswordResetLinkSent : AuthEvent
-
-    data class ShowMessage(
-        val message: String
-    ) : AuthEvent
-}

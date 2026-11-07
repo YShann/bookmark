@@ -12,7 +12,8 @@ data class RegisterUiState(
     val isConfirmPasswordVisible: Boolean = false,
 
     // 是否已經點擊過註冊
-    val hasSubmitted: Boolean = false
+    val hasSubmitted: Boolean = false,
+    val isLoading: Boolean = false
 ) {
     // 密碼至少 8 個字元
     val hasValidLength: Boolean

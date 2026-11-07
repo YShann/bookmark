@@ -52,7 +52,6 @@ fun LoginScreen(
     uiState: LoginUiState,
     onEmailChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
-//    onRememberMeChange: (Boolean) -> Unit,
     onPasswordVisibilityChange: () -> Unit,
     onLoginClick: () -> Unit,
     onGoogleLoginClick: () -> Unit,
@@ -88,7 +87,6 @@ fun LoginScreen(
                 uiState = uiState,
                 onEmailChange = onEmailChange,
                 onPasswordChange = onPasswordChange,
-//                onRememberMeChange = onRememberMeChange,
                 onPasswordVisibilityChange = onPasswordVisibilityChange,
                 onLoginClick = onLoginClick,
                 onForgotPasswordClick = onForgotPasswordClick
@@ -109,16 +107,6 @@ fun LoginScreen(
             )
 
             Spacer(modifier = Modifier.height(24.dp))
-
-//            // 服務條款
-//            Text(
-//                text = "登入即代表您同意服務條款與隱私權政策",
-//                style = MaterialTheme.typography.bodySmall,
-//                color = MaterialTheme.colorScheme.onSurfaceVariant,
-//                modifier = Modifier
-//                    .align(Alignment.CenterHorizontally)
-//                    .padding(bottom = 24.dp)
-//            )
         }
     }
 }
@@ -153,7 +141,6 @@ private fun LoginForm(
     uiState: LoginUiState,
     onEmailChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
-//    onRememberMeChange: (Boolean) -> Unit,
     onPasswordVisibilityChange: () -> Unit,
     onLoginClick: () -> Unit,
     onForgotPasswordClick: () -> Unit
@@ -277,26 +264,6 @@ private fun LoginForm(
                 )
             }
         }
-
-        // Remember Me
-        // 目前暫時不顯示，之後需要時可以放在這裡
-        /*
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Checkbox(
-                checked = uiState.rememberMe,
-                onCheckedChange = onRememberMeChange
-            )
-
-            Text(
-                text = "記住我的登入狀態",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-        }
-        */
 
         // 後端登入錯誤
         uiState.errorMessage?.let { error ->

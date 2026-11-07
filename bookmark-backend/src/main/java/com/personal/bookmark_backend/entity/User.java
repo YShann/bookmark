@@ -44,14 +44,6 @@ public class User extends BaseTimeEntity {
     )
     private String passwordHash;
 
-    // 使用者暱稱
-    @Column(
-            name = "nickname",
-            nullable = false,
-            length = 50
-    )
-    private String nickname;
-
     // 使用者頭像圖片網址，尚未設定頭像時允許 NULL
     @Column(
             name = "avatar_url",

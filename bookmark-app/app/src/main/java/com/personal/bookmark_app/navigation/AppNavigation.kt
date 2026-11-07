@@ -16,7 +16,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.personal.bookmark_app.data.repository.FakeAuthRepository
+import com.personal.bookmark_app.data.local.UserPreferencesRepository
+import com.personal.bookmark_app.data.remote.RetrofitClient
+import com.personal.bookmark_app.data.repository.ApiAuthRepository
+import com.personal.bookmark_app.data.repository.AuthRepository
 import com.personal.bookmark_app.ui.mockdata.FolderMockData
 import com.personal.bookmark_app.ui.screen.DailyPicksScreen
 import com.personal.bookmark_app.ui.screen.SearchBookmarkScreen
@@ -55,8 +58,11 @@ fun AppNavigation() {
     // 建立 AuthViewModel
     // ------------------------------------------------
 
-    val authRepository = remember {
-        FakeAuthRepository()
+    val authRepository: AuthRepository = remember {
+        ApiAuthRepository(
+            api = RetrofitClient.authApi,
+            preferences = UserPreferencesRepository(context.applicationContext)
+        )
     }
 
     val authViewModelFactory = remember {
@@ -187,7 +193,6 @@ fun AppNavigation() {
                 uiState = loginUiState,
                 onEmailChange = authViewModel::onLoginEmailChange,
                 onPasswordChange = authViewModel::onLoginPasswordChange,
-//                onRememberMeChange = authViewModel::onRememberMeChange,
                 onPasswordVisibilityChange = authViewModel::onLoginPasswordVisibilityChange,
                 onLoginClick = authViewModel::login,
                 onGoogleLoginClick = {
@@ -208,14 +213,11 @@ fun AppNavigation() {
 
             RegisterScreen(
                 uiState = registerUiState,
-//                onNicknameChange = authViewModel::onNicknameChange,
                 onEmailChange = authViewModel::onRegisterEmailChange,
                 onPasswordChange = authViewModel::onRegisterPasswordChange,
                 onConfirmPasswordChange = authViewModel::onConfirmPasswordChange,
                 onPasswordVisibilityChange = authViewModel::onRegisterPasswordVisibilityChange,
                 onConfirmPasswordVisibilityChange = authViewModel::onConfirmPasswordVisibilityChange,
-//                onTermsAcceptedChange =
-//                    authViewModel::onTermsAcceptedChange,
                 onRegisterClick = authViewModel::register,
                 onGoogleRegisterClick = {
                     // 暫時模擬 Google 註冊成功
@@ -307,11 +309,6 @@ fun AppNavigation() {
                         selectedSource = source
                     )
                 },
-//                onFolderClick = {
-//                    addBookmarkUiState = addBookmarkUiState.copy(
-//                        isFolderSelectorVisible = true
-//                    )
-//                },
                 onFolderSelected = { folderId ->
                     addBookmarkUiState = addBookmarkUiState.copy(
                         selectedFolderId = folderId

@@ -18,10 +18,6 @@ public record RegisterRequest(
         )
         String verificationCode,
 
-        @NotBlank(message = "暱稱不可為空")
-        @Size(max = 30, message = "暱稱不可超過 30 個字")
-        String nickname,
-
         @NotBlank(message = "密碼不可為空")
         String password
 

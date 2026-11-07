@@ -6,11 +6,15 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -26,11 +30,16 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
@@ -162,68 +171,80 @@ private fun OtpCodeInput(
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val hasFocus by interactionSource.collectIsFocusedAsState()
+
     BasicTextField(
-        value = value,
-        onValueChange = { newValue ->
-            if (newValue.length <= 6 && newValue.all { it.isDigit() }) {
+        value = TextFieldValue(
+            text = value,
+            selection = TextRange(value.length)
+        ),
+        onValueChange = { fieldValue ->
+            val newValue = fieldValue.text
+            if (newValue.length <= 6 && newValue.all(Char::isDigit)) {
                 onValueChange(newValue)
             }
         },
         modifier = modifier.fillMaxWidth(),
         singleLine = true,
+        interactionSource = interactionSource,
         keyboardOptions = KeyboardOptions(
             keyboardType = KeyboardType.Number
         ),
         textStyle = MaterialTheme.typography.bodyLarge.copy(
-            color = MaterialTheme.colorScheme.onSurface
+            color = Color.Transparent
         ),
-        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+        cursorBrush = SolidColor(Color.Transparent),
         decorationBox = { innerTextField ->
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
+            Box(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    repeat(6) { index ->
+                        val digit = value.getOrNull(index)?.toString() ?: ""
+                        val isActiveCell = hasFocus &&
+                                index == value.length && value.length < 6
 
-                repeat(6) { index ->
-
-                    val digit = value.getOrNull(index)?.toString() ?: ""
-
-                    val isFocused = index == value.length && value.length < 6
-
-                    Surface(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(64.dp),
-                        shape = MaterialTheme.shapes.medium,
-                        color = MaterialTheme.colorScheme.surface,
-                        border = androidx.compose.foundation.BorderStroke(
-                            width = 1.dp,
-                            color = if (isFocused) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.outlineVariant
-                            }
-                        )
-                    ) {
-                        Box(
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = digit,
-                                style = MaterialTheme.typography.headlineMedium,
-                                color = MaterialTheme.colorScheme.onSurface
+                        Surface(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(64.dp),
+                            shape = MaterialTheme.shapes.medium,
+                            color = MaterialTheme.colorScheme.surface,
+                            border = androidx.compose.foundation.BorderStroke(
+                                width = 1.dp,
+                                color = if (isActiveCell) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.outlineVariant
+                                }
                             )
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = digit,
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                if (isActiveCell) {
+                                    Box(
+                                        modifier = Modifier
+                                            .width(2.dp)
+                                            .height(28.dp)
+                                            .background(MaterialTheme.colorScheme.primary)
+                                    )
+                                }
+                            }
                         }
                     }
                 }
-            }
 
-            // 保留實際輸入欄位，畫面則由上方六個格子呈現
-            Box(
-                modifier = Modifier.size(1.dp)
-            ) {
-                innerTextField()
+                // 輸入層覆蓋整排格子，點擊任一格都會把焦點放到 OTP 欄位。
+                Box(modifier = Modifier.matchParentSize()) {
+                    innerTextField()
+                }
             }
         }
     )

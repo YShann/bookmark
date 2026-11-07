@@ -52,7 +52,6 @@ public class AuthController {
         authService.verifyEmailAndRegister(
                 request.email(),
                 request.verificationCode(),
-                request.nickname(),
                 request.password()
         );
 
@@ -152,7 +151,6 @@ public class AuthController {
         return new AuthResponse(
                 result.userId(),
                 result.email(),
-                result.nickname(),
                 result.accessToken(),
                 result.refreshToken()
         );

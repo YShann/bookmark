@@ -6,8 +6,6 @@ public record AuthResponse(
 
         String email,
 
-        String nickname,
-
         String accessToken,
 
         String refreshToken
