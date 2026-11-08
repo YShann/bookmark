@@ -1,4 +1,4 @@
-package com.personal.bookmark_app.ui.screen
+package com.personal.bookmark_app.ui.screen.dailypicks
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -20,6 +21,7 @@ import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -30,35 +32,37 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.personal.bookmark_app.ui.components.BookmarkCard
-import com.personal.bookmark_app.ui.mockdata.bookmarkMockData
 import com.personal.bookmark_app.ui.theme.BookmarkTextSecondary
+import com.personal.bookmark_app.ui.viewmodel.DailyPicksViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DailyPicksScreen(
     onBackClick: () -> Unit = {},
-    onRefreshClick: () -> Unit = {}
+    onAddBookmarkClick: () -> Unit = {},
+    viewModel: DailyPicksViewModel = viewModel()
 ) {
-    // 今日推薦資料
-    // 目前先使用假資料，之後再改成從 ViewModel 取得
-    val dailyPicks = remember {
-        bookmarkMockData.take(3)
-    }
+    val dailyPicks by viewModel.picks.collectAsState()
+    val totalBookmarkCount by viewModel.totalBookmarkCount.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val error by viewModel.error.collectAsState()
+    val canRefresh = totalBookmarkCount > 3
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             DailyPicksTopBar(
                 onBackClick = onBackClick,
-                onRefreshClick = onRefreshClick
+                onRefreshClick = viewModel::refreshPicks,
+                showRefreshAction = canRefresh
             )
         }
     ) { innerPadding ->
@@ -68,27 +72,81 @@ fun DailyPicksScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
+
             DailyPicksHeader()
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
+                    .navigationBarsPadding()
                     .padding(horizontal = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                dailyPicks.forEach { bookmark ->
-                    BookmarkCard(
-                        bookmark = bookmark
+                if (error != null && dailyPicks.isNotEmpty()) {
+                    Text(
+                        text = error.orEmpty(),
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
                     )
                 }
 
-                DailyPicksFooter(
-                    onRefreshClick = onRefreshClick
-                )
+                when {
+                    isLoading && dailyPicks.isEmpty() -> {
+                        CircularProgressIndicator(
+                            modifier = Modifier.align(Alignment.CenterHorizontally)
+                        )
+                    }
+
+                    error != null && dailyPicks.isEmpty() -> {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = error.orEmpty(),
+                                color = MaterialTheme.colorScheme.error
+                            )
+                            TextButton(onClick = viewModel::retry) {
+                                Text("重新載入")
+                            }
+                        }
+                    }
+
+                    // 狀態一：完全沒有收藏
+                    totalBookmarkCount == 0L -> {
+                        DailyPicksEmptyState(
+                            onAddBookmarkClick = onAddBookmarkClick
+                        )
+                    }
+
+                    // 狀態二：只有 1～3 則收藏
+                    totalBookmarkCount <= 3 -> {
+                        dailyPicks.forEach { bookmark ->
+                            DailyBookmarkCard(
+                                bookmark = bookmark
+                            )
+                        }
+
+                        DailyPicksInsufficientState(
+                            bookmarkCount = totalBookmarkCount.toInt(),
+                            onAddBookmarkClick = onAddBookmarkClick
+                        )
+                    }
+
+                    // 狀態三：收藏數量超過 3 則
+                    else -> {
+                        dailyPicks.forEach { bookmark ->
+                            DailyBookmarkCard(
+                                bookmark = bookmark
+                            )
+                        }
+
+                        DailyPicksFooter(
+                            onRefreshClick = viewModel::refreshPicks
+                        )
+                    }
+                }
             }
         }
     }
@@ -98,11 +156,13 @@ fun DailyPicksScreen(
 // Top Bar
 // ==================================================
 
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DailyPicksTopBar(
     onBackClick: () -> Unit,
-    onRefreshClick: () -> Unit
+    onRefreshClick: () -> Unit,
+    showRefreshAction: Boolean
 ) {
     TopAppBar(
         title = {
@@ -123,23 +183,25 @@ private fun DailyPicksTopBar(
             }
         },
         actions = {
-            TextButton(
-                onClick = onRefreshClick
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Refresh,
-                    contentDescription = "換一組",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(18.dp)
-                )
+            if (showRefreshAction) {
+                TextButton(
+                    onClick = onRefreshClick
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Refresh,
+                        contentDescription = "換一組",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp)
+                    )
 
-                Spacer(modifier = Modifier.width(4.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
 
-                Text(
-                    text = "換一組",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary
-                )
+                    Text(
+                        text = "換一組",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(
@@ -148,6 +210,7 @@ private fun DailyPicksTopBar(
         )
     )
 }
+
 
 // ==================================================
 // Header

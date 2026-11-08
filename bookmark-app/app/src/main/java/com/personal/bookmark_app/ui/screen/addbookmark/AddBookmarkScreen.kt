@@ -3,7 +3,6 @@ package com.personal.bookmark_app.ui.screen.addbookmark
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -40,7 +39,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -181,12 +179,12 @@ fun AddBookmarkScreen(
                     modifier = Modifier.padding(18.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    SourcePlatformSection(
-                        selectedSource = uiState.selectedSource,
-                        onSourceChange = onSourceChange
-                    )
-
-                    Spacer(modifier = Modifier.height(2.dp))
+//                    SourcePlatformSection(
+//                        selectedSource = uiState.selectedSource,
+//                        onSourceChange = onSourceChange
+//                    )
+//
+//                    Spacer(modifier = Modifier.height(2.dp))
 
                     BookmarkTitleSection(
                         title = uiState.title,
@@ -523,44 +521,44 @@ private fun BookmarkPreviewCard(
 /* -------------------------------------------------------
  * 2. 來源平台
  * ------------------------------------------------------- */
-@Composable
-private fun SourcePlatformSection(
-    selectedSource: BookmarkSource,
-    onSourceChange: (BookmarkSource) -> Unit
-) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(2.dp)
-    ) {
-        Text(
-            text = "來源平台識別",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            BookmarkSource.entries.forEach { source ->
-                FilterChip(
-                    selected = selectedSource == source,
-                    onClick = {
-                        onSourceChange(source)
-                    },
-                    label = {
-                        Text(
-                            text = source.displayName,
-                            style = MaterialTheme.typography.labelLarge
-                        )
-                    }
-                )
-            }
-        }
-    }
-}
+//@Composable
+//private fun SourcePlatformSection(
+//    selectedSource: BookmarkSource,
+//    onSourceChange: (BookmarkSource) -> Unit
+//) {
+//    Column(
+//        verticalArrangement = Arrangement.spacedBy(2.dp)
+//    ) {
+//        Text(
+//            text = "來源平台識別",
+//            style = MaterialTheme.typography.bodySmall,
+//            color = MaterialTheme.colorScheme.onSurfaceVariant
+//        )
+//
+//        Row(
+//            modifier = Modifier
+//                .fillMaxWidth()
+//                .horizontalScroll(rememberScrollState()),
+//            horizontalArrangement = Arrangement.spacedBy(8.dp),
+//            verticalAlignment = Alignment.CenterVertically
+//        ) {
+//            BookmarkSource.entries.forEach { source ->
+//                FilterChip(
+//                    selected = selectedSource == source,
+//                    onClick = {
+//                        onSourceChange(source)
+//                    },
+//                    label = {
+//                        Text(
+//                            text = source.displayName,
+//                            style = MaterialTheme.typography.labelLarge
+//                        )
+//                    }
+//                )
+//            }
+//        }
+//    }
+//}
 
 /* -------------------------------------------------------
  * 3. 文章標題

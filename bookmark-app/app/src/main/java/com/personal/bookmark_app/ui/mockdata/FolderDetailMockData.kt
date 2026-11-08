@@ -1,6 +1,6 @@
 package com.personal.bookmark_app.ui.mockdata
 
-import com.personal.bookmark_app.ui.model.FolderBookmarkUiModel
+import com.personal.bookmark_app.ui.model.BookmarkUiModel
 
 object FolderDetailMockData {
 
@@ -15,7 +15,7 @@ object FolderDetailMockData {
     )
 
     val bookmarks = listOf(
-        FolderBookmarkUiModel(
+        BookmarkUiModel(
             id = "1",
             source = "Threads",
             date = "2024/06/12",
@@ -25,7 +25,7 @@ object FolderDetailMockData {
             tags = listOf("美食", "生活"),
             note = "老闆推薦手沖耶加雪菲，二樓窗邊位置採光最好，平日不限時，適合帶筆電或閱讀一整個下午。"
         ),
-        FolderBookmarkUiModel(
+        BookmarkUiModel(
             id = "2",
             source = "Dcard",
             date = "2024/06/10",
@@ -34,7 +34,7 @@ object FolderDetailMockData {
             imageUrl = "https://images.unsplash.com/photo-1497250681960-ef046c08a56e?w=240",
             tags = listOf("生活", "閱讀")
         ),
-        FolderBookmarkUiModel(
+        BookmarkUiModel(
             id = "3",
             source = "Instagram",
             date = "2024/06/08",
@@ -43,7 +43,7 @@ object FolderDetailMockData {
             imageUrl = "https://images.unsplash.com/photo-1516483638261-f4dbaf036963?w=240",
             tags = listOf("旅遊", "生活")
         ),
-        FolderBookmarkUiModel(
+        BookmarkUiModel(
             id = "4",
             source = "YouTube",
             date = "2024/06/05",
@@ -52,7 +52,7 @@ object FolderDetailMockData {
             imageUrl = "https://images.unsplash.com/photo-1476224203421-9ac39bcb3327?w=240",
             tags = listOf("美食", "料理")
         ),
-        FolderBookmarkUiModel(
+        BookmarkUiModel(
             id = "5",
             source = "網頁",
             date = "2024/06/02",

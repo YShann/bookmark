@@ -12,11 +12,20 @@ import lombok.RequiredArgsConstructor;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
 
 import java.net.URI;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.ArrayList;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +38,50 @@ public class BookmarkService {
 
     // 標籤操作交給 TagService 負責
     private final TagService tagService;
+
+    @Transactional(readOnly = true)
+    public long countUserBookmarks(Long userId) {
+        return bookmarkRepository.countByUserId(userId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Bookmark> getDailyPicks(Long userId, int rotation, List<Long> excludeIds) {
+        LocalDate pickDay = ZonedDateTime.now(ZoneId.of("Asia/Taipei")).minusHours(6).toLocalDate();
+        long daySeed = pickDay.toEpochDay() * 1_000_003L;
+        long seed = daySeed + userId * 31L + Math.floorMod(rotation, 10_000);
+        Pageable limit = PageRequest.of(0, 3);
+
+        if (excludeIds == null || excludeIds.isEmpty()) {
+            return bookmarkRepository.findDailyPicks(userId, seed, limit);
+        }
+
+        List<Bookmark> picks = new ArrayList<>(bookmarkRepository.findDailyPicksExcluding(
+                userId, excludeIds, seed, limit
+        ));
+        if (picks.size() < 3) {
+            for (Bookmark candidate : bookmarkRepository.findAllByUserIdAndIdInOrderByCreatedAtDesc(userId, excludeIds)) {
+                if (picks.stream().noneMatch(pick -> pick.getId().equals(candidate.getId()))) {
+                    picks.add(candidate);
+                    if (picks.size() == 3) break;
+                }
+            }
+        }
+        return picks;
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Bookmark> searchBookmarks(Long userId, String query, String source, Pageable pageable) {
+        return bookmarkRepository.searchForUser(userId, query, source, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Long> countSearchResultsBySource(Long userId, String query) {
+        Map<String, Long> counts = new LinkedHashMap<>();
+        for (Object[] row : bookmarkRepository.countSearchResultsBySource(userId, query)) {
+            counts.put((String) row[0], (Long) row[1]);
+        }
+        return counts;
+    }
 
 
     // =====================================================

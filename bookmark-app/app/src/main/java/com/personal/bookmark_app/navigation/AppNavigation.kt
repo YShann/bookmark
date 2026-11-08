@@ -21,10 +21,10 @@ import com.personal.bookmark_app.data.remote.RetrofitClient
 import com.personal.bookmark_app.data.repository.auth.ApiAuthRepository
 import com.personal.bookmark_app.data.repository.auth.AuthRepository
 import com.personal.bookmark_app.ui.mockdata.FolderMockData
-import com.personal.bookmark_app.ui.screen.DailyPicksScreen
 import com.personal.bookmark_app.ui.screen.SearchBookmarkScreen
 import com.personal.bookmark_app.ui.screen.addbookmark.AddBookmarkScreen
 import com.personal.bookmark_app.ui.screen.addbookmark.AddBookmarkUiState
+import com.personal.bookmark_app.ui.screen.dailypicks.DailyPicksScreen
 import com.personal.bookmark_app.ui.screen.folderbookmark.FolderBookmarkScreen
 import com.personal.bookmark_app.ui.screen.forgotpassword.ForgotPasswordScreen
 import com.personal.bookmark_app.ui.screen.home.HomeScreen
@@ -283,9 +283,11 @@ fun AppNavigation() {
         composable(Screen.DAILY_PICKS) {
 
             DailyPicksScreen(
-                onBackClick = { navigateBackSafely() },
-                onRefreshClick = {
-                    // 第四階段再接上每日推薦邏輯
+                onBackClick = {
+                    navController.popBackStack()
+                },
+                onAddBookmarkClick = {
+                    navController.navigate("addBookmark")
                 }
             )
         }

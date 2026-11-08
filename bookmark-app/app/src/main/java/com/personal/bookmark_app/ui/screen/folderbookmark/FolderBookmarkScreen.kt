@@ -53,6 +53,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.personal.bookmark_app.ui.components.BookmarkCard
 import com.personal.bookmark_app.ui.components.SearchInputField
 import com.personal.bookmark_app.ui.components.TagInfoPopup
 import com.personal.bookmark_app.ui.mockdata.FolderDetailMockData
@@ -372,7 +373,7 @@ fun FolderBookmarkScreen(
                     key = { it.id }
                 ) { bookmark ->
 
-                    FolderBookmarkCard(
+                    BookmarkCard(
                         item = bookmark,
                         isBatchManaging = uiState.isBatchManaging,
                         isSelected = bookmark.id in selectedBookmarkIds,

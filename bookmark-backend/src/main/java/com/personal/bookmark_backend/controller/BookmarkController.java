@@ -4,6 +4,8 @@ import com.personal.bookmark_backend.dto.request.bookmark.CreateBookmarkRequest;
 import com.personal.bookmark_backend.dto.request.bookmark.MoveBookmarkRequest;
 import com.personal.bookmark_backend.dto.request.bookmark.UpdateBookmarkRequest;
 import com.personal.bookmark_backend.dto.response.bookmark.BookmarkResponse;
+import com.personal.bookmark_backend.dto.response.bookmark.BookmarkSearchResponse;
+import com.personal.bookmark_backend.dto.response.bookmark.DailyPicksResponse;
 import com.personal.bookmark_backend.entity.Bookmark;
 import com.personal.bookmark_backend.service.BookmarkService;
 import com.personal.bookmark_backend.service.TagService;
@@ -13,6 +15,8 @@ import lombok.RequiredArgsConstructor;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -83,9 +87,84 @@ public class BookmarkController {
 
 
     // =====================================================
-    // 2. 查詢單筆收藏
+    // 搜尋收藏（分頁）
     // =====================================================
 
+    @GetMapping("/bookmarks/daily-picks")
+    public ResponseEntity<DailyPicksResponse> getDailyPicks(
+            @RequestParam(defaultValue = "0") int rotation,
+            @RequestParam(required = false) List<Long> excludeIds,
+            Authentication authentication
+    ) {
+        Long userId = getUserId(authentication);
+        List<BookmarkResponse> picks = bookmarkService
+                .getDailyPicks(userId, Math.max(0, rotation), excludeIds)
+                .stream()
+                .map(bookmark -> toBookmarkResponse(userId, bookmark))
+                .toList();
+
+        return ResponseEntity.ok(new DailyPicksResponse(
+                bookmarkService.countUserBookmarks(userId),
+                picks
+        ));
+    }
+
+    @GetMapping("/bookmarks/search")
+    public ResponseEntity<BookmarkSearchResponse> searchBookmarks(
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) String source,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            Authentication authentication
+    ) {
+        Long userId = getUserId(authentication);
+        String normalizedQuery = query == null || query.isBlank() ? null : query.trim();
+        String normalizedSource = source == null || source.isBlank() ? null : source.trim();
+        int safePage = Math.max(0, page);
+        int safeSize = Math.max(1, Math.min(size, 50));
+
+        Page<Bookmark> results = bookmarkService.searchBookmarks(
+                userId,
+                normalizedQuery,
+                normalizedSource,
+                PageRequest.of(safePage, safeSize)
+        );
+
+        Map<Long, List<Long>> idsByFolder = results.getContent().stream()
+                .collect(java.util.stream.Collectors.groupingBy(
+                        Bookmark::getFolderId,
+                        java.util.stream.Collectors.mapping(Bookmark::getId, java.util.stream.Collectors.toList())
+                ));
+        Map<Long, Map<Long, List<String>>> tagsByFolder = new java.util.HashMap<>();
+        idsByFolder.forEach((folderId, ids) -> tagsByFolder.put(
+                folderId,
+                tagService.getBookmarkTagNames(userId, folderId, ids)
+        ));
+
+        List<BookmarkResponse> content = results.getContent().stream()
+                .map(bookmark -> toResponse(
+                        bookmark,
+                        tagsByFolder.getOrDefault(bookmark.getFolderId(), Map.of())
+                                .getOrDefault(bookmark.getId(), List.of())
+                ))
+                .toList();
+
+        Map<String, Long> sourceCounts = bookmarkService.countSearchResultsBySource(userId, normalizedQuery);
+        long webCount = sourceCounts.getOrDefault("WEB", 0L) + sourceCounts.getOrDefault("OTHER", 0L);
+        sourceCounts.remove("OTHER");
+        if (webCount > 0) sourceCounts.put("WEB", webCount);
+
+        return ResponseEntity.ok(new BookmarkSearchResponse(
+                content,
+                results.getNumber(),
+                results.getSize(),
+                results.getTotalElements(),
+                results.getTotalPages(),
+                sourceCounts
+        ));
+    }
+
+    // 查詢單筆收藏
     @GetMapping("/bookmarks/{bookmarkId}")
     public ResponseEntity<BookmarkResponse> getBookmark(
             @PathVariable Long bookmarkId,
