@@ -93,6 +93,10 @@ fun AddTagDialog(
                             errorMessage = "請輸入標籤名稱"
                         }
 
+                        name.length > 30 -> {
+                            errorMessage = "標籤名稱不能超過 30 個字"
+                        }
+
                         existingTags.any {
                             it.name.equals(name, ignoreCase = true)
                         } -> {

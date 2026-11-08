@@ -7,13 +7,16 @@ data class AddBookmarkUiState(
     // 基本收藏資料
     val title: String = "",
     val note: String = "",
+    val content: String = "",
+    val imageUrl: String? = null,
+    val parseError: String? = null,
     val sourceUrl: String = "",
 
     // 來源平台
     val selectedSource: BookmarkSource = BookmarkSource.WEB,
 
     // 收藏資料夾 ID
-    val selectedFolderId: Long = 1L,
+    val selectedFolderId: Long = 0L,
 
     // 已選取的標籤 ID
     val selectedTagIds: Set<String> = emptySet(),
@@ -29,6 +32,11 @@ data class AddBookmarkUiState(
     val isTagCreatorVisible: Boolean = false,
 
     // 錯誤訊息
+    val folders: List<com.personal.bookmark_app.ui.model.FolderUiModel> = emptyList(),
+    val tags: List<com.personal.bookmark_app.ui.model.TagOptionUiModel> = emptyList(),
+    val isLoading: Boolean = true,
+    val isSaving: Boolean = false,
+    val isSaved: Boolean = false,
     val errorMessage: String? = null
 
 ) {
@@ -47,5 +55,8 @@ data class AddBookmarkUiState(
 
     // 表單是否可以儲存
     val isFormValid: Boolean
-        get() = isTitleValid && !isParsing
+        get() = isTitleValid && title.trim().length <= 255 && sourceUrl.length <= 2048 &&
+            runCatching { java.net.URI(sourceUrl.trim()).let {
+                it.scheme?.lowercase() in setOf("http", "https") && !it.host.isNullOrBlank()
+            } }.getOrDefault(false) && selectedFolderId > 0 && !isLoading && !isSaving && !isSaved && !isParsing
 }

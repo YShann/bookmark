@@ -33,8 +33,8 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun MoveBookmarkSheet(
     selectedCount: Int,
-    folders: List<String>,
-    onFolderClick: (String) -> Unit,
+    folders: List<com.personal.bookmark_app.data.remote.dto.response.folder.FolderResponse>,
+    onFolderClick: (Long) -> Unit,
     onCreateFolderClick: () -> Unit
 ) {
     Column(
@@ -112,7 +112,7 @@ fun MoveBookmarkSheet(
                 MoveFolderItem(
                     folder = folder,
                     onClick = {
-                        onFolderClick(folder)
+                        onFolderClick(folder.id)
                     }
                 )
             }
@@ -122,7 +122,7 @@ fun MoveBookmarkSheet(
 
 @Composable
 private fun MoveFolderItem(
-    folder: String,
+    folder: com.personal.bookmark_app.data.remote.dto.response.folder.FolderResponse,
     onClick: () -> Unit
 ) {
     Surface(
@@ -156,7 +156,7 @@ private fun MoveFolderItem(
 
             // 資料夾名稱
             Text(
-                text = folder,
+                text = folder.name,
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onSurface
             )

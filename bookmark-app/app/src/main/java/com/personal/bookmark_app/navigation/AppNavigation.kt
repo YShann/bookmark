@@ -20,7 +20,6 @@ import com.personal.bookmark_app.data.local.UserPreferencesRepository
 import com.personal.bookmark_app.data.remote.RetrofitClient
 import com.personal.bookmark_app.data.repository.auth.ApiAuthRepository
 import com.personal.bookmark_app.data.repository.auth.AuthRepository
-import com.personal.bookmark_app.ui.mockdata.FolderMockData
 import com.personal.bookmark_app.ui.screen.SearchBookmarkScreen
 import com.personal.bookmark_app.ui.screen.addbookmark.AddBookmarkScreen
 import com.personal.bookmark_app.ui.screen.addbookmark.AddBookmarkUiState
@@ -36,7 +35,10 @@ import com.personal.bookmark_app.ui.viewmodel.AuthViewModel
 import com.personal.bookmark_app.ui.viewmodel.AuthViewModelFactory
 
 @Composable
-fun AppNavigation() {
+fun AppNavigation(
+    sharedBookmark: com.personal.bookmark_app.SharedBookmark? = null,
+    onShareHandled: () -> Unit = {}
+) {
 
     val navController = rememberNavController()
     val context = LocalContext.current
@@ -93,10 +95,6 @@ fun AppNavigation() {
     // 其他頁面暫時保留原本的狀態管理
     // ------------------------------------------------
 
-    var addBookmarkUiState by remember {
-        mutableStateOf(AddBookmarkUiState())
-    }
-
     // ------------------------------------------------
     // 共用導航操作
     // ------------------------------------------------
@@ -128,6 +126,17 @@ fun AppNavigation() {
         // 如果返回失敗，解除鎖定
         if (!isPopped) {
             isBackNavigationInProgress = false
+        }
+    }
+
+    // Keep the share pending through login; consume it only after the form receives it.
+    LaunchedEffect(sharedBookmark?.id, currentBackStackEntry?.destination?.route) {
+        if (sharedBookmark != null && currentBackStackEntry != null &&
+            !UserPreferencesRepository(context.applicationContext).accessToken().isNullOrBlank()) {
+            if (currentBackStackEntry?.destination?.route == Screen.LOGIN) navigateToHome()
+            if (navController.currentDestination?.route != Screen.ADD_BOOKMARK) {
+                navController.navigate(Screen.ADD_BOOKMARK) { launchSingleTop = true }
+            }
         }
     }
 
@@ -303,64 +312,36 @@ fun AppNavigation() {
         // Add Bookmark
         composable(Screen.ADD_BOOKMARK) {
 
-            AddBookmarkScreen(
-                uiState = addBookmarkUiState,
-                onTitleChange = { title ->
-                    addBookmarkUiState = addBookmarkUiState.copy(
-                        title = title
-                    )
-                },
-                onNoteChange = { note ->
-                    addBookmarkUiState = addBookmarkUiState.copy(
-                        note = note
-                    )
-                },
-                onSourceChange = { source ->
-                    addBookmarkUiState = addBookmarkUiState.copy(
-                        selectedSource = source
-                    )
-                },
-                onFolderSelected = { folderId ->
-                    addBookmarkUiState = addBookmarkUiState.copy(
-                        selectedFolderId = folderId
-                    )
-                },
-                onCreateFolderClick = { folderName ->
-                    // TODO: 後續接上 ViewModel 與後端 API
-                },
-
-                onTagClick = { tagId ->
-                    val currentTags = addBookmarkUiState.selectedTagIds
-
-                    addBookmarkUiState = addBookmarkUiState.copy(
-                        selectedTagIds = if (tagId in currentTags) {
-                            currentTags - tagId
-                        } else if (currentTags.size < 5) {
-                            currentTags + tagId
-                        } else {
-                            currentTags
-                        }
-                    )
-                },
-                onDailyPicksChange = { isAdded ->
-                    addBookmarkUiState = addBookmarkUiState.copy(
-                        isAddedToDailyPicks = isAdded
-                    )
-                },
-                onReparseClick = {
-                    // 第三階段再接上網址解析邏輯
-                },
-                onClearTitleClick = {
-                    addBookmarkUiState = addBookmarkUiState.copy(
-                        title = ""
-                    )
-                },
-                onSaveClick = {
-                    // 暫時模擬儲存成功
-                    addBookmarkUiState = AddBookmarkUiState()
+            val vm: com.personal.bookmark_app.ui.viewmodel.AddBookmarkViewModel = viewModel()
+            val state by vm.state.collectAsStateWithLifecycle()
+            LaunchedEffect(sharedBookmark?.id, state.isSaving) {
+                sharedBookmark?.takeUnless { state.isSaving }?.let {
+                    vm.receiveShare(it)
+                    onShareHandled()
+                }
+            }
+            LaunchedEffect(state.isSaved) {
+                if (state.isSaved) {
+                    Toast.makeText(context, "收藏已新增", Toast.LENGTH_SHORT).show()
                     navigateBackSafely()
-                },
-                onBackClick = { navigateBackSafely() }
+                }
+            }
+            AddBookmarkScreen(
+                uiState = state,
+                onTitleChange = { value -> vm.edit { it.copy(title = value) } },
+                onNoteChange = { value -> vm.edit { it.copy(note = value) } },
+                onSourceChange = { value -> vm.edit { it.copy(selectedSource = value) } },
+                onSourceUrlChange = vm::changeUrl,
+                onFolderSelected = vm::selectFolder,
+                onCreateFolderClick = vm::createFolder,
+                onTagClick = vm::toggleTag,
+                onCreateTag = vm::addTag,
+                onRetry = vm::loadFolders,
+                onDailyPicksChange = { value -> vm.edit { it.copy(isAddedToDailyPicks = value) } },
+                onReparseClick = vm::parseUrl,
+                onClearTitleClick = { vm.edit { it.copy(title = "") } },
+                onSaveClick = vm::save,
+                onBackClick = { if (!state.isSaving) navigateBackSafely() }
             )
         }
 
@@ -378,20 +359,9 @@ fun AppNavigation() {
         ) { backStackEntry ->
 
             val folderId = backStackEntry.arguments?.getLong("folderId") ?: 0L
-            val folderName = FolderMockData
-                .firstOrNull { it.id == folderId }
-                ?.title
-                ?: "資料夾 $folderId"
-
             FolderBookmarkScreen(
-                folderName = folderName,
-                onBackClick = { navigateBackSafely() },
-                onBatchManageClick = {
-                    // 畫面目前自行管理批量模式
-                },
-                onBookmarkClick = { bookmarkId ->
-                    // 收藏詳情頁尚未設計，暫時不處理
-                }
+                folderId = folderId,
+                onBackClick = { navigateBackSafely() }
             )
         }
     }

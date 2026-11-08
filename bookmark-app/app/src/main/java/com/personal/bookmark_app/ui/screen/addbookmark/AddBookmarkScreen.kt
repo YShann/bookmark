@@ -62,7 +62,6 @@ import androidx.compose.ui.unit.dp
 import com.personal.bookmark_app.ui.components.MultilineTextFieldView
 import com.personal.bookmark_app.ui.components.TagInfoPopup
 import com.personal.bookmark_app.ui.components.TextFieldView
-import com.personal.bookmark_app.ui.mockdata.AddBookmarkMockData
 import com.personal.bookmark_app.ui.model.BookmarkPreviewUiModel
 import com.personal.bookmark_app.ui.model.BookmarkSource
 import com.personal.bookmark_app.ui.model.FolderUiModel
@@ -71,6 +70,9 @@ import com.personal.bookmark_app.ui.model.TagOptionUiModel
 @Composable
 fun AddBookmarkScreen(
     uiState: AddBookmarkUiState,
+    onSourceUrlChange: (String) -> Unit,
+    onCreateTag: (String) -> Unit,
+    onRetry: () -> Unit,
     onTitleChange: (String) -> Unit,
     onNoteChange: (String) -> Unit,
     onSourceChange: (BookmarkSource) -> Unit,
@@ -95,9 +97,7 @@ fun AddBookmarkScreen(
         mutableStateOf(false)
     }
 
-    var folders by remember {
-        mutableStateOf(AddBookmarkMockData.folders)
-    }
+    val folders = uiState.folders
 
     // 控制新增自訂標籤 Dialog
     var showAddTagDialog by rememberSaveable {
@@ -105,9 +105,7 @@ fun AddBookmarkScreen(
     }
 
     // 暫存標籤列表
-    var tags by remember {
-        mutableStateOf(AddBookmarkMockData.tags)
-    }
+    val tags = uiState.tags
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -148,16 +146,33 @@ fun AddBookmarkScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
 
-                    BookmarkPreviewCard(
-                        preview = AddBookmarkMockData.preview,
-                        folders = folders,
-                        selectedFolderId = uiState.selectedFolderId,
-                        isParsing = uiState.isParsing,
-                        onFolderClick = {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically) {
+                        Text("來源網址 URL", style = MaterialTheme.typography.bodySmall)
+                        androidx.compose.material3.TextButton(onClick = onReparseClick,
+                            enabled = !uiState.isParsing && !uiState.isSaving && uiState.sourceUrl.isNotBlank()) {
+                            Text(if (uiState.isParsing) "解析中…" else "重新解析")
+                        }
+                    }
+                    TextFieldView(value = uiState.sourceUrl, onValueChange = onSourceUrlChange,
+                        placeholder = "https://", enabled = !uiState.isSaving)
+                    Text(
+                        text = folders.find { it.id == uiState.selectedFolderId }?.title ?: "選擇收藏分類夾",
+                        modifier = Modifier.fillMaxWidth().clickable(enabled = !uiState.isLoading && !uiState.isSaving) {
                             showFolderSheet = true
-                        },
-                        onReparseClick = onReparseClick
+                        }.padding(vertical = 12.dp)
                     )
+                    if (uiState.isParsing) androidx.compose.material3.LinearProgressIndicator(Modifier.fillMaxWidth())
+                    uiState.parseError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                    if (uiState.content.isNotBlank()) Text(uiState.content,
+                        style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    if (uiState.isLoading) Text("載入中…")
+                    if (uiState.isSaving) Text("儲存中…")
+                    uiState.errorMessage?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                    if (folders.isEmpty() && !uiState.isLoading) {
+                        androidx.compose.material3.TextButton(onClick = onRetry) { Text("重新載入") }
+                        androidx.compose.material3.TextButton(onClick = { showAddFolderDialog = true }) { Text("新增資料夾") }
+                    }
 
                 }
             }
@@ -212,10 +227,12 @@ fun AddBookmarkScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    DailyPicksOption(
-                        checked = uiState.isAddedToDailyPicks,
-                        onCheckedChange = onDailyPicksChange
-                    )
+
+                    DailyPicksOption(checked = uiState.isAddedToDailyPicks,
+                        onCheckedChange = { if (!uiState.isSaving) onDailyPicksChange(it) })
+                    Text("收藏總數達三筆後，儲存時會加入今日拾藏；已有三筆拾藏時隨機替換一筆。",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
                 }
             }
         }
@@ -246,25 +263,6 @@ fun AddBookmarkScreen(
             },
             onConfirm = { folderName ->
 
-                // 建立新的資料夾 ID
-                val newFolderId = (folders.maxOfOrNull { it.id } ?: 0L) + 1L
-
-                // 建立新的資料夾
-                val newFolder = FolderUiModel(
-                    id = newFolderId,
-                    title = folderName,
-                    count = 0,
-                    imageUrl = "",
-                    latestSavedAt = null
-                )
-
-                // 更新資料夾列表
-                folders = folders + newFolder
-
-                // 自動選取新建立的資料夾
-                onFolderSelected(newFolderId)
-
-                // 通知外部新增資料夾
                 onCreateFolderClick(folderName)
 
                 showAddFolderDialog = false
@@ -281,22 +279,8 @@ fun AddBookmarkScreen(
             },
             onConfirm = { tagName ->
 
-                // 建立新的標籤 ID
-                val newTagId = "custom_${java.util.UUID.randomUUID()}"
+                onCreateTag(tagName)
 
-                // 建立新的標籤
-                val newTag = TagOptionUiModel(
-                    id = newTagId,
-                    name = tagName
-                )
-
-                // 更新標籤列表：將新標籤放在第一個
-                tags = listOf(newTag) + tags
-
-                // 自動選取新建立的標籤
-                onTagClick(newTagId)
-
-                // 關閉 Dialog
                 showAddTagDialog = false
             }
         )

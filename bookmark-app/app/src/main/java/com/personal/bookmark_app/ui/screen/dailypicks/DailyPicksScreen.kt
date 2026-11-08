@@ -37,11 +37,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.personal.bookmark_app.ui.theme.BookmarkTextSecondary
 import com.personal.bookmark_app.ui.viewmodel.DailyPicksViewModel
-import androidx.lifecycle.viewmodel.compose.viewModel
-import java.text.SimpleDateFormat
-import java.util.Date
 import java.util.Locale
 
 @Composable
@@ -50,11 +48,16 @@ fun DailyPicksScreen(
     onAddBookmarkClick: () -> Unit = {},
     viewModel: DailyPicksViewModel = viewModel()
 ) {
+    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+        viewModel.retry()
+    }
     val dailyPicks by viewModel.picks.collectAsState()
     val totalBookmarkCount by viewModel.totalBookmarkCount.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
-    val canRefresh = totalBookmarkCount > 3
+    val selectionDate by viewModel.selectionDate.collectAsState()
+    val isSufficient by viewModel.isSufficient.collectAsState()
+    val canRefresh = totalBookmarkCount > 3 && !isLoading
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -73,7 +76,7 @@ fun DailyPicksScreen(
                 .padding(innerPadding)
         ) {
 
-            DailyPicksHeader()
+            DailyPicksHeader(selectionDate)
 
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -92,6 +95,7 @@ fun DailyPicksScreen(
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall
                     )
+                    TextButton(onClick = viewModel::retry, enabled = !isLoading) { Text("重新載入") }
                 }
 
                 when {
@@ -120,21 +124,15 @@ fun DailyPicksScreen(
                         )
                     }
 
-                    // 狀態二：只有 1～3 則收藏
-                    totalBookmarkCount <= 3 -> {
-                        dailyPicks.forEach { bookmark ->
-                            DailyBookmarkCard(
-                                bookmark = bookmark
-                            )
-                        }
-
+                    // 狀態二：收藏不足 3 則
+                    !isSufficient -> {
                         DailyPicksInsufficientState(
                             bookmarkCount = totalBookmarkCount.toInt(),
                             onAddBookmarkClick = onAddBookmarkClick
                         )
                     }
 
-                    // 狀態三：收藏數量超過 3 則
+                    // 狀態三：至少 3 則收藏
                     else -> {
                         dailyPicks.forEach { bookmark ->
                             DailyBookmarkCard(
@@ -142,8 +140,9 @@ fun DailyPicksScreen(
                             )
                         }
 
-                        DailyPicksFooter(
-                            onRefreshClick = viewModel::refreshPicks
+                        if (totalBookmarkCount > 3) DailyPicksFooter(
+                            onRefreshClick = viewModel::refreshPicks,
+                            enabled = !isLoading
                         )
                     }
                 }
@@ -217,7 +216,7 @@ private fun DailyPicksTopBar(
 // ==================================================
 
 @Composable
-private fun DailyPicksHeader() {
+private fun DailyPicksHeader(selectionDate: String) {
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier
@@ -225,10 +224,10 @@ private fun DailyPicksHeader() {
             .padding(horizontal = 20.dp),
     ) {
 
-        val today = SimpleDateFormat(
-            "yyyy 年 M 月 d 日・E",
-            Locale.TAIWAN
-        ).format(Date())
+        val today = selectionDate.takeIf { it.isNotBlank() }?.let {
+            runCatching { java.time.LocalDate.parse(it).format(
+                java.time.format.DateTimeFormatter.ofPattern("yyyy 年 M 月 d 日・E", Locale.TAIWAN)) }.getOrDefault(it)
+        } ?: "載入日期中…"
 
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -256,6 +255,7 @@ private fun DailyPicksHeader() {
 
 @Composable
 private fun DailyPicksFooter(
+    enabled: Boolean,
     onRefreshClick: () -> Unit
 ) {
     Column(
@@ -264,6 +264,7 @@ private fun DailyPicksFooter(
     ) {
         Button(
             onClick = onRefreshClick,
+            enabled = enabled,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(
@@ -287,7 +288,7 @@ private fun DailyPicksFooter(
         }
 
         Text(
-            text = "每日清晨 06:00 更新，亦可手動更換。",
+            text = "每日依台北時間換日，下次開啟時更新；亦可手動更換。",
             color = BookmarkTextSecondary,
             style = MaterialTheme.typography.bodySmall
         )

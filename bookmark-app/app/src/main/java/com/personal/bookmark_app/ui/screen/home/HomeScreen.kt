@@ -92,6 +92,10 @@ fun HomeScreen(
     }
 
     val homeViewModel: HomeViewModel = viewModel()
+    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+        homeViewModel.refreshFolders()
+    }
+
 
     // 觀察本地端儲存的顯示方式
     val displayMode by homeViewModel.folderDisplayMode.collectAsState()

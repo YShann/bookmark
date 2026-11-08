@@ -4,7 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.personal.bookmark_app.data.remote.RetrofitClient
-import com.personal.bookmark_app.data.remote.api.BookmarkApi
+import com.personal.bookmark_app.data.remote.api.DailyPicksApi
 import com.personal.bookmark_app.data.remote.dto.response.bookmark.BookmarkResponse
 import com.personal.bookmark_app.ui.model.BookmarkSource
 import com.personal.bookmark_app.ui.model.DaliyBookmarkUiModel
@@ -15,7 +15,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class DailyPicksViewModel(application: Application) : AndroidViewModel(application) {
-    private val api = RetrofitClient.authenticated(application).create(BookmarkApi::class.java)
+    private val api = RetrofitClient.authenticated(application).create(DailyPicksApi::class.java)
 
     private val _picks = MutableStateFlow<List<DaliyBookmarkUiModel>>(emptyList())
     val picks = _picks.asStateFlow()
@@ -26,33 +26,35 @@ class DailyPicksViewModel(application: Application) : AndroidViewModel(applicati
     private val _error = MutableStateFlow<String?>(null)
     val error = _error.asStateFlow()
 
-    private var rotation = 0
+    private val _selectionDate = MutableStateFlow("")
+    val selectionDate = _selectionDate.asStateFlow()
+    private val _isSufficient = MutableStateFlow(false)
+    val isSufficient = _isSufficient.asStateFlow()
 
-    init { loadPicks() }
+
 
     fun refreshPicks() {
         if (_isLoading.value || _totalBookmarkCount.value <= 3) return
-        rotation++
-        loadPicks(excludeCurrent = true)
+        loadPicks(refresh = true)
     }
 
     fun retry() = loadPicks()
 
-    private fun loadPicks(excludeCurrent: Boolean = false) {
+    private fun loadPicks(refresh: Boolean = false) {
         if (_isLoading.value) return
+        _isLoading.value = true
         viewModelScope.launch {
-            _isLoading.value = true
             try {
                 val response = withContext(Dispatchers.IO) {
-                    api.getDailyPicks(
-                        rotation = rotation,
-                        excludeIds = if (excludeCurrent) _picks.value.map { it.id } else emptyList()
-                    )
+                    if (refresh) api.refreshDailyPicks() else api.getDailyPicks()
                 }
-                _picks.value = response.picks.map { it.toDailyPick() }
-                _totalBookmarkCount.value = response.totalBookmarkCount
+                _picks.value = response.orderedBookmarks().map { it.toDailyPick() }
+                _totalBookmarkCount.value = response.bookmarkCount
+                _selectionDate.value = response.selectionDate
+                _isSufficient.value = response.isSufficient
                 _error.value = null
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
                 _error.value = "今日拾藏載入失敗，請稍後再試。"
             } finally {
                 _isLoading.value = false
