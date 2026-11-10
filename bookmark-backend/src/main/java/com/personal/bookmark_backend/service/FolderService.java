@@ -25,6 +25,7 @@ public class FolderService {
 
     // 收藏夾 Repository
     private final FolderRepository folderRepository;
+    private final DailyPickSelectionService dailyPickSelectionService;
 
     // 收藏 Repository
     private final BookmarkRepository bookmarkRepository;
@@ -120,6 +121,7 @@ public class FolderService {
 
     @Transactional
     public void deleteFolder(Long userId, Long folderId, boolean deleteBookmarks) {
+        dailyPickSelectionService.lockUser(userId);
 
         // 取得準備刪除的收藏夾
         Folder sourceFolder = findUserFolder(userId, folderId);
@@ -155,6 +157,7 @@ public class FolderService {
                 );
 
         if (deleteBookmarks) {
+            dailyPickSelectionService.removeBookmarks(userId, bookmarks.stream().map(Bookmark::getId).toList());
             bookmarkTagRepository.deleteAll(sourceAssociations);
             bookmarkTagRepository.flush();
 

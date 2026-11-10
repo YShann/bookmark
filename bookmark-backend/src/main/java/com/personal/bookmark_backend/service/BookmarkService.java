@@ -38,35 +38,16 @@ public class BookmarkService {
 
     // 標籤操作交給 TagService 負責
     private final TagService tagService;
+    private final DailyPickSelectionService dailyPickSelectionService;
 
     @Transactional(readOnly = true)
     public long countUserBookmarks(Long userId) {
         return bookmarkRepository.countByUserId(userId);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<Bookmark> getDailyPicks(Long userId, int rotation, List<Long> excludeIds) {
-        LocalDate pickDay = ZonedDateTime.now(ZoneId.of("Asia/Taipei")).minusHours(6).toLocalDate();
-        long daySeed = pickDay.toEpochDay() * 1_000_003L;
-        long seed = daySeed + userId * 31L + Math.floorMod(rotation, 10_000);
-        Pageable limit = PageRequest.of(0, 3);
-
-        if (excludeIds == null || excludeIds.isEmpty()) {
-            return bookmarkRepository.findDailyPicks(userId, seed, limit);
-        }
-
-        List<Bookmark> picks = new ArrayList<>(bookmarkRepository.findDailyPicksExcluding(
-                userId, excludeIds, seed, limit
-        ));
-        if (picks.size() < 3) {
-            for (Bookmark candidate : bookmarkRepository.findAllByUserIdAndIdInOrderByCreatedAtDesc(userId, excludeIds)) {
-                if (picks.stream().noneMatch(pick -> pick.getId().equals(candidate.getId()))) {
-                    picks.add(candidate);
-                    if (picks.size() == 3) break;
-                }
-            }
-        }
-        return picks;
+        return dailyPickSelectionService.getPicks(userId, rotation, excludeIds);
     }
 
     @Transactional(readOnly = true)
@@ -130,9 +111,11 @@ public class BookmarkService {
             String note,
             String source,
             String imageUrl,
-            List<String> tagNames
+            List<String> tagNames,
+            boolean addToDailyPicks
     ) {
 
+        dailyPickSelectionService.lockUser(userId);
         // 確認目標收藏夾屬於目前使用者
         Folder folder = findUserFolder(userId, folderId);
 
@@ -153,6 +136,8 @@ public class BookmarkService {
 
         // 儲存收藏，取得資料庫產生的 bookmarkId
         Bookmark savedBookmark = bookmarkRepository.save(bookmark);
+
+        if (addToDailyPicks) dailyPickSelectionService.includeBookmark(userId, savedBookmark);
 
         // 建立收藏與標籤的關聯
         // 如果標籤不存在，TagService 會自動建立
@@ -239,6 +224,7 @@ public class BookmarkService {
 
     @Transactional
     public void deleteBookmark(Long userId, Long bookmarkId) {
+        dailyPickSelectionService.removeBookmarks(userId, List.of(bookmarkId));
 
         Bookmark bookmark = findUserBookmark(userId, bookmarkId);
 

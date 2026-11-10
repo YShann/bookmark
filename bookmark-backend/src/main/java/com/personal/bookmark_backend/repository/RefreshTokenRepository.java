@@ -16,6 +16,7 @@ public interface RefreshTokenRepository
     List<RefreshToken> findAllByUserId(Long userId);
 
     // 查詢指定使用者目前尚未撤銷的 Refresh Token
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
     List<RefreshToken> findAllByUserIdAndRevokedAtIsNull(Long userId);
 
     // 查詢指定雜湊值且尚未撤銷的 Refresh Token

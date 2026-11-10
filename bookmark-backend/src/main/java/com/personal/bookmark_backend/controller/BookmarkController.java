@@ -207,7 +207,8 @@ public class BookmarkController {
                 request.note(),
                 request.source(),
                 request.imageUrl(),
-                request.tags()
+                request.tags(),
+                request.addToDailyPicks()
         );
 
         BookmarkResponse response = toBookmarkResponse(

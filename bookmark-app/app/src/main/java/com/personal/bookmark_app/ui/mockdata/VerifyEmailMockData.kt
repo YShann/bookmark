@@ -6,8 +6,7 @@ object VerifyEmailMockData {
 
     val default = VerifyEmailUiState(
         email = "shuhai.reader@cang.app",
-        verificationCode = "",
-        resendCountdown = 45
+        verificationCode = ""
     )
 
     val error = default.copy(

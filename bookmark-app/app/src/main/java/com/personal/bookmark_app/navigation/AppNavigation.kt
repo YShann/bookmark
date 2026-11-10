@@ -1,6 +1,7 @@
 package com.personal.bookmark_app.navigation
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -22,14 +23,16 @@ import com.personal.bookmark_app.data.repository.auth.ApiAuthRepository
 import com.personal.bookmark_app.data.repository.auth.AuthRepository
 import com.personal.bookmark_app.ui.screen.SearchBookmarkScreen
 import com.personal.bookmark_app.ui.screen.addbookmark.AddBookmarkScreen
-import com.personal.bookmark_app.ui.screen.addbookmark.AddBookmarkUiState
 import com.personal.bookmark_app.ui.screen.dailypicks.DailyPicksScreen
 import com.personal.bookmark_app.ui.screen.folderbookmark.FolderBookmarkScreen
 import com.personal.bookmark_app.ui.screen.forgotpassword.ForgotPasswordScreen
+import com.personal.bookmark_app.ui.screen.forgotpassword.PasswordResetStep
 import com.personal.bookmark_app.ui.screen.home.HomeScreen
 import com.personal.bookmark_app.ui.screen.login.LoginScreen
 import com.personal.bookmark_app.ui.screen.register.RegisterScreen
+import com.personal.bookmark_app.ui.screen.resetpassword.ResetPasswordScreen
 import com.personal.bookmark_app.ui.screen.verifyemail.VerifyEmailScreen
+import com.personal.bookmark_app.ui.screen.verifyemail.VerifyEmailUiState
 import com.personal.bookmark_app.ui.viewmodel.AuthEvent
 import com.personal.bookmark_app.ui.viewmodel.AuthViewModel
 import com.personal.bookmark_app.ui.viewmodel.AuthViewModelFactory
@@ -90,6 +93,14 @@ fun AppNavigation(
 
     val forgotPasswordUiState by authViewModel.forgotPasswordUiState
         .collectAsStateWithLifecycle()
+
+    val resetPasswordUiState by authViewModel.resetPasswordUiState.collectAsStateWithLifecycle()
+
+    // 離開整個忘記密碼流程才清除；旋轉螢幕保留 ViewModel，程序重建則從 Email 開始。
+    LaunchedEffect(currentBackStackEntry?.destination?.route) {
+        val route = currentBackStackEntry?.destination?.route
+        if (route != null && route != Screen.FORGOT_PASSWORD) authViewModel.resetForgotPasswordState()
+    }
 
     // ------------------------------------------------
     // 其他頁面暫時保留原本的狀態管理
@@ -169,15 +180,6 @@ fun AppNavigation(
                     navController.navigate(Screen.VERIFY_EMAIL)
                 }
 
-                // 忘記密碼信件寄送成功
-                AuthEvent.PasswordResetLinkSent -> {
-                    Toast.makeText(
-                        context,
-                        "重設密碼連結已寄出，請查看信箱",
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
-
                 // 顯示錯誤或提示訊息
                 is AuthEvent.ShowMessage -> {
                     Toast.makeText(
@@ -217,6 +219,7 @@ fun AppNavigation(
                     navigateToHome()
                 },
                 onForgotPasswordClick = {
+                    authViewModel.resetForgotPasswordState()
                     navController.navigate(Screen.FORGOT_PASSWORD)
                 },
                 onRegisterClick = {
@@ -256,15 +259,61 @@ fun AppNavigation(
             )
         }
 
-        // Forgot Password
+        // 三個畫面在同一導航流程中切換，不將密碼或 Token 放入路由。
         composable(Screen.FORGOT_PASSWORD) {
-
-            ForgotPasswordScreen(
-                uiState = forgotPasswordUiState,
-                onEmailChange = authViewModel::onForgotPasswordEmailChange,
-                onBackClick = { navigateBackSafely() },
-                onSendResetLinkClick = authViewModel::sendPasswordResetLink
-            )
+            val leaveFlow = {
+                authViewModel.resetForgotPasswordState()
+                navController.navigate(Screen.LOGIN) {
+                    popUpTo(Screen.LOGIN) { inclusive = true }
+                    launchSingleTop = true
+                }
+            }
+            BackHandler {
+                if (forgotPasswordUiState.step == PasswordResetStep.PASSWORD) {
+                    if (!resetPasswordUiState.isLoading) authViewModel.returnToResetCode("請重新寄送驗證碼")
+                } else leaveFlow()
+            }
+            LaunchedEffect(forgotPasswordUiState.step) {
+                if (forgotPasswordUiState.step == PasswordResetStep.SUCCESS) {
+                    Toast.makeText(context, "密碼重設成功，請重新登入", Toast.LENGTH_LONG).show()
+                    leaveFlow()
+                }
+            }
+            when (forgotPasswordUiState.step) {
+                PasswordResetStep.EMAIL -> ForgotPasswordScreen(
+                    uiState = forgotPasswordUiState,
+                    onEmailChange = authViewModel::onForgotPasswordEmailChange,
+                    onBackClick = leaveFlow,
+                    onSendCodeClick = authViewModel::forgotPassword
+                )
+                PasswordResetStep.CODE -> VerifyEmailScreen(
+                    // 僅轉換給共用 UI；註冊與重設的 ViewModel 狀態完全分開。
+                    uiState = VerifyEmailUiState(
+                        email = forgotPasswordUiState.email,
+                        verificationCode = forgotPasswordUiState.code,
+                        resendCountdown = forgotPasswordUiState.resendCountdown,
+                        errorMessage = forgotPasswordUiState.errorMessage,
+                        isLoading = forgotPasswordUiState.isLoading
+                    ),
+                    onCodeChange = authViewModel::onResetCodeChange,
+                    onVerifyClick = authViewModel::verifyResetCode,
+                    onResendClick = authViewModel::resendResetCode,
+                    title = "驗證密碼重設",
+                    description = "若信箱已註冊，將會收到六位數驗證碼",
+                    expiryText = "請於 5 分鐘內輸入驗證碼；未收到時請檢查垃圾郵件",
+                    buttonText = "驗證並設定新密碼",
+                )
+                PasswordResetStep.PASSWORD -> ResetPasswordScreen(
+                    uiState = resetPasswordUiState,
+                    onPasswordChange = authViewModel::onNewPasswordChange,
+                    onConfirmPasswordChange = authViewModel::onNewPasswordConfirmationChange,
+                    onPasswordVisibilityChange = authViewModel::toggleNewPasswordVisibility,
+                    onConfirmPasswordVisibilityChange = authViewModel::toggleNewPasswordConfirmationVisibility,
+                    onSaveClick = authViewModel::resetPassword,
+                    onBackClick = { authViewModel.returnToResetCode("請重新寄送驗證碼") }
+                )
+                PasswordResetStep.SUCCESS -> Unit
+            }
         }
 
         // ============================================

@@ -17,6 +17,11 @@ import java.time.LocalDateTime;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(TooManyRequestsException.class)
+    public ResponseEntity<ErrorResponse> handleTooManyRequests(TooManyRequestsException exception) {
+        return buildErrorResponse(HttpStatus.TOO_MANY_REQUESTS, exception.getMessage());
+    }
+
     // =====================================================
     // 400 Bad Request
     // Service 參數或商業邏輯錯誤

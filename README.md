@@ -47,15 +47,12 @@ cd bookmark-backend
 
 ## 測試
 
-Spring Boot Context 範例測試與 Android Debug APK／單元測試已在本機通過。目前測試仍是骨架範例，尚未涵蓋 MVP 驗收需求。後續測試方式與結果記錄於 [docs/TESTING.md](docs/TESTING.md)。
+Spring Boot Context 範例測試與 Android Debug APK／單元測試已在本機通過。目前測試仍是骨架範例，尚未涵蓋 MVP 驗收需求。
 
 ## 文件
 
 - [開發規格與階段狀態](docs/DEVELOPMENT_SPEC.md)
 - [系統架構](docs/ARCHITECTURE.md)
-- [資料庫設計](docs/DATABASE.md)（待 Phase 2/3 建立）
-- [API 規格](docs/API.md)（待實作時建立）
-- [測試策略](docs/TESTING.md)（待建立）
 
 ## 授權
 

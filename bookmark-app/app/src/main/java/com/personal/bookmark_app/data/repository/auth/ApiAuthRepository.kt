@@ -1,4 +1,6 @@
 package com.personal.bookmark_app.data.repository.auth
+import com.personal.bookmark_app.data.remote.dto.request.auth.VerifyResetCodeRequest
+import com.personal.bookmark_app.data.remote.dto.request.auth.ResetPasswordRequest
 
 import com.google.gson.Gson
 import com.personal.bookmark_app.data.local.UserPreferencesRepository
@@ -45,8 +47,26 @@ class ApiAuthRepository(
             Unit
         }.mapNetworkFailure()
 
-    override suspend fun sendPasswordResetLink(email: String): Result<Unit> =
-        Result.failure(UnsupportedOperationException("後端尚未提供忘記密碼 API"))
+    override suspend fun forgotPassword(email: String): Result<Unit> = runCatching {
+        api.forgotPassword(EmailRequest(email.trim()))
+        Unit
+    }.mapNetworkFailure()
+
+    override suspend fun verifyResetCode(email: String, code: String): Result<String> = runCatching {
+        val response = api.verifyResetCode(
+            VerifyResetCodeRequest(email.trim(), code)
+        )
+        check(!response.resetToken.isNullOrBlank()) { "驗證回應不完整，請重新驗證" }
+        response.resetToken
+    }.mapNetworkFailure()
+
+    override suspend fun resetPassword(resetToken: String, newPassword: String, confirmPassword: String): Result<Unit> = runCatching {
+        api.resetPassword(ResetPasswordRequest(
+            resetToken, newPassword, confirmPassword
+        ))
+        preferences.clearTokens()
+        Unit
+    }.mapNetworkFailure()
 
     override suspend fun logout(): Result<Unit> {
         val result = runCatching {
@@ -60,6 +80,7 @@ class ApiAuthRepository(
 private fun <T> Result<T>.mapNetworkFailure(): Result<T> = fold(
     onSuccess = { Result.success(it) },
     onFailure = { error ->
+        if (error is kotlinx.coroutines.CancellationException) throw error
         val message = when (error) {
             is HttpException -> error.backendMessage() ?: when (error.code()) {
                 401 -> "Email 或密碼錯誤"

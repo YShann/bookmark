@@ -39,7 +39,7 @@ fun ForgotPasswordScreen(
     uiState: ForgotPasswordUiState,
     onEmailChange: (String) -> Unit,
     onBackClick: () -> Unit,
-    onSendResetLinkClick: () -> Unit,
+    onSendCodeClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Scaffold(
@@ -70,7 +70,7 @@ fun ForgotPasswordScreen(
 
                 // 說明文字
                 Text(
-                    text = "請輸入您註冊時使用的電子郵件信箱。我們將發送一封包含重設密碼連結的驗證信件給您。",
+                    text = "請輸入註冊時使用的電子郵件。若此信箱已註冊，將會收到六位數密碼重設驗證碼。",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -166,10 +166,10 @@ fun ForgotPasswordScreen(
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // 發送重設密碼連結
+                // 寄送驗證碼
                 Button(
-                    onClick = onSendResetLinkClick,
-                    enabled = !uiState.isLoading,
+                    onClick = onSendCodeClick,
+                    enabled = uiState.isFormValid && !uiState.isLoading,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(52.dp)
@@ -188,7 +188,7 @@ fun ForgotPasswordScreen(
                         text = if (uiState.isLoading) {
                             "發送中..."
                         } else {
-                            "發送重設密碼連結"
+                            "寄送驗證碼"
                         },
                         style = MaterialTheme.typography.labelLarge
                     )
@@ -219,7 +219,7 @@ private fun ForgotPasswordHeader(
         }
 
         Text(
-            text = "重設密碼",
+            text = "忘記密碼",
             style = MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.onSurface
         )

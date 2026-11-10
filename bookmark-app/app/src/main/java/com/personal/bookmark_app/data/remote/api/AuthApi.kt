@@ -1,4 +1,7 @@
 package com.personal.bookmark_app.data.remote.api
+import com.personal.bookmark_app.data.remote.dto.request.auth.VerifyResetCodeRequest
+import com.personal.bookmark_app.data.remote.dto.request.auth.ResetPasswordRequest
+import com.personal.bookmark_app.data.remote.dto.response.auth.VerifyResetCodeResponse
 
 import com.personal.bookmark_app.data.remote.dto.request.auth.EmailRequest
 import com.personal.bookmark_app.data.remote.dto.request.auth.LoginRequest
@@ -10,6 +13,15 @@ import retrofit2.http.Body
 import retrofit2.http.POST
 
 interface AuthApi {
+    @POST("api/auth/forgot-password")
+    suspend fun forgotPassword(@Body request: EmailRequest): MessageResponse
+
+    @POST("api/auth/verify-reset-code")
+    suspend fun verifyResetCode(@Body request: VerifyResetCodeRequest): VerifyResetCodeResponse
+
+    @POST("api/auth/reset-password")
+    suspend fun resetPassword(@Body request: ResetPasswordRequest): MessageResponse
+
     @POST("api/auth/registration-code")
     suspend fun sendRegistrationCode(@Body request: EmailRequest): MessageResponse
 

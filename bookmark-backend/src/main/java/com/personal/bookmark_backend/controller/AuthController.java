@@ -1,6 +1,11 @@
 package com.personal.bookmark_backend.controller;
 
 import com.personal.bookmark_backend.dto.request.auth.LoginRequest;
+import com.personal.bookmark_backend.dto.request.auth.ForgotPasswordRequest;
+import com.personal.bookmark_backend.dto.request.auth.VerifyResetCodeRequest;
+import com.personal.bookmark_backend.dto.request.auth.ResetPasswordRequest;
+import com.personal.bookmark_backend.dto.response.auth.VerifyResetCodeResponse;
+import jakarta.servlet.http.HttpServletRequest;
 import com.personal.bookmark_backend.dto.request.auth.LogoutRequest;
 import com.personal.bookmark_backend.dto.request.auth.RefreshTokenRequest;
 import com.personal.bookmark_backend.dto.request.auth.RegisterRequest;
@@ -139,6 +144,43 @@ public class AuthController {
         return ResponseEntity.ok(
                 new MessageResponse("已登出所有裝置")
         );
+    }
+
+    /**
+     * 7. 忘記密碼
+     */
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<MessageResponse> forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequest request,
+            HttpServletRequest servletRequest
+    ) {
+        // 使用連線來源；不直接信任客戶端可偽造的 X-Forwarded-For。
+        authService.forgotPassword(request.email(), servletRequest.getRemoteAddr());
+        return ResponseEntity.ok(
+                new MessageResponse("如果此 Email 已註冊，將會收到密碼重設驗證碼")
+        );
+    }
+
+    @PostMapping("/verify-reset-code")
+    public ResponseEntity<VerifyResetCodeResponse> verifyResetCode(
+            @Valid @RequestBody VerifyResetCodeRequest request,
+            HttpServletRequest servletRequest
+    ) {
+        String resetToken = authService.verifyResetCode(
+                request.email(), request.code(), servletRequest.getRemoteAddr()
+        );
+        return ResponseEntity.ok(new VerifyResetCodeResponse(resetToken));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<MessageResponse> resetPassword(
+            @Valid @RequestBody ResetPasswordRequest request
+    ) {
+        authService.resetPassword(
+                request.resetToken(), request.newPassword(), request.confirmPassword()
+        );
+        return ResponseEntity.ok(new MessageResponse("密碼重設成功，請重新登入"));
     }
 
     /**

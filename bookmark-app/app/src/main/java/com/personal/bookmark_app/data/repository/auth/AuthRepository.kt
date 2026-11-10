@@ -26,9 +26,13 @@ interface AuthRepository {
     ): Result<Unit>
 
     // 寄送忘記密碼信件
-    suspend fun sendPasswordResetLink(
+    suspend fun forgotPassword(
         email: String
     ): Result<Unit>
+
+    suspend fun verifyResetCode(email: String, code: String): Result<String>
+
+    suspend fun resetPassword(resetToken: String, newPassword: String, confirmPassword: String): Result<Unit>
 
     suspend fun logout(): Result<Unit>
 }

@@ -2,6 +2,9 @@ package com.personal.bookmark_backend.service;
 
 import com.personal.bookmark_backend.entity.RefreshToken;
 import com.personal.bookmark_backend.repository.RefreshTokenRepository;
+import com.personal.bookmark_backend.repository.UserRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -19,6 +22,8 @@ import java.util.HexFormat;
 public class RefreshTokenService {
 
     private final RefreshTokenRepository refreshTokenRepository;
+    private final UserRepository userRepository;
+    private final EntityManager entityManager;
 
     @Value("${jwt.refresh-token-expiration}")
     private long refreshTokenExpiration;
@@ -83,6 +88,13 @@ public class RefreshTokenService {
                                 "Refresh Token 無效或已失效"
                         )
                 );
+
+        userRepository.lockById(oldToken.getUserId())
+                .orElseThrow(() -> new IllegalArgumentException("Refresh Token 無效或已失效"));
+        entityManager.refresh(oldToken, LockModeType.PESSIMISTIC_WRITE);
+        if (oldToken.getRevokedAt() != null) {
+            throw new IllegalArgumentException("Refresh Token 無效或已失效");
+        }
 
         LocalDateTime now = LocalDateTime.now();
 
