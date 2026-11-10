@@ -283,7 +283,7 @@ fun FolderBookmarkScreen(
                 start = 20.dp,
                 end = 20.dp,
                 top = 12.dp,
-                bottom = 24.dp
+                bottom = 16.dp
             ),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {

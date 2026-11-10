@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -31,7 +30,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -45,6 +43,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.personal.bookmark_app.R
+import com.personal.bookmark_app.ui.components.GoogleSignInButton
 import com.personal.bookmark_app.ui.components.TextFieldView
 
 @Composable
@@ -70,10 +69,10 @@ fun LoginScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .statusBarsPadding()
-                .navigationBarsPadding()
                 .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp)
+                .padding(bottom = 16.dp)
         ) {
 
             Spacer(modifier = Modifier.height(40.dp))
@@ -96,7 +95,8 @@ fun LoginScreen(
 
             // 其他登入方式
             OtherLoginSection(
-                onGoogleLoginClick = onGoogleLoginClick
+                onGoogleLoginClick = onGoogleLoginClick,
+                enabled = !uiState.isLoading
             )
 
             Spacer(modifier = Modifier.height(32.dp))
@@ -105,8 +105,6 @@ fun LoginScreen(
             RegisterSection(
                 onRegisterClick = onRegisterClick
             )
-
-            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }
@@ -301,7 +299,8 @@ private fun LoginForm(
 
 @Composable
 private fun OtherLoginSection(
-    onGoogleLoginClick: () -> Unit
+    onGoogleLoginClick: () -> Unit,
+    enabled: Boolean
 ) {
     Column(
         modifier = Modifier.fillMaxWidth()
@@ -330,31 +329,11 @@ private fun OtherLoginSection(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        OutlinedButton(
-            onClick = onGoogleLoginClick,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(52.dp),
-            shape = RoundedCornerShape(8.dp),
-            border = androidx.compose.foundation.BorderStroke(
-                1.dp,
-                MaterialTheme.colorScheme.outlineVariant
-            )
-        ) {
-            Text(
-                text = "G",
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Text(
-                text = "使用 Google 帳號登入",
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-        }
+        GoogleSignInButton(
+            label = "使用 Google 帳號登入",
+            enabled = enabled,
+            onClick = onGoogleLoginClick
+        )
     }
 }
 

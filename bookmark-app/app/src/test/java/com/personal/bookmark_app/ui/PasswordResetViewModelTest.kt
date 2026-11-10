@@ -130,6 +130,7 @@ class PasswordResetViewModelTest {
         override suspend fun verifyResetCode(email:String,code:String):Result<String> { verifications++; lastCode=code; verifyGate?.await(); return verifyResult }
         override suspend fun resetPassword(resetToken:String,newPassword:String,confirmPassword:String):Result<Unit> { resets++; usedToken=resetToken; resetGate?.await(); return resetResult }
         override suspend fun login(email:String,password:String):Result<Unit> { logins++; return Result.success(Unit) }
+        override suspend fun loginWithGoogle(idToken: String, password: String?) = Result.success(Unit)
         override suspend fun register(email:String,password:String)=Result.success(Unit)
         override suspend fun verifyEmail(email:String,code:String)=Result.success(Unit)
         override suspend fun resendVerificationCode(email: String): Result<Unit> {

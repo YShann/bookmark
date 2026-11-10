@@ -36,13 +36,15 @@ public class User extends BaseTimeEntity {
     )
     private String email;
 
-    // 密碼雜湊值，儲存 BCrypt 雜湊
+    // Google 帳號沒有設定站內密碼時為 NULL
     @Column(
             name = "password_hash",
-            nullable = false,
             length = 255
     )
     private String passwordHash;
+
+    @Column(name = "google_sub", unique = true, length = 255)
+    private String googleSubject;
 
     // 使用者頭像圖片網址，尚未設定頭像時允許 NULL
     @Column(

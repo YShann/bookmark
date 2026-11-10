@@ -1,5 +1,7 @@
 package com.personal.bookmark_app.data.repository.auth
 
+internal class GoogleLinkRequiredException : RuntimeException()
+
 interface AuthRepository {
 
     // 登入
@@ -7,6 +9,8 @@ interface AuthRepository {
         email: String,
         password: String
     ): Result<Unit>
+
+    suspend fun loginWithGoogle(idToken: String, password: String? = null): Result<Unit>
 
     // 註冊
     suspend fun register(

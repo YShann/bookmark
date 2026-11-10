@@ -20,7 +20,8 @@ public class UserProfileService {
 
     @Transactional
     public User updateAvatar(Long userId, String avatarImageUrl) {
-        User user = findUser(userId);
+        User user = userRepository.lockById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("找不到使用者"));
         user.setAvatarUrl(avatarImageUrl == null || avatarImageUrl.isBlank()
                 ? null
                 : avatarImageUrl.trim());

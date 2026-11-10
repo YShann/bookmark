@@ -2,6 +2,7 @@ package com.personal.bookmark_backend.service;
 
 import com.personal.bookmark_backend.entity.*;
 import com.personal.bookmark_backend.repository.*;
+import com.personal.bookmark_backend.security.GoogleIdTokenVerifier;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.*;
@@ -30,7 +31,7 @@ import static org.mockito.Mockito.*;
 class PasswordResetTransactionTest {
     @Configuration @EnableTransactionManagement
     @EnableJpaRepositories(basePackages="com.personal.bookmark_backend.repository")
-    @Import({AuthService.class, RefreshTokenService.class, PasswordResetRateLimiter.class})
+    @Import({AuthService.class, RefreshTokenService.class, PasswordResetRateLimiter.class, GoogleAuthService.class})
     static class Config {
         @Bean DataSource dataSource() { return new DriverManagerDataSource("jdbc:h2:mem:reset;MODE=MySQL;DB_CLOSE_DELAY=-1;LOCK_TIMEOUT=10000", "sa", ""); }
         @Bean LocalContainerEntityManagerFactoryBean entityManagerFactory(DataSource ds) {
@@ -44,6 +45,7 @@ class PasswordResetTransactionTest {
         @Bean JavaMailSender mailSender() { return mock(JavaMailSender.class); }
         @Bean PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(4); }
         @Bean JwtService jwtService() { return new JwtService(Base64.getEncoder().encodeToString(new byte[32]), 900000); }
+        @Bean GoogleIdTokenVerifier googleIdTokenVerifier() { return mock(GoogleIdTokenVerifier.class); }
     }
     @Autowired AuthService auth;
     @Autowired RefreshTokenService refresh;

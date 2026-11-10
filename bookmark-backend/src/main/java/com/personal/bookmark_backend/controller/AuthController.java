@@ -1,6 +1,7 @@
 package com.personal.bookmark_backend.controller;
 
 import com.personal.bookmark_backend.dto.request.auth.LoginRequest;
+import com.personal.bookmark_backend.dto.request.auth.GoogleLoginRequest;
 import com.personal.bookmark_backend.dto.request.auth.ForgotPasswordRequest;
 import com.personal.bookmark_backend.dto.request.auth.VerifyResetCodeRequest;
 import com.personal.bookmark_backend.dto.request.auth.ResetPasswordRequest;
@@ -13,6 +14,7 @@ import com.personal.bookmark_backend.dto.request.auth.SendRegistrationCodeReques
 import com.personal.bookmark_backend.dto.response.auth.AuthResponse;
 import com.personal.bookmark_backend.dto.response.auth.MessageResponse;
 import com.personal.bookmark_backend.service.AuthService;
+import com.personal.bookmark_backend.service.GoogleAuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -26,6 +28,7 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
+    private final GoogleAuthService googleAuthService;
 
     /**
      * 1. 發送註冊 Email 驗證碼
@@ -85,6 +88,13 @@ public class AuthController {
         return ResponseEntity.ok(
                 toAuthResponse(result)
         );
+    }
+
+    @PostMapping("/google")
+    public ResponseEntity<AuthResponse> loginWithGoogle(
+            @Valid @RequestBody GoogleLoginRequest request
+    ) {
+        return ResponseEntity.ok(toAuthResponse(googleAuthService.login(request.idToken(), request.password())));
     }
 
     /**

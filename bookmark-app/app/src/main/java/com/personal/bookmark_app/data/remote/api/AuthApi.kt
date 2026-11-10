@@ -4,6 +4,7 @@ import com.personal.bookmark_app.data.remote.dto.request.auth.ResetPasswordReque
 import com.personal.bookmark_app.data.remote.dto.response.auth.VerifyResetCodeResponse
 
 import com.personal.bookmark_app.data.remote.dto.request.auth.EmailRequest
+import com.personal.bookmark_app.data.remote.dto.request.auth.GoogleLoginRequest
 import com.personal.bookmark_app.data.remote.dto.request.auth.LoginRequest
 import com.personal.bookmark_app.data.remote.dto.request.auth.RegisterRequest
 import com.personal.bookmark_app.data.remote.dto.response.auth.AuthResponse
@@ -30,6 +31,9 @@ interface AuthApi {
 
     @POST("api/auth/login")
     suspend fun login(@Body request: LoginRequest): AuthResponse
+
+    @POST("api/auth/google")
+    suspend fun loginWithGoogle(@Body request: GoogleLoginRequest): AuthResponse
 
     @POST("api/auth/logout")
     suspend fun logout(@Body request: LogoutRequest): MessageResponse

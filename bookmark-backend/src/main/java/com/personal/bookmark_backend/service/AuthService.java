@@ -50,6 +50,11 @@ import static com.personal.bookmark_backend.service.PasswordResetRateLimiter.RES
 @RequiredArgsConstructor
 public class AuthService {
 
+    private static final String GOOGLE_LOGIN_HINT = "若你原本使用 Google 建立帳號，請選擇 Google 登入";
+    private static final String REGISTERED_EMAIL = "此 Email 已經註冊，請用原本的方式登入。" + GOOGLE_LOGIN_HINT;
+    private static final String UNREGISTERED_EMAIL = "此 Email 尚未註冊，請先建立帳號。";
+    private static final String INVALID_LOGIN = "Email 或密碼錯誤。" + GOOGLE_LOGIN_HINT;
+
     private final UserRepository userRepository;
     private final FolderRepository folderRepository;
     private final EmailVerificationCodeRepository emailVerificationCodeRepository;
@@ -92,7 +97,7 @@ public class AuthService {
         // 檢查 Email 是否已經註冊
         if (userRepository.existsByEmail(normalizedEmail)) {
             throw new ConflictException(
-                    "此 Email 已經註冊"
+                    REGISTERED_EMAIL
             );
         }
 
@@ -149,7 +154,7 @@ public class AuthService {
         // 再次確認 Email 尚未註冊
         if (userRepository.existsByEmail(normalizedEmail)) {
             throw new ConflictException(
-                    "此 Email 已經註冊"
+                    REGISTERED_EMAIL
             );
         }
 
@@ -200,12 +205,14 @@ public class AuthService {
         );
         user.setEmailVerifiedAt(now);
 
-        User savedUser = userRepository.save(user);
+        createDefaultFolder(userRepository.save(user).getId());
+    }
 
+    void createDefaultFolder(Long userId) {
         // 建立使用者預設收藏夾「未分類」
         Folder defaultFolder = new Folder();
 
-        defaultFolder.setUserId(savedUser.getId());
+        defaultFolder.setUserId(userId);
         defaultFolder.setName("未分類");
         defaultFolder.setImageUrl(null);
         defaultFolder.setIsDefault(true);
@@ -222,13 +229,10 @@ public class AuthService {
         String normalizedEmail = normalizeEmail(email);
 
         User user = userRepository.findByEmail(normalizedEmail)
-                .orElseThrow(() ->
-                        new UnauthorizedException(
-                                "Email 或密碼錯誤"
-                        )
-                );
+                .orElseThrow(() -> new UnauthorizedException(UNREGISTERED_EMAIL));
 
-        userRepository.lockById(user.getId()).orElseThrow(() -> new UnauthorizedException("Email 或密碼錯誤"));
+        userRepository.lockById(user.getId())
+                .orElseThrow(() -> new UnauthorizedException(UNREGISTERED_EMAIL));
         entityManager.refresh(user, LockModeType.PESSIMISTIC_WRITE);
 
         // 確認 Email 已經驗證
@@ -239,16 +243,20 @@ public class AuthService {
         }
 
         // 驗證密碼
-        if (password == null
+        if (password == null || user.getPasswordHash() == null
                 || !passwordEncoder.matches(
                 password,
                 user.getPasswordHash()
         )) {
             throw new UnauthorizedException(
-                    "Email 或密碼錯誤"
+                    INVALID_LOGIN
             );
         }
 
+        return issueSession(user);
+    }
+
+    AuthResponse issueSession(User user) {
         // 產生 Access Token
         String accessToken =
                 jwtService.generateAccessToken(user.getId());
@@ -456,6 +464,9 @@ public class AuthService {
                 .orElseThrow(() -> new IllegalArgumentException(INVALID_RESET_TOKEN));
         User user = userRepository.lockById(saved.getUserId())
                 .orElseThrow(() -> new IllegalArgumentException(INVALID_RESET_TOKEN));
+        if (user.getPasswordHash() == null) {
+            throw new IllegalArgumentException(INVALID_RESET_TOKEN);
+        }
         checkResetTokenAfterLock(saved, tokenHash);
 
         // 改密碼、清除重設憑證、撤銷舊登入憑證一起提交。
@@ -537,7 +548,9 @@ public class AuthService {
 
     private User findAndLockUser(String email) {
         User user = userRepository.findByEmail(email).orElse(null);
-        return user == null ? null : userRepository.lockById(user.getId()).orElse(null);
+        return user == null ? null : userRepository.lockById(user.getId())
+                .filter(account -> account.getPasswordHash() != null)
+                .orElse(null);
     }
 
     private void checkResetTokenAfterLock(PasswordResetCode saved, String tokenHash) {

@@ -2,14 +2,14 @@ package com.personal.bookmark_app.data.repository.auth
 import com.personal.bookmark_app.data.remote.dto.request.auth.VerifyResetCodeRequest
 import com.personal.bookmark_app.data.remote.dto.request.auth.ResetPasswordRequest
 
-import com.google.gson.Gson
 import com.personal.bookmark_app.data.local.UserPreferencesRepository
 import com.personal.bookmark_app.data.remote.api.AuthApi
 import com.personal.bookmark_app.data.remote.dto.request.auth.EmailRequest
+import com.personal.bookmark_app.data.remote.dto.request.auth.GoogleLoginRequest
 import com.personal.bookmark_app.data.remote.dto.request.auth.LoginRequest
 import com.personal.bookmark_app.data.remote.dto.request.auth.LogoutRequest
 import com.personal.bookmark_app.data.remote.dto.request.auth.RegisterRequest
-import com.personal.bookmark_app.data.remote.dto.response.ApiErrorResponse
+import com.personal.bookmark_app.data.remote.backendMessage
 import retrofit2.HttpException
 
 class ApiAuthRepository(
@@ -23,6 +23,28 @@ class ApiAuthRepository(
 
     override suspend fun login(email: String, password: String): Result<Unit> = runCatching {
         val response = api.login(LoginRequest(email.trim(), password))
+        preferences.saveTokens(response.accessToken, response.refreshToken)
+    }.mapNetworkFailure()
+
+    override suspend fun loginWithGoogle(idToken: String, password: String?): Result<Unit> = runCatching {
+        val response = try {
+            api.loginWithGoogle(GoogleLoginRequest(idToken, password))
+        } catch (error: HttpException) {
+            if (error.code() == 409) {
+                val action = error.response()?.headers()?.get("X-Bookmark-Auth-Action")
+                val linkRequired = action == "link-google" ||
+                    error.backendMessage() == "此 Email 已有帳號，請輸入原本的 App 密碼來綁定 Google"
+                if (password == null && linkRequired) throw GoogleLinkRequiredException()
+
+                val message = if (linkRequired) {
+                    "後端未收到綁定所需的密碼，請重新開啟 Google 登入再試"
+                } else {
+                    "目前連線的後端尚未支援登入時綁定，請重啟新版 Spring Boot 後再試"
+                }
+                throw IllegalStateException(message, error)
+            }
+            throw error
+        }
         preferences.saveTokens(response.accessToken, response.refreshToken)
     }.mapNetworkFailure()
 
@@ -81,6 +103,7 @@ private fun <T> Result<T>.mapNetworkFailure(): Result<T> = fold(
     onSuccess = { Result.success(it) },
     onFailure = { error ->
         if (error is kotlinx.coroutines.CancellationException) throw error
+        if (error is GoogleLinkRequiredException) return@fold Result.failure(error)
         val message = when (error) {
             is HttpException -> error.backendMessage() ?: when (error.code()) {
                 401 -> "Email 或密碼錯誤"
@@ -93,9 +116,3 @@ private fun <T> Result<T>.mapNetworkFailure(): Result<T> = fold(
         Result.failure(IllegalStateException(message, error))
     }
 )
-
-private fun HttpException.backendMessage(): String? = runCatching {
-    response()?.errorBody()?.string()
-        ?.let { Gson().fromJson(it, ApiErrorResponse::class.java)?.message }
-        ?.takeIf(String::isNotBlank)
-}.getOrNull()

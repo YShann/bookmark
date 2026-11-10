@@ -1,9 +1,12 @@
 package com.personal.bookmark_backend.controller;
 
+import com.personal.bookmark_backend.dto.request.auth.LinkGoogleRequest;
 import com.personal.bookmark_backend.dto.response.user.UserProfileResponse;
 import com.personal.bookmark_backend.entity.User;
 import com.personal.bookmark_backend.service.UserProfileService;
 import com.personal.bookmark_backend.service.AvatarStorageService;
+import com.personal.bookmark_backend.service.GoogleAuthService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.http.ResponseEntity;
@@ -12,6 +15,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -23,10 +27,19 @@ public class UserController {
 
     private final UserProfileService userProfileService;
     private final AvatarStorageService avatarStorageService;
+    private final GoogleAuthService googleAuthService;
 
     @GetMapping
     public ResponseEntity<UserProfileResponse> getProfile(Authentication authentication) {
         User user = userProfileService.getProfile(userId(authentication));
+        return ResponseEntity.ok(toResponse(user));
+    }
+
+    @PostMapping("/google")
+    public ResponseEntity<UserProfileResponse> linkGoogle(
+            @Valid @RequestBody LinkGoogleRequest request, Authentication authentication
+    ) {
+        User user = googleAuthService.link(userId(authentication), request.idToken(), request.password());
         return ResponseEntity.ok(toResponse(user));
     }
 
@@ -52,6 +65,6 @@ public class UserController {
     }
 
     private UserProfileResponse toResponse(User user) {
-        return new UserProfileResponse(user.getEmail(), user.getAvatarUrl());
+        return new UserProfileResponse(user.getEmail(), user.getAvatarUrl(), user.getGoogleSubject() != null);
     }
 }

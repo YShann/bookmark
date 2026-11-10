@@ -1,6 +1,7 @@
 package com.personal.bookmark_backend.controller;
 
 import com.personal.bookmark_backend.config.SecurityConfig;
+import com.personal.bookmark_backend.entity.User;
 import com.personal.bookmark_backend.exception.*;
 import com.personal.bookmark_backend.security.JwtAuthenticationFilter;
 import com.personal.bookmark_backend.service.*;
@@ -29,20 +30,80 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 })
 class AuthControllerSecurityTest {
     @Configuration @EnableWebMvc
-    @Import({AuthController.class, SecurityConfig.class, JwtAuthenticationFilter.class, GlobalExceptionHandler.class})
+    @Import({AuthController.class, UserController.class, SecurityConfig.class, JwtAuthenticationFilter.class, GlobalExceptionHandler.class})
     static class Config {
         @Bean AuthService authService() { return mock(AuthService.class); }
+        @Bean GoogleAuthService googleAuthService() { return mock(GoogleAuthService.class); }
+        @Bean UserProfileService userProfileService() { return mock(UserProfileService.class); }
+        @Bean AvatarStorageService avatarStorageService() { return mock(AvatarStorageService.class); }
         @Bean JwtService jwtService() { return new JwtService(Base64.getEncoder().encodeToString(new byte[32]),900000); }
         @Bean ObjectMapper objectMapper() { return new JsonMapper(); }
     }
     @Autowired WebApplicationContext context;
     @Autowired @Qualifier("springSecurityFilterChain") Filter security;
     @Autowired AuthService auth;
+    @Autowired GoogleAuthService googleAuth;
     @Autowired JwtService jwt;
     MockMvc mvc;
     @BeforeEach void setup() {
-        reset(auth);
+        reset(auth, googleAuth);
         mvc=MockMvcBuilders.webAppContextSetup(context).addFilters(security).build();
+    }
+    @Test void googleLoginIsPublicAndReturnsAppTokens() throws Exception {
+        when(googleAuth.login("google-id-token", null))
+                .thenReturn(new AuthService.AuthResponse(42L, "user@gmail.com", "access", "refresh"));
+        mvc.perform(post("/api/auth/google").contentType("application/json")
+                .content("{\"idToken\":\"google-id-token\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.userId").value(42))
+                .andExpect(jsonPath("$.accessToken").value("access"))
+                .andExpect(jsonPath("$.refreshToken").value("refresh"));
+        verify(googleAuth).login("google-id-token", null);
+    }
+
+    @Test void googleLoginAcceptsPasswordWhenConfirmingLink() throws Exception {
+        when(googleAuth.login("google-id-token", "CurrentPassword123"))
+                .thenReturn(new AuthService.AuthResponse(42L, "user@gmail.com", "access", "refresh"));
+        mvc.perform(post("/api/auth/google").contentType("application/json")
+                .content("{\"idToken\":\"google-id-token\",\"password\":\"CurrentPassword123\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.userId").value(42));
+        verify(googleAuth).login("google-id-token", "CurrentPassword123");
+    }
+
+    @Test void googleLoginConflictSignalsWhenItNeedsPasswordConfirmation() throws Exception {
+        when(googleAuth.login("google-id-token", null)).thenThrow(new GoogleLinkRequiredException());
+        mvc.perform(post("/api/auth/google").contentType("application/json")
+                .content("{\"idToken\":\"google-id-token\"}"))
+                .andExpect(status().isConflict())
+                .andExpect(header().string("X-Bookmark-Auth-Action", "link-google"))
+                .andExpect(jsonPath("$.status").value(409));
+    }
+
+    @Test void googleLoginRejectsMissingTokenBeforeCallingService() throws Exception {
+        mvc.perform(post("/api/auth/google").contentType("application/json").content("{}"))
+                .andExpect(status().isBadRequest());
+        verifyNoInteractions(googleAuth);
+    }
+
+    @Test void googleAccountChangesRequireAnAppSession() throws Exception {
+        mvc.perform(post("/api/users/me/google")).andExpect(status().isUnauthorized());
+        verifyNoInteractions(googleAuth);
+    }
+
+    @Test void linkUsesUserIdFromTheAuthenticatedSession() throws Exception {
+        var user = new User();
+        user.setEmail("user@gmail.com");
+        user.setGoogleSubject("google-user");
+        user.setPasswordHash("hash");
+        when(googleAuth.link(42L, "google-id-token", "password")).thenReturn(user);
+        mvc.perform(post("/api/users/me/google")
+                .header("Authorization", "Bearer " + jwt.generateAccessToken(42L))
+                .contentType("application/json")
+                .content("{\"idToken\":\"google-id-token\",\"password\":\"password\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.googleLinked").value(true));
+        verify(googleAuth).link(42L, "google-id-token", "password");
     }
     @Test void forgotPasswordIsPublicAndUsesConnectionAddress() throws Exception {
         mvc.perform(post("/api/auth/forgot-password").contentType("application/json")

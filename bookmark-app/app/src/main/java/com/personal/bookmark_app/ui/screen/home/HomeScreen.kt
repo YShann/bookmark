@@ -61,12 +61,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.personal.bookmark_app.ui.model.FolderDisplayMode
 import com.personal.bookmark_app.ui.model.FolderUiModel
+import com.personal.bookmark_app.data.remote.dto.response.user.UserProfileResponse
+import com.personal.bookmark_app.ui.components.LinkGoogleDialog
+import com.personal.bookmark_app.ui.components.requestGoogleIdToken
 import com.personal.bookmark_app.ui.viewmodel.HomeViewModel
 import com.skydoves.landscapist.ImageOptions
 import com.skydoves.landscapist.coil3.CoilImage
@@ -109,8 +113,8 @@ fun HomeScreen(
             HomeTopAppBar(
                 onSearchClick = onSearchClick,
                 onAddBookmarkClick = onAddBookmarkClick,
-                email = profile.email,
-                avatarImageUrl = profile.avatarImageUrl,
+                profile = profile,
+                onLinkGoogle = homeViewModel::linkGoogle,
                 onAvatarSelected = { uri ->
                     homeViewModel.updateAvatar(uri)
                     onAvatarSelected(uri)
@@ -210,8 +214,8 @@ fun HomeScreen(
 private fun HomeTopAppBar(
     onSearchClick: () -> Unit,
     onAddBookmarkClick: () -> Unit,
-    email: String,
-    avatarImageUrl: String?,
+    profile: UserProfileResponse,
+    onLinkGoogle: suspend (String, String) -> Result<Unit>,
     onAvatarSelected: (Uri) -> Unit,
     onLogoutClick: () -> Unit
 ) {
@@ -221,6 +225,9 @@ private fun HomeTopAppBar(
     var showLogoutConfirmation by rememberSaveable {
         mutableStateOf(false)
     }
+    var showLinkGoogleDialog by remember { mutableStateOf(false) }
+    val email = profile.email
+    val avatarImageUrl = profile.avatarImageUrl
 
     TopAppBar(
         title = {
@@ -316,6 +323,7 @@ private fun HomeTopAppBar(
         PersonalProfileDialog(
             email = email,
             avatarImageUrl = avatarImageUrl,
+            googleLinked = profile.googleLinked,
             onDismiss = {
                 showProfileDialog = false
             },
@@ -323,9 +331,28 @@ private fun HomeTopAppBar(
                 uri?.let(onAvatarSelected)
                 showProfileDialog = false
             },
+            onLinkGoogleClick = {
+                showProfileDialog = false
+                showLinkGoogleDialog = true
+            },
             onLogoutClick = {
                 showProfileDialog = false
                 showLogoutConfirmation = true
+            }
+        )
+    }
+
+    if (showLinkGoogleDialog) {
+        val context = LocalContext.current
+        LinkGoogleDialog(
+            description = "請輸入目前的 App 密碼，接著選擇相同 Email 的 Google 帳號。",
+            confirmLabel = "使用 Google 驗證",
+            onClose = {
+                showLinkGoogleDialog = false
+                showProfileDialog = true
+            },
+            onSubmit = { password ->
+                requestGoogleIdToken(context)?.let { onLinkGoogle(it, password) }
             }
         )
     }
@@ -566,7 +593,7 @@ private fun FolderSection(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     contentPadding = PaddingValues(
-                        bottom = 24.dp
+                        bottom = 16.dp
                     ),
                     userScrollEnabled = true
                 ) {
@@ -592,7 +619,7 @@ private fun FolderSection(
                         .weight(1f),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     contentPadding = PaddingValues(
-                        bottom = 24.dp
+                        bottom = 16.dp
                     ),
                     userScrollEnabled = true
                 ) {

@@ -15,6 +15,11 @@ public interface UserRepository extends JpaRepository<User, Long> {
     // Optional：代表查詢結果可能有資料，也可能沒有資料
     Optional<User> findByEmail(String email);
 
+    @org.springframework.data.jpa.repository.Query("select u.id from User u where u.email = :email")
+    Optional<Long> findIdByEmail(@org.springframework.data.repository.query.Param("email") String email);
+
+    Optional<User> findByGoogleSubject(String googleSubject);
+
     // 檢查 Email 是否已經被註冊
     // 有資料回傳 true，沒有資料回傳 false
     boolean existsByEmail(String email);

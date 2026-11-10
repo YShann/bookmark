@@ -103,6 +103,7 @@ public class SecurityConfig {
                                 "/api/auth/registration-code",
                                 "/api/auth/register",
                                 "/api/auth/login",
+                                "/api/auth/google",
                                 "/api/auth/refresh",
                                 "/api/auth/logout",
                                 "/api/auth/forgot-password",

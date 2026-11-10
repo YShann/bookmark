@@ -2,12 +2,17 @@ package com.personal.bookmark_app.navigation
 
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -198,7 +203,11 @@ fun AppNavigation(
 
     NavHost(
         navController = navController,
-        startDestination = Screen.LOGIN
+        startDestination = Screen.LOGIN,
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .navigationBarsPadding()
     ) {
 
         // ============================================
@@ -214,10 +223,7 @@ fun AppNavigation(
                 onPasswordChange = authViewModel::onLoginPasswordChange,
                 onPasswordVisibilityChange = authViewModel::onLoginPasswordVisibilityChange,
                 onLoginClick = authViewModel::login,
-                onGoogleLoginClick = {
-                    // 暫時模擬 Google 登入成功
-                    navigateToHome()
-                },
+                onGoogleLoginClick = rememberGoogleSignIn(authViewModel),
                 onForgotPasswordClick = {
                     authViewModel.resetForgotPasswordState()
                     navController.navigate(Screen.FORGOT_PASSWORD)
@@ -239,10 +245,7 @@ fun AppNavigation(
                 onPasswordVisibilityChange = authViewModel::onRegisterPasswordVisibilityChange,
                 onConfirmPasswordVisibilityChange = authViewModel::onConfirmPasswordVisibilityChange,
                 onRegisterClick = authViewModel::register,
-                onGoogleRegisterClick = {
-                    // 暫時模擬 Google 註冊成功
-                    navigateToHome()
-                },
+                onGoogleRegisterClick = rememberGoogleSignIn(authViewModel),
                 onBackClick = { navigateBackSafely() },
                 onLoginClick = { navigateBackSafely() }
             )

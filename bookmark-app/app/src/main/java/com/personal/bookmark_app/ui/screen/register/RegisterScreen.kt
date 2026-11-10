@@ -1,6 +1,5 @@
 package com.personal.bookmark_app.ui.screen.register
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -11,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -33,7 +31,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -43,6 +40,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import com.personal.bookmark_app.ui.components.GoogleSignInButton
 import com.personal.bookmark_app.ui.components.TextFieldView
 
 
@@ -72,7 +70,6 @@ fun RegisterScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .statusBarsPadding()
-                .navigationBarsPadding()
                 .imePadding()
                 .verticalScroll(rememberScrollState())
         ) {
@@ -84,6 +81,7 @@ fun RegisterScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp)
+                    .padding(bottom = 16.dp)
             ) {
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -123,7 +121,7 @@ fun RegisterScreen(
                         Spacer(modifier = Modifier.width(12.dp))
                     }
                     Text(
-                        text = if (uiState.isLoading) "正在寄送驗證碼..." else "註冊",
+                        text = if (uiState.isLoading) "處理中..." else "註冊",
                         style = MaterialTheme.typography.titleMedium
                     )
                 }
@@ -131,7 +129,8 @@ fun RegisterScreen(
                 Spacer(modifier = Modifier.height(32.dp))
 
                 OtherRegisterSection(
-                    onGoogleRegisterClick = onGoogleRegisterClick
+                    onGoogleRegisterClick = onGoogleRegisterClick,
+                    enabled = !uiState.isLoading
                 )
 
                 Spacer(modifier = Modifier.height(32.dp))
@@ -140,8 +139,6 @@ fun RegisterScreen(
                 LoginSection(
                     onLoginClick = onLoginClick
                 )
-
-                Spacer(modifier = Modifier.height(24.dp))
             }
         }
     }
@@ -414,7 +411,8 @@ private fun PasswordRequirementItem(
 
 @Composable
 private fun OtherRegisterSection(
-    onGoogleRegisterClick: () -> Unit
+    onGoogleRegisterClick: () -> Unit,
+    enabled: Boolean
 ) {
     Column(
         modifier = Modifier.fillMaxWidth()
@@ -442,31 +440,11 @@ private fun OtherRegisterSection(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        OutlinedButton(
-            onClick = onGoogleRegisterClick,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(52.dp),
-            shape = RoundedCornerShape(8.dp),
-            border = BorderStroke(
-                1.dp,
-                MaterialTheme.colorScheme.outlineVariant
-            )
-        ) {
-            Text(
-                text = "G",
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Text(
-                text = "使用 Google 帳號註冊",
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-        }
+        GoogleSignInButton(
+            label = "使用 Google 帳號註冊",
+            enabled = enabled,
+            onClick = onGoogleRegisterClick
+        )
     }
 }
 

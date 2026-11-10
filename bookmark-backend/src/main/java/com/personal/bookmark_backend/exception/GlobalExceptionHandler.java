@@ -5,17 +5,31 @@ import com.personal.bookmark_backend.dto.response.ErrorResponse;
 import jakarta.validation.ConstraintViolationException;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(GoogleLinkRequiredException.class)
+    public ResponseEntity<ErrorResponse> handleGoogleLinkRequired(GoogleLinkRequiredException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .header("X-Bookmark-Auth-Action", "link-google")
+                .body(new ErrorResponse(HttpStatus.CONFLICT.value(), exception.getMessage(), LocalDateTime.now()));
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ErrorResponse> handleResponseStatus(ResponseStatusException exception) {
+        return buildErrorResponse(exception.getStatusCode(), exception.getReason());
+    }
 
     @ExceptionHandler(TooManyRequestsException.class)
     public ResponseEntity<ErrorResponse> handleTooManyRequests(TooManyRequestsException exception) {
@@ -188,7 +202,7 @@ public class GlobalExceptionHandler {
     // =====================================================
 
     private ResponseEntity<ErrorResponse> buildErrorResponse(
-            HttpStatus status,
+            HttpStatusCode status,
             String message
     ) {
 

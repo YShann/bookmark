@@ -6,5 +6,7 @@ import com.personal.bookmark_app.data.remote.dto.response.user.UserProfileRespon
 interface UserRepository {
     suspend fun getProfile(): Result<UserProfileResponse>
 
+    suspend fun linkGoogle(idToken: String, password: String): Result<UserProfileResponse>
+
     suspend fun updateAvatar(imageUri: Uri): Result<UserProfileResponse>
 }

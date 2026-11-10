@@ -268,7 +268,7 @@ private fun SearchResultList(
         modifier = modifier.fillMaxWidth(),
         state = listState,
         contentPadding = PaddingValues(
-            bottom = 36.dp
+            bottom = 16.dp
         ),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {

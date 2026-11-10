@@ -64,6 +64,12 @@ class HomeViewModel(
         }
     }
 
+    suspend fun linkGoogle(idToken: String, password: String): Result<Unit> =
+        userRepository.linkGoogle(idToken, password)
+            .map { updatedProfile ->
+                _profile.value = updatedProfile
+            }
+
     fun refreshFolders() {
         if (_isRefreshingFolders.value) return
         _isRefreshingFolders.value = true

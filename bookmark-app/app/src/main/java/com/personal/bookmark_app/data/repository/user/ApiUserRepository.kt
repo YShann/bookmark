@@ -3,10 +3,14 @@ package com.personal.bookmark_app.data.repository.user
 import android.content.ContentResolver
 import android.net.Uri
 import com.personal.bookmark_app.data.remote.api.UserApi
+import com.personal.bookmark_app.data.remote.backendMessage
+import com.personal.bookmark_app.data.remote.dto.request.auth.LinkGoogleRequest
 import com.personal.bookmark_app.data.remote.dto.response.user.UserProfileResponse
+import kotlinx.coroutines.CancellationException
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
+import retrofit2.HttpException
 
 class ApiUserRepository(
     private val api: UserApi,
@@ -16,6 +20,20 @@ class ApiUserRepository(
     override suspend fun getProfile(): Result<UserProfileResponse> = runCatching {
         api.getProfile()
     }
+
+    override suspend fun linkGoogle(
+        idToken: String,
+        password: String
+    ): Result<UserProfileResponse> = runCatching {
+        api.linkGoogle(LinkGoogleRequest(idToken, password))
+    }.fold(
+        onSuccess = { Result.success(it) },
+        onFailure = { error ->
+            if (error is CancellationException) throw error
+            val message = (error as? HttpException)?.backendMessage()
+            Result.failure(IllegalStateException(message ?: "無法綁定 Google，請稍後再試", error))
+        }
+    )
 
     override suspend fun updateAvatar(
         imageUri: Uri

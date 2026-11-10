@@ -87,6 +87,7 @@ fun ResetPasswordScreen(
                 .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp)
+                .padding(bottom = 16.dp)
         ) {
 
             Spacer(modifier = Modifier.height(28.dp))
@@ -195,7 +196,6 @@ fun ResetPasswordScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }

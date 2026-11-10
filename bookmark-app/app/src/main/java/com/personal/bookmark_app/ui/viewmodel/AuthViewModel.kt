@@ -3,6 +3,7 @@ package com.personal.bookmark_app.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.personal.bookmark_app.data.repository.auth.AuthRepository
+import com.personal.bookmark_app.data.repository.auth.GoogleLinkRequiredException
 import com.personal.bookmark_app.ui.screen.forgotpassword.ForgotPasswordUiState
 import com.personal.bookmark_app.ui.screen.login.LoginUiState
 import com.personal.bookmark_app.ui.screen.register.RegisterUiState
@@ -120,7 +121,7 @@ class AuthViewModel(
         val state = _loginUiState.value
 
         // 前端欄位驗證失敗就停止登入
-        if (!state.isFormValid) return
+        if (!state.isFormValid || state.isLoading) return
 
         viewModelScope.launch {
 
@@ -154,6 +155,37 @@ class AuthViewModel(
             }
         }
     }
+
+    suspend fun loginWithGoogle(
+        requestIdToken: suspend () -> String?,
+        onLinkRequired: (String) -> Unit
+    ) {
+        if (_loginUiState.value.isLoading || _registerUiState.value.isLoading) return
+        _loginUiState.update { it.copy(isLoading = true, errorMessage = null) }
+        _registerUiState.update { it.copy(isLoading = true) }
+        try {
+            val idToken = requestIdToken() ?: return
+            val result = authRepository.loginWithGoogle(idToken)
+            if (result.isSuccess) {
+                _authEvent.emit(AuthEvent.Authenticated)
+            } else {
+                val error = result.exceptionOrNull()
+                if (error is GoogleLinkRequiredException) {
+                    onLinkRequired(idToken)
+                } else {
+                    _authEvent.emit(AuthEvent.ShowMessage(error?.message ?: "Google 登入失敗，請稍後再試"))
+                }
+            }
+        } finally {
+            _loginUiState.update { it.copy(isLoading = false) }
+            _registerUiState.update { it.copy(isLoading = false) }
+        }
+    }
+
+    suspend fun confirmGoogleLink(idToken: String, password: String): Result<Unit> =
+        authRepository.loginWithGoogle(idToken, password).onSuccess {
+            _authEvent.emit(AuthEvent.Authenticated)
+        }
 
     // ==================================================
     // Register
