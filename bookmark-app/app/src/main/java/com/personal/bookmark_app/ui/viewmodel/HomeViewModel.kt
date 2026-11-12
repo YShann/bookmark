@@ -103,7 +103,10 @@ class HomeViewModel(
         api.deleteFolder(id, deleteBookmarks = false)
     }
 
-    fun createFolder(name: String) = mutateFolders { api.createFolder(FolderNameRequest(name)) }
+    suspend fun createFolder(name: String) {
+        api.createFolder(FolderNameRequest(name))
+        refreshFolders()
+    }
 
     private fun mutateFolders(action: suspend () -> Any?) {
         viewModelScope.launch {

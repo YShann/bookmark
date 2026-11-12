@@ -7,12 +7,15 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.personal.bookmark_app.ui.model.FolderDisplayMode
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.first
 
 private val Context.dataStore by preferencesDataStore(
     name = "user_preferences"
 )
+
+internal class SessionTokens(val accessToken: String?, val refreshToken: String)
 
 class UserPreferencesRepository(
     private val context: Context
@@ -54,14 +57,32 @@ class UserPreferencesRepository(
         }
     }
 
-    suspend fun clearTokens() {
-        context.dataStore.edit { preferences ->
-            preferences.remove(ACCESS_TOKEN)
-            preferences.remove(REFRESH_TOKEN)
-        }
+    val hasSession: Flow<Boolean> = context.dataStore.data
+        .map { !it[REFRESH_TOKEN].isNullOrBlank() }
+        .distinctUntilChanged()
+
+    internal suspend fun sessionTokens(): SessionTokens? {
+        val preferences = context.dataStore.data.first()
+        val refreshToken = preferences[REFRESH_TOKEN]?.takeIf { it.isNotBlank() } ?: return null
+        return SessionTokens(preferences[ACCESS_TOKEN], refreshToken)
     }
 
-    suspend fun accessToken(): String? = context.dataStore.data.first()[ACCESS_TOKEN]
+    internal suspend fun updateAccessToken(refreshToken: String, accessToken: String): Boolean {
+        val updated = context.dataStore.edit { preferences ->
+            if (preferences[REFRESH_TOKEN] == refreshToken) preferences[ACCESS_TOKEN] = accessToken
+        }
+        return updated[REFRESH_TOKEN] == refreshToken
+    }
 
-    suspend fun refreshToken(): String? = context.dataStore.data.first()[REFRESH_TOKEN]
+    suspend fun clearTokens(expectedRefreshToken: String? = null): String? {
+        var refreshToken: String? = null
+        context.dataStore.edit { preferences ->
+            if (expectedRefreshToken != null && preferences[REFRESH_TOKEN] != expectedRefreshToken) {
+                return@edit
+            }
+            preferences.remove(ACCESS_TOKEN)
+            refreshToken = preferences.remove(REFRESH_TOKEN)
+        }
+        return refreshToken
+    }
 }

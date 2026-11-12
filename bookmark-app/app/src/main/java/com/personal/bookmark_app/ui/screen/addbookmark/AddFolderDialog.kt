@@ -13,24 +13,34 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.personal.bookmark_app.data.remote.backendMessage
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
+import retrofit2.HttpException
+import java.io.IOException
 
 
 @Composable
 fun AddFolderDialog(
     onDismiss: () -> Unit,
-    onConfirm: (String) -> Unit
+    onConfirm: suspend (String) -> Unit
 ) {
     var folderName by rememberSaveable {
         mutableStateOf("")
     }
+    var errorMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    var isSubmitting by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!isSubmitting) onDismiss() },
         title = {
             Text(
                 text = "新增收藏夾",
@@ -43,6 +53,12 @@ fun AddFolderDialog(
                 value = folderName,
                 onValueChange = {
                     folderName = it
+                    errorMessage = null
+                },
+                enabled = !isSubmitting,
+                isError = errorMessage != null,
+                supportingText = errorMessage?.let { message ->
+                    { Text(message, style = MaterialTheme.typography.bodySmall) }
                 },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
@@ -62,16 +78,39 @@ fun AddFolderDialog(
         confirmButton = {
             TextButton(
                 onClick = {
-                    onConfirm(folderName.trim())
+                    if (isSubmitting) return@TextButton
+                    isSubmitting = true
+                    errorMessage = null
+                    scope.launch {
+                        try {
+                            onConfirm(folderName.trim())
+                            onDismiss()
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (error: Exception) {
+                            errorMessage = when {
+                                error is HttpException && error.code() == 409 ->
+                                    "收藏夾名稱已存在，請換個名稱"
+                                error is HttpException && error.code() == 400 ->
+                                    error.backendMessage() ?: "請確認收藏夾名稱"
+                                error is IOException ->
+                                    "連線至伺服器失敗，請稍後再試"
+                                else -> "新增收藏夾失敗，請稍後再試"
+                            }
+                        } finally {
+                            isSubmitting = false
+                        }
+                    }
                 },
-                enabled = folderName.isNotBlank()
+                enabled = folderName.isNotBlank() && !isSubmitting
             ) {
-                Text("新增")
+                Text(if (isSubmitting) "新增中…" else "新增")
             }
         },
         dismissButton = {
             TextButton(
-                onClick = onDismiss
+                onClick = onDismiss,
+                enabled = !isSubmitting
             ) {
                 Text("取消")
             }

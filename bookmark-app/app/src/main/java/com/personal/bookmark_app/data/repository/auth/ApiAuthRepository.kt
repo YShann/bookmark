@@ -92,11 +92,10 @@ class ApiAuthRepository(
     }.mapNetworkFailure()
 
     override suspend fun logout(): Result<Unit> {
-        val result = runCatching {
-            preferences.refreshToken()?.let { api.logout(LogoutRequest(it)) }
+        return runCatching {
+            preferences.clearTokens()?.let { api.logout(LogoutRequest(it)) }
+            Unit
         }.mapNetworkFailure()
-        preferences.clearTokens()
-        return result.map { Unit }
     }
 }
 

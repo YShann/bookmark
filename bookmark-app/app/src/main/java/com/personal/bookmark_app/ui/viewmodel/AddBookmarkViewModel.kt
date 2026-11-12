@@ -265,14 +265,16 @@ class AddBookmarkViewModel(application: Application, private val savedState: and
                     it.id in _state.value.selectedTagIds }).distinctBy { it.id })
         }
     }
-    fun createFolder(name: String) {
-        if (_state.value.isLoading || _state.value.isSaving) return
+    suspend fun createFolder(name: String) {
+        check(!_state.value.isLoading && !_state.value.isSaving)
         _state.value = _state.value.copy(isLoading = true, errorMessage = null)
-        request {
+        try {
             val f = folderApi.createFolder(FolderNameRequest(name.trim()))
-            _state.value = _state.value.copy(isLoading = false,
+            _state.value = _state.value.copy(
                 folders = _state.value.folders + FolderUiModel(f.id, f.name, 0, f.imageUrl.orEmpty(), null))
             selectFolder(f.id)
+        } finally {
+            _state.value = _state.value.copy(isLoading = false)
         }
     }
     fun toggleTag(id: String) = edit {

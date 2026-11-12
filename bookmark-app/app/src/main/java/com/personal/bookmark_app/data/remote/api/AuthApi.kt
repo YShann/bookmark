@@ -10,6 +10,7 @@ import com.personal.bookmark_app.data.remote.dto.request.auth.RegisterRequest
 import com.personal.bookmark_app.data.remote.dto.response.auth.AuthResponse
 import com.personal.bookmark_app.data.remote.dto.response.auth.MessageResponse
 import com.personal.bookmark_app.data.remote.dto.request.auth.LogoutRequest
+import com.personal.bookmark_app.data.remote.dto.request.auth.RefreshTokenRequest
 import retrofit2.http.Body
 import retrofit2.http.POST
 
@@ -37,4 +38,7 @@ interface AuthApi {
 
     @POST("api/auth/logout")
     suspend fun logout(@Body request: LogoutRequest): MessageResponse
+
+    @POST("api/auth/refresh-session")
+    suspend fun refreshSession(@Body request: RefreshTokenRequest): AuthResponse
 }

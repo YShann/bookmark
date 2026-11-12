@@ -284,9 +284,17 @@ public class AuthService {
                 refreshTokenService.rotateRefreshToken(
                         rawRefreshToken
                 );
+        return refreshedSession(result.userId(), result.refreshToken());
+    }
 
+    @Transactional
+    public AuthResponse refreshSession(String rawRefreshToken) {
+        return refreshedSession(refreshTokenService.renewSession(rawRefreshToken), rawRefreshToken);
+    }
+
+    private AuthResponse refreshedSession(Long userId, String refreshToken) {
         // 取得使用者資料
-        User user = userRepository.findById(result.userId())
+        User user = userRepository.findById(userId)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "使用者不存在"
@@ -301,7 +309,7 @@ public class AuthService {
                 user.getId(),
                 user.getEmail(),
                 newAccessToken,
-                result.refreshToken()
+                refreshToken
         );
     }
 

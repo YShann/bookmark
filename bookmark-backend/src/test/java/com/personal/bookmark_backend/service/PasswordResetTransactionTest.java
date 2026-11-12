@@ -1,6 +1,7 @@
 package com.personal.bookmark_backend.service;
 
 import com.personal.bookmark_backend.entity.*;
+import com.personal.bookmark_backend.exception.UnauthorizedException;
 import com.personal.bookmark_backend.repository.*;
 import com.personal.bookmark_backend.security.GoogleIdTokenVerifier;
 import org.junit.jupiter.api.*;
@@ -27,7 +28,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @SpringJUnitConfig(PasswordResetTransactionTest.Config.class)
-@TestPropertySource(properties={"spring.mail.username=test@example.com", "jwt.refresh-token-expiration=2592000000"})
+@TestPropertySource(properties={"spring.mail.username=test@example.com", "jwt.refresh-token-expiration=0"})
 class PasswordResetTransactionTest {
     @Configuration @EnableTransactionManagement
     @EnableJpaRepositories(basePackages="com.personal.bookmark_backend.repository")
@@ -51,6 +52,7 @@ class PasswordResetTransactionTest {
     @Autowired RefreshTokenService refresh;
     @Autowired UserRepository users;
     @Autowired PasswordResetCodeRepository codes;
+    @Autowired RefreshTokenRepository refreshTokens;
     @Autowired PasswordEncoder encoder;
     @Autowired JavaMailSender mail;
     @Autowired PlatformTransactionManager manager;
@@ -103,6 +105,37 @@ class PasswordResetTransactionTest {
         var message = messages.poll(5, TimeUnit.SECONDS); assertNotNull(message);
         assertFalse(message.getText().contains("NewPass123"));
     }
+    @Test void persistentSessionCanRetryRenewalUntilLogout() {
+        var login = auth.login(email, "OldPass123");
+        var refreshToken = login.refreshToken();
+        assertTrue(refreshTokens.findAllByUserId(userId).get(0).getExpiresAt().isBefore(LocalDateTime.now()));
+        assertEquals(refreshToken, auth.refreshSession(refreshToken).refreshToken());
+        assertEquals(refreshToken, auth.refreshSession(refreshToken).refreshToken());
+        assertEquals(1, refreshTokens.findAllByUserId(userId).size());
+
+        auth.logout(refreshToken);
+        assertThrows(UnauthorizedException.class, () -> auth.refreshSession(refreshToken));
+    }
+
+    @Test void renewUpgradesAValidLegacyTokenButDoesNotReviveAnExpiredOne() {
+        var expired = auth.login(email, "OldPass123").refreshToken();
+        var expiredRecord = refreshTokens.findAllByUserId(userId).get(0);
+        expiredRecord.setExpiresAt(LocalDateTime.now().minusDays(1));
+        refreshTokens.save(expiredRecord);
+        assertThrows(UnauthorizedException.class, () -> auth.refreshSession(expired));
+
+        var legacy = auth.login(email, "OldPass123").refreshToken();
+        var validRecord = refreshTokens.findAllByUserId(userId).stream()
+                .filter(token -> !token.getId().equals(expiredRecord.getId()))
+                .findFirst().orElseThrow();
+        var persistentExpiry = validRecord.getExpiresAt();
+        validRecord.setExpiresAt(LocalDateTime.now().plusDays(1));
+        refreshTokens.save(validRecord);
+
+        assertEquals(legacy, auth.refreshSession(legacy).refreshToken());
+        assertEquals(persistentExpiry, refreshTokens.findById(validRecord.getId()).orElseThrow().getExpiresAt());
+    }
+
     @Test void fiveFailuresPersistAndBlockCorrectCode() {
         seed("012345");
         for (int i=1; i<=5; i++) {

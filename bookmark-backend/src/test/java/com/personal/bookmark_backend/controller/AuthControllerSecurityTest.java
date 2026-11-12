@@ -61,6 +61,21 @@ class AuthControllerSecurityTest {
         verify(googleAuth).login("google-id-token", null);
     }
 
+    @Test void persistentSessionCanRenewWithoutAccessTokenAndSignalsRevocation() throws Exception {
+        when(auth.refreshSession("refresh"))
+                .thenReturn(new AuthService.AuthResponse(42L, "user@gmail.com", "access", "refresh"))
+                .thenThrow(new UnauthorizedException("invalid session"));
+        var request = post("/api/auth/refresh-session").contentType("application/json")
+                .content("{\"refreshToken\":\"refresh\"}");
+        mvc.perform(request)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").value("access"))
+                .andExpect(jsonPath("$.refreshToken").value("refresh"));
+        mvc.perform(request)
+                .andExpect(status().isUnauthorized())
+                .andExpect(header().string("X-Bookmark-Auth-Action", "sign-in"));
+    }
+
     @Test void googleLoginAcceptsPasswordWhenConfirmingLink() throws Exception {
         when(googleAuth.login("google-id-token", "CurrentPassword123"))
                 .thenReturn(new AuthService.AuthResponse(42L, "user@gmail.com", "access", "refresh"));

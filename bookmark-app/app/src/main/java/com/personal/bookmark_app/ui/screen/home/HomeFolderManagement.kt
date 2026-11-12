@@ -81,7 +81,7 @@ fun FolderManagementSheet(
     onRename: (Long, String) -> Unit,
     onDelete: (Long) -> Unit,
     onMoveToUnclassified: (Long) -> Unit,
-    onAdd: (String) -> Unit
+    onAdd: suspend (String) -> Unit
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
     val isKeyboardVisible = WindowInsets.isImeVisible
@@ -287,10 +287,7 @@ fun FolderManagementSheet(
             onDismiss = {
                 showAddDialog = false
             },
-            onConfirm = { folderName ->
-                onAdd(folderName)
-                showAddDialog = false
-            }
+            onConfirm = onAdd
         )
     }
 

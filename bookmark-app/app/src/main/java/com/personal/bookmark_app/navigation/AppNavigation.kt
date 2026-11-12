@@ -11,10 +11,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -52,9 +56,31 @@ import kotlinx.coroutines.CancellationException
 @Composable
 fun AppNavigation(
     sharedBookmark: com.personal.bookmark_app.SharedBookmark? = null,
-    onShareHandled: () -> Unit = {}
+    onShareHandled: (String) -> Unit = {}
 ) {
+    val context = LocalContext.current.applicationContext
+    val preferences = remember(context) { UserPreferencesRepository(context) }
+    val signedIn by preferences.hasSession.collectAsStateWithLifecycle(initialValue = null)
+    val sessionActive = signedIn
+    if (sessionActive == null) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+        return
+    }
 
+    key(sessionActive) {
+        SessionNavigation(sessionActive, preferences, sharedBookmark, onShareHandled)
+    }
+}
+
+@Composable
+private fun SessionNavigation(
+    signedIn: Boolean,
+    preferences: UserPreferencesRepository,
+    sharedBookmark: com.personal.bookmark_app.SharedBookmark?,
+    onShareHandled: (String) -> Unit
+) {
     val navController = rememberNavController()
     val context = LocalContext.current
 
@@ -95,7 +121,7 @@ fun AppNavigation(
     val authRepository: AuthRepository = remember {
         ApiAuthRepository(
             api = RetrofitClient.authApi,
-            preferences = UserPreferencesRepository(context.applicationContext)
+            preferences = preferences
         )
     }
 
@@ -106,6 +132,9 @@ fun AppNavigation(
     val authViewModel: AuthViewModel = viewModel(
         factory = authViewModelFactory
     )
+    LaunchedEffect(signedIn) {
+        if (signedIn) authViewModel.resetLoginState()
+    }
 
     // ------------------------------------------------
     // 收集 AuthViewModel 的 UiState
@@ -139,15 +168,6 @@ fun AppNavigation(
     // 共用導航操作
     // ------------------------------------------------
 
-    fun navigateToHome() {
-        navController.navigate(Screen.HOME) {
-            popUpTo(Screen.LOGIN) {
-                inclusive = true
-            }
-            launchSingleTop = true
-        }
-    }
-
     // 安全返回上一頁，避免快速連點造成連續返回
     fun navigateBackSafely() {
 
@@ -169,14 +189,11 @@ fun AppNavigation(
         }
     }
 
-    // Keep the share pending through login; consume it only after the form receives it.
+    // Keep the share pending until the form closes, including across session invalidation.
     LaunchedEffect(sharedBookmark?.id, currentBackStackEntry?.destination?.route) {
-        if (sharedBookmark != null && currentBackStackEntry != null &&
-            !UserPreferencesRepository(context.applicationContext).accessToken().isNullOrBlank()) {
-            if (currentBackStackEntry?.destination?.route == Screen.LOGIN) navigateToHome()
-            if (navController.currentDestination?.route != Screen.ADD_BOOKMARK) {
-                navController.navigate(Screen.ADD_BOOKMARK) { launchSingleTop = true }
-            }
+        if (signedIn && sharedBookmark != null && currentBackStackEntry != null &&
+            navController.currentDestination?.route != Screen.ADD_BOOKMARK) {
+            navController.navigate(Screen.ADD_BOOKMARK) { launchSingleTop = true }
         }
     }
 
@@ -190,17 +207,7 @@ fun AppNavigation(
             when (event) {
 
                 // 登入或信箱驗證成功
-                AuthEvent.Authenticated -> {
-                    navigateToHome()
-                }
-
-                AuthEvent.LoggedOut -> {
-                    authViewModel.resetLoginState()
-                    navController.navigate(Screen.LOGIN) {
-                        popUpTo(0) { inclusive = true }
-                        launchSingleTop = true
-                    }
-                }
+                AuthEvent.Authenticated, AuthEvent.LoggedOut -> Unit
 
                 // 註冊成功，前往信箱驗證
                 AuthEvent.NavigateToVerifyEmail -> {
@@ -227,7 +234,7 @@ fun AppNavigation(
 
     NavHost(
         navController = navController,
-        startDestination = Screen.LOGIN,
+        startDestination = if (signedIn) Screen.HOME else Screen.LOGIN,
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
@@ -394,16 +401,24 @@ fun AppNavigation(
             val state by vm.state.collectAsStateWithLifecycle()
             val automaticBrowserUrl by vm.automaticBrowserImport.collectAsStateWithLifecycle()
             val browserImport = rememberLauncherForActivityResult(BookmarkBrowserImportContract(), vm::completeBrowserImport)
-            LaunchedEffect(sharedBookmark?.id, state.isSaving) {
-                sharedBookmark?.takeUnless { state.isSaving }?.let {
+            var receivedShareId by rememberSaveable { mutableStateOf<String?>(null) }
+            LaunchedEffect(sharedBookmark?.id, state.isSaving, state.isSaved) {
+                sharedBookmark?.takeUnless { state.isSaving || state.isSaved }?.let {
                     vm.receiveShare(it)
-                    onShareHandled()
+                    receivedShareId = it.id
                 }
+            }
+            val closeForm = {
+                receivedShareId?.let(onShareHandled)
+                navigateBackSafely()
+            }
+            BackHandler {
+                if (!state.isSaving) closeForm()
             }
             LaunchedEffect(state.isSaved) {
                 if (state.isSaved) {
                     Toast.makeText(context, "收藏已新增", Toast.LENGTH_SHORT).show()
-                    navigateBackSafely()
+                    closeForm()
                 }
             }
             Box(Modifier.fillMaxSize()) {
@@ -426,7 +441,7 @@ fun AppNavigation(
                     onReparseClick = { vm.reparseOrOpenBrowser()?.let { browserImport.launch(it) } },
                     onClearTitleClick = { vm.edit { it.copy(title = "") } },
                     onSaveClick = vm::save,
-                    onBackClick = { if (!state.isSaving) navigateBackSafely() }
+                    onBackClick = { if (!state.isSaving) closeForm() }
                 )
             }
         }

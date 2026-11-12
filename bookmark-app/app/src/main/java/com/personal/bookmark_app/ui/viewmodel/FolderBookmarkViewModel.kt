@@ -108,9 +108,14 @@ class FolderBookmarkViewModel(application: Application, savedStateHandle: SavedS
         else _state.value = _state.value.copy(error = "$failures 筆收藏操作失敗，已保留供重試")
     }
 
-    fun createFolder(name: String, onSuccess: () -> Unit) = mutate {
-        val folder = folderApi.createFolder(FolderNameRequest(name.trim()))
-        _state.value = _state.value.copy(folders = _state.value.folders + folder)
-        onSuccess()
+    suspend fun createFolder(name: String) {
+        check(!_state.value.isLoading && !_state.value.isMutating)
+        _state.value = _state.value.copy(isMutating = true, error = null)
+        try {
+            val folder = folderApi.createFolder(FolderNameRequest(name.trim()))
+            _state.value = _state.value.copy(folders = _state.value.folders + folder)
+        } finally {
+            _state.value = _state.value.copy(isMutating = false)
+        }
     }
 }

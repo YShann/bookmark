@@ -460,9 +460,7 @@ fun FolderBookmarkScreen(
             onDismiss = {
                 showAddFolderDialog = false
             },
-            onConfirm = { newFolderName ->
-                viewModel.createFolder(newFolderName) { showAddFolderDialog = false }
-            }
+            onConfirm = viewModel::createFolder
         )
     }
 }

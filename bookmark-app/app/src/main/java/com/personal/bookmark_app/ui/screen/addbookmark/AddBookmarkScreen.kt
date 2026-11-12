@@ -78,7 +78,7 @@ fun AddBookmarkScreen(
     onNoteChange: (String) -> Unit,
 
     onFolderSelected: (Long) -> Unit,
-    onCreateFolderClick: (String) -> Unit,
+    onCreateFolderClick: suspend (String) -> Unit,
 
     onTagClick: (String) -> Unit,
 
@@ -281,12 +281,7 @@ fun AddBookmarkScreen(
             onDismiss = {
                 showAddFolderDialog = false
             },
-            onConfirm = { folderName ->
-
-                onCreateFolderClick(folderName)
-
-                showAddFolderDialog = false
-            }
+            onConfirm = onCreateFolderClick
         )
     }
 

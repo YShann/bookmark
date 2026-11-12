@@ -105,6 +105,7 @@ public class SecurityConfig {
                                 "/api/auth/login",
                                 "/api/auth/google",
                                 "/api/auth/refresh",
+                                "/api/auth/refresh-session",
                                 "/api/auth/logout",
                                 "/api/auth/forgot-password",
                                 "/api/auth/verify-reset-code",

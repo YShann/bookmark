@@ -13,6 +13,7 @@ import com.personal.bookmark_backend.dto.request.auth.RegisterRequest;
 import com.personal.bookmark_backend.dto.request.auth.SendRegistrationCodeRequest;
 import com.personal.bookmark_backend.dto.response.auth.AuthResponse;
 import com.personal.bookmark_backend.dto.response.auth.MessageResponse;
+import com.personal.bookmark_backend.exception.UnauthorizedException;
 import com.personal.bookmark_backend.service.AuthService;
 import com.personal.bookmark_backend.service.GoogleAuthService;
 import jakarta.validation.Valid;
@@ -132,6 +133,19 @@ public class AuthController {
         return ResponseEntity.ok(
                 new MessageResponse("已成功登出")
         );
+    }
+
+    @PostMapping("/refresh-session")
+    public ResponseEntity<AuthResponse> refreshSession(
+            @Valid @RequestBody RefreshTokenRequest request
+    ) {
+        try {
+            return ResponseEntity.ok(toAuthResponse(authService.refreshSession(request.refreshToken())));
+        } catch (UnauthorizedException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .header("X-Bookmark-Auth-Action", "sign-in")
+                    .build();
+        }
     }
 
     /**

@@ -181,9 +181,7 @@ fun HomeScreen(
                 homeViewModel.moveFolderBookmarksToUnclassified(folderId)
             },
             // 新增資料夾
-            onAdd = { folderName ->
-                homeViewModel.createFolder(folderName)
-            }
+            onAdd = homeViewModel::createFolder
         )
     }
 

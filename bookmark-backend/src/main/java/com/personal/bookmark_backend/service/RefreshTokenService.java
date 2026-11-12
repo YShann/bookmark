@@ -1,6 +1,7 @@
 package com.personal.bookmark_backend.service;
 
 import com.personal.bookmark_backend.entity.RefreshToken;
+import com.personal.bookmark_backend.exception.UnauthorizedException;
 import com.personal.bookmark_backend.repository.RefreshTokenRepository;
 import com.personal.bookmark_backend.repository.UserRepository;
 import jakarta.persistence.EntityManager;
@@ -14,12 +15,17 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Base64;
 import java.util.HexFormat;
 
 @Service
 @RequiredArgsConstructor
 public class RefreshTokenService {
+
+    // Reserved value for sessions without a deadline in the existing NOT NULL column.
+    private static final LocalDateTime NO_EXPIRATION = LocalDateTime.of(2000, 1, 1, 0, 0);
+    private static final String INVALID_REFRESH_TOKEN = "Refresh Token 無效或已失效";
 
     private final RefreshTokenRepository refreshTokenRepository;
     private final UserRepository userRepository;
@@ -56,11 +62,7 @@ public class RefreshTokenService {
 
         refreshToken.setUserId(userId);
         refreshToken.setTokenHash(tokenHash);
-        refreshToken.setExpiresAt(
-                LocalDateTime.now().plusNanos(
-                        refreshTokenExpiration * 1_000_000
-                )
-        );
+        refreshToken.setExpiresAt(expirationFrom(LocalDateTime.now()));
         refreshToken.setRevokedAt(null);
 
         refreshTokenRepository.save(refreshToken);
@@ -77,47 +79,46 @@ public class RefreshTokenService {
      */
     @Transactional
     public RefreshTokenRotationResult rotateRefreshToken(String rawToken) {
-
-        String tokenHash = hashToken(rawToken);
-
-        // 查詢尚未撤銷的 Token
-        RefreshToken oldToken = refreshTokenRepository
-                .findByTokenHashAndRevokedAtIsNull(tokenHash)
-                .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "Refresh Token 無效或已失效"
-                        )
-                );
-
-        userRepository.lockById(oldToken.getUserId())
-                .orElseThrow(() -> new IllegalArgumentException("Refresh Token 無效或已失效"));
-        entityManager.refresh(oldToken, LockModeType.PESSIMISTIC_WRITE);
-        if (oldToken.getRevokedAt() != null) {
-            throw new IllegalArgumentException("Refresh Token 無效或已失效");
-        }
-
-        LocalDateTime now = LocalDateTime.now();
-
-        // 檢查是否過期
-        if (!oldToken.getExpiresAt().isAfter(now)) {
-            throw new IllegalArgumentException(
-                    "Refresh Token 無效或已失效"
-            );
-        }
-
+        RefreshToken oldToken = lockActiveToken(rawToken);
         Long userId = oldToken.getUserId();
-
-        // 撤銷舊 Token
-        oldToken.setRevokedAt(now);
+        oldToken.setRevokedAt(LocalDateTime.now());
         refreshTokenRepository.save(oldToken);
+        return new RefreshTokenRotationResult(userId, createRefreshToken(userId));
+    }
 
-        // 產生新的 Token
-        String newRefreshToken = createRefreshToken(userId);
+    @Transactional
+    public Long renewSession(String rawToken) {
+        RefreshToken token;
+        try {
+            token = lockActiveToken(rawToken);
+        } catch (IllegalArgumentException e) {
+            throw new UnauthorizedException(INVALID_REFRESH_TOKEN);
+        }
 
-        return new RefreshTokenRotationResult(
-                userId,
-                newRefreshToken
-        );
+        // Keep the same credential so a lost response can be retried.
+        token.setExpiresAt(expirationFrom(LocalDateTime.now()));
+        return token.getUserId();
+    }
+
+    private RefreshToken lockActiveToken(String rawToken) {
+        RefreshToken token = refreshTokenRepository
+                .findByTokenHashAndRevokedAtIsNull(hashToken(rawToken))
+                .orElseThrow(() -> new IllegalArgumentException(INVALID_REFRESH_TOKEN));
+        userRepository.lockById(token.getUserId())
+                .orElseThrow(() -> new IllegalArgumentException(INVALID_REFRESH_TOKEN));
+        entityManager.refresh(token, LockModeType.PESSIMISTIC_WRITE);
+        LocalDateTime expiry = token.getExpiresAt();
+        if (token.getRevokedAt() != null
+                || (!NO_EXPIRATION.equals(expiry) && !expiry.isAfter(LocalDateTime.now()))) {
+            throw new IllegalArgumentException(INVALID_REFRESH_TOKEN);
+        }
+        return token;
+    }
+
+    private LocalDateTime expirationFrom(LocalDateTime now) {
+        return refreshTokenExpiration == 0
+                ? NO_EXPIRATION
+                : now.plus(refreshTokenExpiration, ChronoUnit.MILLIS);
     }
 
     /**

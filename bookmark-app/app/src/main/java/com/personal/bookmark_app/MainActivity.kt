@@ -24,7 +24,9 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             BookmarkappTheme {
-                AppNavigation(sharedBookmark = sharedBookmark, onShareHandled = { sharedBookmark = null })
+                AppNavigation(sharedBookmark = sharedBookmark, onShareHandled = { id ->
+                    if (sharedBookmark?.id == id) sharedBookmark = null
+                })
             }
         }
     }
