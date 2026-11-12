@@ -593,7 +593,7 @@ private fun FolderSection(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     contentPadding = PaddingValues(
-                        bottom = 16.dp
+                        bottom = 20.dp
                     ),
                     userScrollEnabled = true
                 ) {
@@ -619,7 +619,7 @@ private fun FolderSection(
                         .weight(1f),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     contentPadding = PaddingValues(
-                        bottom = 16.dp
+                        bottom = 20.dp
                     ),
                     userScrollEnabled = true
                 ) {

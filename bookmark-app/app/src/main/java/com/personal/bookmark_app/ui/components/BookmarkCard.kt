@@ -64,7 +64,8 @@ fun BookmarkCard(
     onEditNoteClick: (String) -> Unit = {},
     availableTags: List<String> = emptyList(),
     onTagsSave: (List<String>) -> Unit = {},
-    onDeleteClick: () -> Unit = {}
+    onDeleteClick: () -> Unit = {},
+    onMoveClick: (() -> Unit)? = null
 ) {
     var hasThumbnail by remember(item.id, item.imageUrl) {
         mutableStateOf(item.imageUrl.isNotBlank())
@@ -182,6 +183,12 @@ fun BookmarkCard(
                             onEditTagsClick = {
                                 expanded = false
                                 showEditTagsSheet = true
+                            },
+                            onMoveClick = onMoveClick?.let { move ->
+                                {
+                                    expanded = false
+                                    move()
+                                }
                             },
                             onDeleteClick = {
                                 expanded = false

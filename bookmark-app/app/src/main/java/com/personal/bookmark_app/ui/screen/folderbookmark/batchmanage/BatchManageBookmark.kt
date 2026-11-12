@@ -36,10 +36,8 @@ fun BatchManageBottomBar(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(
-                horizontal = 24.dp,
-                vertical = 12.dp
-            ),
+            .padding(horizontal = 24.dp)
+            .padding(top = 12.dp, bottom = 20.dp),
         shape = RoundedCornerShape(20.dp),
         color = MaterialTheme.colorScheme.surface,
         shadowElevation = 4.dp

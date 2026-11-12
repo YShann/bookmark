@@ -11,6 +11,7 @@ import com.personal.bookmark_app.data.remote.dto.request.auth.LogoutRequest
 import com.personal.bookmark_app.data.remote.dto.request.auth.RegisterRequest
 import com.personal.bookmark_app.data.remote.backendMessage
 import retrofit2.HttpException
+import java.io.IOException
 
 class ApiAuthRepository(
     private val api: AuthApi,
@@ -105,6 +106,7 @@ private fun <T> Result<T>.mapNetworkFailure(): Result<T> = fold(
         if (error is kotlinx.coroutines.CancellationException) throw error
         if (error is GoogleLinkRequiredException) return@fold Result.failure(error)
         val message = when (error) {
+            is IOException -> "連線至伺服器失敗，請稍後再試"
             is HttpException -> error.backendMessage() ?: when (error.code()) {
                 401 -> "Email 或密碼錯誤"
                 403 -> "請先完成 Email 驗證"

@@ -54,6 +54,7 @@ fun ForgotPasswordScreen(
                 .statusBarsPadding()
                 .imePadding()
                 .verticalScroll(rememberScrollState())
+                .padding(bottom = 20.dp)
         ) {
             ForgotPasswordHeader(
                 onBackClick = onBackClick

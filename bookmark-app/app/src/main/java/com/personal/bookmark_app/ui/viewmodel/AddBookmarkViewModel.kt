@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import retrofit2.http.GET
 import retrofit2.http.Path
+import java.io.IOException
 
 interface AddBookmarkTagApi {
     @GET("api/folders/{folderId}/tags")
@@ -219,7 +220,12 @@ class AddBookmarkViewModel(application: Application, private val savedState: and
                         } else {
                             "，可重新解析或手動輸入標題後儲存"
                         }
-                        _state.value = _state.value.copy(parseError = (e.message ?: "解析失敗") + action)
+                        val message = if (e is IOException) {
+                            "無法連線至來源網站"
+                        } else {
+                            e.message ?: "解析失敗"
+                        }
+                        _state.value = _state.value.copy(parseError = message + action)
                     }
                 }
             } finally {

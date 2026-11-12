@@ -81,7 +81,7 @@ fun RegisterScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp)
-                    .padding(bottom = 16.dp)
+                    .padding(bottom = 32.dp)
             ) {
                 Spacer(modifier = Modifier.height(8.dp))
 

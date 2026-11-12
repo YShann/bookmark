@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.EditNote
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.LocalOffer
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -29,13 +30,14 @@ fun FolderBookmarkOptionsMenu(
     onEditTitleClick: () -> Unit,
     onEditNoteClick: () -> Unit,
     onEditTagsClick: () -> Unit,
-    onDeleteClick: () -> Unit
+    onDeleteClick: () -> Unit,
+    onMoveClick: (() -> Unit)? = null
 ) {
     DropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismissRequest,
         modifier = Modifier
-            .width(200.dp)
+            .width(220.dp)
             .background(
                 color = MaterialTheme.colorScheme.surface,
                 shape = RoundedCornerShape(16.dp)
@@ -115,6 +117,28 @@ fun FolderBookmarkOptionsMenu(
         HorizontalDivider(
             color = MaterialTheme.colorScheme.outlineVariant
         )
+
+        if (onMoveClick != null) {
+            DropdownMenuItem(
+                text = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Folder,
+                            modifier = Modifier.size(18.dp),
+                            contentDescription = null
+                        )
+                        Text(
+                            text = "移動至其他收藏夾",
+                            style = MaterialTheme.typography.titleSmall
+                        )
+                    }
+                },
+                onClick = onMoveClick
+            )
+        }
 
         // 刪除收藏
         DropdownMenuItem(

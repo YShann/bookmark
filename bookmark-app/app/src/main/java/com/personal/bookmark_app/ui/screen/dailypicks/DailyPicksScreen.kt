@@ -85,7 +85,7 @@ fun DailyPicksScreen(
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 20.dp)
-                    .padding(bottom = 16.dp),
+                    .padding(bottom = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 if (error != null && dailyPicks.isNotEmpty()) {

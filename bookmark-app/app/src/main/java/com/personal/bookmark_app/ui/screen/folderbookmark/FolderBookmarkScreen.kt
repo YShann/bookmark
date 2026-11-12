@@ -43,7 +43,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -55,6 +54,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.personal.bookmark_app.ui.components.BookmarkCard
 import com.personal.bookmark_app.ui.components.SearchInputField
 import com.personal.bookmark_app.ui.components.TagInfoPopup
@@ -98,8 +98,8 @@ fun FolderBookmarkScreen(
         mutableStateOf(false)
     }
 
-    var showMoveSheet by remember {
-        mutableStateOf(false)
+    var bookmarkIdsToMove by remember {
+        mutableStateOf<List<String>>(emptyList())
     }
 
     val moveSheetState = rememberModalBottomSheetState(
@@ -210,7 +210,7 @@ fun FolderBookmarkScreen(
         uiState = uiState.copy(isBatchManaging = false)
         selectedBookmarkIds = emptySet()
         showDeleteDialog = false
-        showMoveSheet = false
+        bookmarkIdsToMove = emptyList()
     }
 
     // ------------------------------------
@@ -225,11 +225,13 @@ fun FolderBookmarkScreen(
         viewModel.delete(idsToDelete) { finishBatchManaging() }
     }
 
-    fun moveSelectedBookmarks(destination: Long) {
-        val ids = selectedBookmarkIds.toList()
+    fun moveBookmarks(destination: Long) {
+        val ids = bookmarkIdsToMove
         if (ids.isEmpty() || busy) return
-        showMoveSheet = false
-        viewModel.move(ids, destination) { finishBatchManaging() }
+        bookmarkIdsToMove = emptyList()
+        viewModel.move(ids, destination) {
+            if (uiState.isBatchManaging) finishBatchManaging()
+        }
     }
 
     // ------------------------------------
@@ -269,7 +271,7 @@ fun FolderBookmarkScreen(
                     hasSelection = selectedCount > 0 && !busy,
                     onSelectAllClick = { if (!busy) toggleSelectAll() },
                     onDeleteClick = { showDeleteDialog = true },
-                    onMoveClick = { showMoveSheet = true }
+                    onMoveClick = { bookmarkIdsToMove = selectedBookmarkIds.toList() }
                 )
             }
         }
@@ -288,8 +290,8 @@ fun FolderBookmarkScreen(
                 contentPadding = PaddingValues(
                     start = 20.dp,
                     end = 20.dp,
-                    top = 12.dp,
-                    bottom = 16.dp
+                    top = 4.dp,
+                    bottom = 20.dp
                 ),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
@@ -400,7 +402,8 @@ fun FolderBookmarkScreen(
                             onEditNoteClick = { viewModel.update(bookmark.id, note = it) },
                             availableTags = availableTags,
                             onTagsSave = { viewModel.update(bookmark.id, tags = it) },
-                            onDeleteClick = { viewModel.delete(listOf(bookmark.id)) }
+                            onDeleteClick = { viewModel.delete(listOf(bookmark.id)) },
+                            onMoveClick = { bookmarkIdsToMove = listOf(bookmark.id) }
                         )
                     }
                 }
@@ -428,20 +431,18 @@ fun FolderBookmarkScreen(
     // 移動收藏 BottomSheet
     // ------------------------------------
 
-    if (showMoveSheet) {
+    if (bookmarkIdsToMove.isNotEmpty()) {
         ModalBottomSheet(
             onDismissRequest = {
-                showMoveSheet = false
+                bookmarkIdsToMove = emptyList()
             },
             sheetState = moveSheetState,
             containerColor = MaterialTheme.colorScheme.surface
         ) {
             MoveBookmarkSheet(
-                selectedCount = selectedCount,
+                selectedCount = bookmarkIdsToMove.size,
                 folders = availableFolders,
-                onFolderClick = { destination ->
-                    moveSelectedBookmarks(destination)
-                },
+                onFolderClick = ::moveBookmarks,
                 onCreateFolderClick = {
                     showAddFolderDialog = true
                 }
