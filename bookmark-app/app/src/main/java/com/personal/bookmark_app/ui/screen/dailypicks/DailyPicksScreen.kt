@@ -37,6 +37,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.personal.bookmark_app.data.remote.dto.response.bookmark.BookmarkSourceResponse
+import com.personal.bookmark_app.data.remote.dto.response.bookmark.displayNameFor
 import com.personal.bookmark_app.ui.theme.BookmarkTextSecondary
 import com.personal.bookmark_app.ui.viewmodel.DailyPicksViewModel
 import java.util.Locale
@@ -45,7 +47,8 @@ import java.util.Locale
 fun DailyPicksScreen(
     onBackClick: () -> Unit = {},
     onAddBookmarkClick: () -> Unit = {},
-    viewModel: DailyPicksViewModel = viewModel()
+    viewModel: DailyPicksViewModel = viewModel(),
+    bookmarkSources: List<BookmarkSourceResponse> = emptyList()
 ) {
     androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
         viewModel.retry()
@@ -135,7 +138,8 @@ fun DailyPicksScreen(
                     else -> {
                         dailyPicks.forEach { bookmark ->
                             DailyBookmarkCard(
-                                bookmark = bookmark
+                                bookmark = bookmark,
+                                sourceName = bookmarkSources.displayNameFor(bookmark.source)
                             )
                         }
 

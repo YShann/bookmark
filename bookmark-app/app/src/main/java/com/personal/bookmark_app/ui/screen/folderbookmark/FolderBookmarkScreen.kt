@@ -58,6 +58,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.personal.bookmark_app.ui.components.BookmarkCard
 import com.personal.bookmark_app.ui.components.SearchInputField
 import com.personal.bookmark_app.ui.components.TagInfoPopup
+import com.personal.bookmark_app.data.remote.dto.response.bookmark.BookmarkSourceResponse
+import com.personal.bookmark_app.data.remote.dto.response.bookmark.displayNameFor
 import com.personal.bookmark_app.ui.screen.addbookmark.AddFolderDialog
 import com.personal.bookmark_app.ui.screen.folderbookmark.batchmanage.BatchManageBottomBar
 import com.personal.bookmark_app.ui.screen.folderbookmark.batchmanage.DeleteBookmarkDialog
@@ -67,7 +69,8 @@ import com.personal.bookmark_app.ui.screen.folderbookmark.batchmanage.MoveBookma
 @Composable
 fun FolderBookmarkScreen(
     folderId: Long,
-    onBackClick: () -> Unit = {}
+    onBackClick: () -> Unit = {},
+    bookmarkSources: List<BookmarkSourceResponse> = emptyList()
 ) {
     // ------------------------------------
     // UI State
@@ -84,7 +87,9 @@ fun FolderBookmarkScreen(
     }
     val context = androidx.compose.ui.platform.LocalContext.current
     val folderName = data.folderName
-    val bookmarks = remember(data.bookmarks) { data.bookmarks.map { it.toUiModel() } }
+    val bookmarks = remember(data.bookmarks, bookmarkSources) {
+        data.bookmarks.map { it.toUiModel(bookmarkSources) }
+    }
     val availableTags = remember(data.bookmarks) { data.bookmarks.flatMap { it.tags }.distinct().sorted() }
     val busy = data.isLoading || data.isMutating
 
@@ -804,12 +809,12 @@ private fun EmptyBookmarkView() {
     }
 }
 
-private fun com.personal.bookmark_app.data.remote.dto.response.bookmark.BookmarkResponse.toUiModel() =
+private fun com.personal.bookmark_app.data.remote.dto.response.bookmark.BookmarkResponse.toUiModel(
+    bookmarkSources: List<BookmarkSourceResponse>
+) =
     com.personal.bookmark_app.ui.model.BookmarkUiModel(
         id = id.toString(),
-        source = com.personal.bookmark_app.ui.model.BookmarkSource.entries.firstOrNull {
-            it.name.equals(source, ignoreCase = true)
-        }?.displayName ?: "Web",
+        source = bookmarkSources.displayNameFor(source),
         date = createdAt?.take(10).orEmpty(),
         title = title,
         description = content.orEmpty().ifBlank { url },

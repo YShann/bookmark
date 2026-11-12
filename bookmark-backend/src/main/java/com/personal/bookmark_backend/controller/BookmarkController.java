@@ -7,6 +7,7 @@ import com.personal.bookmark_backend.dto.response.bookmark.BookmarkResponse;
 import com.personal.bookmark_backend.dto.response.bookmark.BookmarkSearchResponse;
 import com.personal.bookmark_backend.dto.response.bookmark.DailyPicksResponse;
 import com.personal.bookmark_backend.entity.Bookmark;
+import com.personal.bookmark_backend.entity.BookmarkSource;
 import com.personal.bookmark_backend.service.BookmarkService;
 import com.personal.bookmark_backend.service.TagService;
 
@@ -109,6 +110,11 @@ public class BookmarkController {
         ));
     }
 
+    @GetMapping("/bookmark-sources")
+    public List<BookmarkSource> getBookmarkSources() {
+        return bookmarkService.getBookmarkSources();
+    }
+
     @GetMapping("/bookmarks/search")
     public ResponseEntity<BookmarkSearchResponse> searchBookmarks(
             @RequestParam(required = false) String query,
@@ -150,9 +156,6 @@ public class BookmarkController {
                 .toList();
 
         Map<String, Long> sourceCounts = bookmarkService.countSearchResultsBySource(userId, normalizedQuery);
-        long webCount = sourceCounts.getOrDefault("WEB", 0L) + sourceCounts.getOrDefault("OTHER", 0L);
-        sourceCounts.remove("OTHER");
-        if (webCount > 0) sourceCounts.put("WEB", webCount);
 
         return ResponseEntity.ok(new BookmarkSearchResponse(
                 content,

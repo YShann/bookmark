@@ -65,7 +65,6 @@ import com.personal.bookmark_app.ui.components.MultilineTextFieldView
 import com.personal.bookmark_app.ui.components.TagInfoPopup
 import com.personal.bookmark_app.ui.components.TextFieldView
 import com.personal.bookmark_app.ui.model.BookmarkPreviewUiModel
-import com.personal.bookmark_app.ui.model.BookmarkSource
 import com.personal.bookmark_app.ui.model.FolderUiModel
 import com.personal.bookmark_app.ui.model.TagOptionUiModel
 
@@ -77,7 +76,6 @@ fun AddBookmarkScreen(
     onRetry: () -> Unit,
     onTitleChange: (String) -> Unit,
     onNoteChange: (String) -> Unit,
-    onSourceChange: (BookmarkSource) -> Unit,
 
     onFolderSelected: (Long) -> Unit,
     onCreateFolderClick: (String) -> Unit,
@@ -219,13 +217,6 @@ fun AddBookmarkScreen(
                     modifier = Modifier.padding(18.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-//                    SourcePlatformSection(
-//                        selectedSource = uiState.selectedSource,
-//                        onSourceChange = onSourceChange
-//                    )
-//
-//                    Spacer(modifier = Modifier.height(2.dp))
-
                     BookmarkTitleSection(
                         title = uiState.title,
                         onTitleChange = onTitleChange,
@@ -560,48 +551,6 @@ private fun BookmarkFolderSelector(
     }
 }
 
-
-/* -------------------------------------------------------
- * 2. 來源平台
- * ------------------------------------------------------- */
-//@Composable
-//private fun SourcePlatformSection(
-//    selectedSource: BookmarkSource,
-//    onSourceChange: (BookmarkSource) -> Unit
-//) {
-//    Column(
-//        verticalArrangement = Arrangement.spacedBy(2.dp)
-//    ) {
-//        Text(
-//            text = "來源平台識別",
-//            style = MaterialTheme.typography.bodySmall,
-//            color = MaterialTheme.colorScheme.onSurfaceVariant
-//        )
-//
-//        Row(
-//            modifier = Modifier
-//                .fillMaxWidth()
-//                .horizontalScroll(rememberScrollState()),
-//            horizontalArrangement = Arrangement.spacedBy(8.dp),
-//            verticalAlignment = Alignment.CenterVertically
-//        ) {
-//            BookmarkSource.entries.forEach { source ->
-//                FilterChip(
-//                    selected = selectedSource == source,
-//                    onClick = {
-//                        onSourceChange(source)
-//                    },
-//                    label = {
-//                        Text(
-//                            text = source.displayName,
-//                            style = MaterialTheme.typography.labelLarge
-//                        )
-//                    }
-//                )
-//            }
-//        }
-//    }
-//}
 
 /* -------------------------------------------------------
  * 3. 文章標題

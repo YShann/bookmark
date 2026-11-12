@@ -27,10 +27,10 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.personal.bookmark_app.data.repository.BookmarkMetadata
 import com.personal.bookmark_app.data.repository.BrowserPostLink
+import com.personal.bookmark_app.data.repository.BrowserPostSite
 import com.personal.bookmark_app.data.repository.browserPostLink
 import com.personal.bookmark_app.data.repository.browserPostMetadata
-import com.personal.bookmark_app.data.repository.browserPostSource
-import com.personal.bookmark_app.ui.model.BookmarkSource
+import com.personal.bookmark_app.data.repository.browserPostSite
 import kotlinx.coroutines.delay
 import org.json.JSONException
 import org.json.JSONObject
@@ -51,8 +51,7 @@ internal class BookmarkBrowserImportContract : ActivityResultContract<String, Bo
             url = url,
             title = intent.getStringExtra(EXTRA_TITLE) ?: return null,
             content = intent.getStringExtra(EXTRA_CONTENT) ?: return null,
-            imageUrl = intent.getStringExtra(EXTRA_IMAGE_URL),
-            source = browserPostLink(url)?.source ?: return null
+            imageUrl = intent.getStringExtra(EXTRA_IMAGE_URL)
         )
     }
 }
@@ -166,7 +165,7 @@ private class BookmarkImportWebView(
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                 if (!request.isForMainFrame) return false
                 val url = request.url.toString()
-                if (browserPostSource(url) != requestedPost.source) return true
+                if (browserPostSite(url) != requestedPost.site) return true
                 val post = browserPostLink(url) ?: return false
                 return post != requestedPost && (!requestedPost.isShare || post.isShare || request.hasGesture())
             }
@@ -193,7 +192,7 @@ private class BookmarkImportWebView(
     private fun canReadPost(url: String): Boolean {
         val page = browserPostLink(url) ?: return false
         return page == requestedPost ||
-            (requestedPost.isShare && !page.isShare && page.source == requestedPost.source)
+            (requestedPost.isShare && !page.isShare && page.site == requestedPost.site)
     }
 
     private fun readPost(version: Int, retriesLeft: Int, onUnavailable: (() -> Unit)? = null) {
@@ -202,7 +201,7 @@ private class BookmarkImportWebView(
             onUnavailable?.invoke()
             return
         }
-        val script = if (requestedPost.source == BookmarkSource.DCARD) READ_DCARD_POST else READ_META_POST
+        val script = if (requestedPost.site == BrowserPostSite.DCARD) READ_DCARD_POST else READ_META_POST
         evaluateJavascript(script) { json ->
             if (finished || version != navigationVersion) return@evaluateJavascript
             val post = try {

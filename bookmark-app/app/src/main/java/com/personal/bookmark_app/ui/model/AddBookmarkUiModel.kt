@@ -7,7 +7,6 @@ data class BookmarkPreviewUiModel(
     val imageUrl: String,
     val title: String,
     val sourceUrl: String,
-    val source: BookmarkSource,
     val isParsed: Boolean = true
 )
 

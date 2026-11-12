@@ -1,10 +1,12 @@
 package com.personal.bookmark_backend.service;
 
 import com.personal.bookmark_backend.entity.Bookmark;
+import com.personal.bookmark_backend.entity.BookmarkSource;
 import com.personal.bookmark_backend.entity.BookmarkTag;
 import com.personal.bookmark_backend.entity.Folder;
 import com.personal.bookmark_backend.exception.ResourceNotFoundException;
 import com.personal.bookmark_backend.repository.BookmarkRepository;
+import com.personal.bookmark_backend.repository.BookmarkSourceRepository;
 import com.personal.bookmark_backend.repository.BookmarkTagRepository;
 import com.personal.bookmark_backend.repository.FolderRepository;
 import com.personal.bookmark_backend.repository.TagRepository;
@@ -19,6 +21,7 @@ import org.springframework.data.domain.PageRequest;
 import java.net.URI;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -32,6 +35,7 @@ import java.time.ZonedDateTime;
 public class BookmarkService {
 
     private final BookmarkRepository bookmarkRepository;
+    private final BookmarkSourceRepository bookmarkSourceRepository;
     private final FolderRepository folderRepository;
     private final BookmarkTagRepository bookmarkTagRepository;
     private final TagRepository tagRepository;
@@ -43,6 +47,11 @@ public class BookmarkService {
     @Transactional(readOnly = true)
     public long countUserBookmarks(Long userId) {
         return bookmarkRepository.countByUserId(userId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<BookmarkSource> getBookmarkSources() {
+        return bookmarkSourceRepository.findAllByOrderBySortOrderAscCodeAsc();
     }
 
     @Transactional
@@ -131,7 +140,7 @@ public class BookmarkService {
         bookmark.setTitle(title);
         bookmark.setContent(content);
         bookmark.setNote(note);
-        bookmark.setSource(source.trim());
+        bookmark.setSource(detectSource(url.trim(), source.trim()));
         bookmark.setImageUrl(imageUrl);
 
         // 儲存收藏，取得資料庫產生的 bookmarkId
@@ -388,10 +397,30 @@ public class BookmarkService {
             throw new IllegalArgumentException("收藏來源不能為空");
         }
 
+        String normalizedSource = source.trim();
         // 檢查收藏來源長度
-        if (source.trim().length() > 50) {
-            throw new IllegalArgumentException("收藏來源不能超過 50 個字");
+        if (normalizedSource.length() > 30) {
+            throw new IllegalArgumentException("收藏來源不能超過 30 個字");
         }
+        if (!bookmarkSourceRepository.existsById(normalizedSource)) {
+            throw new IllegalArgumentException("收藏來源不存在");
+        }
+    }
+
+    private String detectSource(String url, String fallback) {
+        String host = URI.create(url).getHost().toLowerCase(Locale.ROOT);
+        String sourceCode = fallback;
+        int longestMatch = 0;
+        for (BookmarkSource source : getBookmarkSources()) {
+            for (String value : source.getDomains().split(",")) {
+                String domain = value.trim().toLowerCase(Locale.ROOT);
+                if (domain.length() > longestMatch && (host.equals(domain) || host.endsWith("." + domain))) {
+                    sourceCode = source.getCode();
+                    longestMatch = domain.length();
+                }
+            }
+        }
+        return sourceCode;
     }
 
 

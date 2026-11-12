@@ -26,6 +26,8 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.personal.bookmark_app.data.local.UserPreferencesRepository
 import com.personal.bookmark_app.data.remote.RetrofitClient
+import com.personal.bookmark_app.data.remote.api.BookmarkApi
+import com.personal.bookmark_app.data.remote.dto.response.bookmark.BookmarkSourceResponse
 import com.personal.bookmark_app.data.repository.auth.ApiAuthRepository
 import com.personal.bookmark_app.data.repository.auth.AuthRepository
 import com.personal.bookmark_app.ui.screen.SearchBookmarkScreen
@@ -45,6 +47,7 @@ import com.personal.bookmark_app.ui.screen.verifyemail.VerifyEmailUiState
 import com.personal.bookmark_app.ui.viewmodel.AuthEvent
 import com.personal.bookmark_app.ui.viewmodel.AuthViewModel
 import com.personal.bookmark_app.ui.viewmodel.AuthViewModelFactory
+import kotlinx.coroutines.CancellationException
 
 @Composable
 fun AppNavigation(
@@ -57,6 +60,23 @@ fun AppNavigation(
 
     // 觀察目前所在的 Navigation 頁面
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
+    val bookmarkApi = remember(context) {
+        RetrofitClient.authenticated(context.applicationContext).create(BookmarkApi::class.java)
+    }
+    var bookmarkSources by remember { mutableStateOf(emptyList<BookmarkSourceResponse>()) }
+    LaunchedEffect(currentBackStackEntry?.destination?.route) {
+        when (currentBackStackEntry?.destination?.route) {
+            Screen.SEARCH_BOOKMARK, Screen.FOLDER_BOOKMARK, Screen.DAILY_PICKS -> {
+                try {
+                    bookmarkSources = bookmarkApi.getBookmarkSources()
+                } catch (error: Exception) {
+                    if (error is CancellationException) throw error
+                }
+            }
+            Screen.LOGIN -> bookmarkSources = emptyList()
+            else -> Unit
+        }
+    }
 
     // 防止返回操作被連續執行
     var isBackNavigationInProgress by remember {
@@ -348,6 +368,7 @@ fun AppNavigation(
         composable(Screen.DAILY_PICKS) {
 
             DailyPicksScreen(
+                bookmarkSources = bookmarkSources,
                 onBackClick = {
                     navController.popBackStack()
                 },
@@ -361,6 +382,7 @@ fun AppNavigation(
         composable(Screen.SEARCH_BOOKMARK) {
 
             SearchBookmarkScreen(
+                bookmarkSources = bookmarkSources,
                 onBackClick = { navigateBackSafely() }
             )
         }
@@ -394,7 +416,6 @@ fun AppNavigation(
                     uiState = state,
                     onTitleChange = { value -> vm.edit { it.copy(title = value) } },
                     onNoteChange = { value -> vm.edit { it.copy(note = value) } },
-                    onSourceChange = { value -> vm.edit { it.copy(selectedSource = value) } },
                     onSourceUrlChange = vm::changeUrl,
                     onFolderSelected = vm::selectFolder,
                     onCreateFolderClick = vm::createFolder,
@@ -426,6 +447,7 @@ fun AppNavigation(
             val folderId = backStackEntry.arguments?.getLong("folderId") ?: 0L
             FolderBookmarkScreen(
                 folderId = folderId,
+                bookmarkSources = bookmarkSources,
                 onBackClick = { navigateBackSafely() }
             )
         }

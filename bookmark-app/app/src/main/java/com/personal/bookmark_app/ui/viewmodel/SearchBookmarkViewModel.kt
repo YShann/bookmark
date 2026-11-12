@@ -7,7 +7,7 @@ import com.personal.bookmark_app.data.remote.RetrofitClient
 import com.personal.bookmark_app.data.remote.api.BookmarkApi
 import com.personal.bookmark_app.data.remote.dto.request.bookmark.UpdateBookmarkRequest
 import com.personal.bookmark_app.data.remote.dto.response.bookmark.BookmarkResponse
-import com.personal.bookmark_app.ui.model.BookmarkSource
+import com.personal.bookmark_app.data.remote.dto.response.bookmark.OTHER_SOURCE_CODE
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,7 +27,7 @@ class SearchBookmarkViewModel(application: Application) : AndroidViewModel(appli
     val isLoading = _isLoading.asStateFlow()
     private val _error = MutableStateFlow<String?>(null)
     val error = _error.asStateFlow()
-    private val _sourceCounts = MutableStateFlow<Map<BookmarkSource, Int>>(emptyMap())
+    private val _sourceCounts = MutableStateFlow<Map<String, Long>>(emptyMap())
     val sourceCounts = _sourceCounts.asStateFlow()
     private val _totalCount = MutableStateFlow(0L)
     val totalCount = _totalCount.asStateFlow()
@@ -35,12 +35,12 @@ class SearchBookmarkViewModel(application: Application) : AndroidViewModel(appli
     private var currentPage = 0
     private var totalPages = 0
     private var query = ""
-    private var source: BookmarkSource? = null
+    private var source: String? = null
     private var searchJob: Job? = null
     private var isLoadingNextPage = false
     private var searchGeneration = 0
 
-    fun search(newQuery: String = query, newSource: BookmarkSource? = source) {
+    fun search(newQuery: String = query, newSource: String? = source) {
         query = newQuery.trim()
         source = newSource
         searchJob?.cancel()
@@ -52,7 +52,7 @@ class SearchBookmarkViewModel(application: Application) : AndroidViewModel(appli
                 val result = withContext(Dispatchers.IO) {
                     bookmarkApi.searchBookmarks(
                         query = query.ifBlank { null },
-                        source = source?.name,
+                        source = source,
                         page = 0
                     )
                 }
@@ -60,11 +60,7 @@ class SearchBookmarkViewModel(application: Application) : AndroidViewModel(appli
                 currentPage = result.page
                 totalPages = result.totalPages
                 _totalCount.value = result.sourceCounts.values.sum()
-                _sourceCounts.value = BookmarkSource.entries.associateWith { sourceType ->
-                    result.sourceCounts.entries
-                        .filter { (key, _) -> key.equals(sourceType.name, ignoreCase = true) }
-                        .sumOf { it.value.toInt() }
-                }
+                _sourceCounts.value = result.sourceCounts
                 _error.value = null
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -85,7 +81,7 @@ class SearchBookmarkViewModel(application: Application) : AndroidViewModel(appli
                 val result = withContext(Dispatchers.IO) {
                     bookmarkApi.searchBookmarks(
                         query = query.ifBlank { null },
-                        source = source?.name,
+                        source = source,
                         page = currentPage + 1
                     )
                 }
@@ -112,7 +108,7 @@ class SearchBookmarkViewModel(application: Application) : AndroidViewModel(appli
                         title = title ?: old.title,
                         content = old.content,
                         note = note ?: old.note,
-                        source = old.source ?: "WEB",
+                        source = old.source ?: OTHER_SOURCE_CODE,
                         imageUrl = old.imageUrl,
                         tags = tags ?: old.tags
                     ))
@@ -136,14 +132,12 @@ class SearchBookmarkViewModel(application: Application) : AndroidViewModel(appli
                 if (_bookmarks.value.size < visibleBookmarks.size) {
                     _totalCount.value = (_totalCount.value - 1).coerceAtLeast(0)
                     val storedSource = entry.bookmark.source
-                    val deletedSource = if (storedSource.equals("OTHER", ignoreCase = true)) {
-                        BookmarkSource.WEB
-                    } else {
-                        BookmarkSource.entries.firstOrNull { it.name.equals(storedSource, ignoreCase = true) }
+                    val deletedSource = _sourceCounts.value.keys.firstOrNull {
+                        it.equals(storedSource, ignoreCase = true)
                     }
                     if (deletedSource != null) {
                         val counts = _sourceCounts.value
-                        val remaining = ((counts[deletedSource] ?: 0) - 1).coerceAtLeast(0)
+                        val remaining = ((counts[deletedSource] ?: 0L) - 1).coerceAtLeast(0)
                         _sourceCounts.value = counts + (deletedSource to remaining)
                     }
                 }

@@ -44,6 +44,7 @@ import com.skydoves.landscapist.coil3.CoilImage
 @Composable
 fun DailyBookmarkCard(
     bookmark: DaliyBookmarkUiModel,
+    sourceName: String,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -69,7 +70,7 @@ fun DailyBookmarkCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "${bookmark.source.displayName} · ${bookmark.date}",
+                    text = "$sourceName · ${bookmark.date}",
                     modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,

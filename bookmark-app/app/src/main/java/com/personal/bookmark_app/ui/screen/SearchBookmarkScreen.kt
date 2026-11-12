@@ -43,7 +43,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.personal.bookmark_app.ui.components.BookmarkCard
 import com.personal.bookmark_app.ui.components.SearchInputField
-import com.personal.bookmark_app.ui.model.BookmarkSource
+import com.personal.bookmark_app.data.remote.dto.response.bookmark.BookmarkSourceResponse
+import com.personal.bookmark_app.data.remote.dto.response.bookmark.displayNameFor
 import com.personal.bookmark_app.ui.model.BookmarkUiModel
 import com.personal.bookmark_app.ui.utils.openBookmarkUrl
 import com.personal.bookmark_app.ui.viewmodel.SearchBookmarkEntry
@@ -55,6 +56,7 @@ import kotlinx.coroutines.delay
 fun SearchBookmarkScreen(
     onBackClick: () -> Unit = {},
     viewModel: SearchBookmarkViewModel = viewModel(),
+    bookmarkSources: List<BookmarkSourceResponse> = emptyList()
 ) {
     val bookmarkEntries by viewModel.bookmarks.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -69,7 +71,7 @@ fun SearchBookmarkScreen(
 
     // 目前選取的平台，null 代表全部平台
     var selectedSource by remember {
-        mutableStateOf<BookmarkSource?>(null)
+        mutableStateOf<String?>(null)
     }
 
     LaunchedEffect(searchQuery, selectedSource) {
@@ -105,6 +107,7 @@ fun SearchBookmarkScreen(
         ) {
             // 平台篩選
             SourceFilterSection(
+                bookmarkSources = bookmarkSources,
                 sourceBookmarkCounts = sourceBookmarkCounts,
                 totalCount = totalCount,
                 selectedSource = selectedSource,
@@ -135,6 +138,7 @@ fun SearchBookmarkScreen(
             } else {
                 SearchResultList(
                     bookmarks = bookmarkEntries,
+                    bookmarkSources = bookmarkSources,
                     listState = listState,
                     availableTags = bookmarkEntries.flatMap { it.bookmark.tags }.distinct().sorted(),
                     onEditTitle = { entry, value -> viewModel.updateBookmark(entry, title = value) },
@@ -189,10 +193,11 @@ private fun SearchBookmarkTopBar(
 
 @Composable
 private fun SourceFilterSection(
-    sourceBookmarkCounts: Map<BookmarkSource, Int>,
+    bookmarkSources: List<BookmarkSourceResponse>,
+    sourceBookmarkCounts: Map<String, Long>,
     totalCount: Long,
-    selectedSource: BookmarkSource?,
-    onSourceSelected: (BookmarkSource?) -> Unit,
+    selectedSource: String?,
+    onSourceSelected: (String?) -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -221,18 +226,25 @@ private fun SourceFilterSection(
             )
         )
 
-        val visibleSources = BookmarkSource.entries.filter { source ->
-            source == selectedSource || (sourceBookmarkCounts[source] ?: 0) > 0
-        }
-        visibleSources.forEach { source ->
+        val visibleSources = (bookmarkSources.map { it.code } + sourceBookmarkCounts.keys + listOfNotNull(selectedSource))
+            .distinctBy { it.uppercase() }
+            .map { code ->
+                val count = sourceBookmarkCounts.entries
+                    .filter { it.key.equals(code, ignoreCase = true) }.sumOf { it.value }
+                code to count
+            }
+            .filter { (code, count) -> count > 0L || code.equals(selectedSource, ignoreCase = true) }
+            .sortedByDescending { (_, count) -> count }
+        visibleSources.forEach { (code, count) ->
+            val selected = code.equals(selectedSource, ignoreCase = true)
             FilterChip(
-                selected = selectedSource == source,
+                selected = selected,
                 onClick = {
-                    onSourceSelected(source)
+                    onSourceSelected(code)
                 },
                 label = {
                     Text(
-                        text = "${source.displayName}（${sourceBookmarkCounts[source] ?: 0}）",
+                        text = "${bookmarkSources.displayNameFor(code)}（$count）",
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(vertical = 8.dp)
                     )
@@ -253,6 +265,7 @@ private fun SourceFilterSection(
 @Composable
 private fun SearchResultList(
     bookmarks: List<SearchBookmarkEntry>,
+    bookmarkSources: List<BookmarkSourceResponse>,
     listState: androidx.compose.foundation.lazy.LazyListState,
     availableTags: List<String>,
     onEditTitle: (SearchBookmarkEntry, String) -> Unit,
@@ -278,7 +291,7 @@ private fun SearchResultList(
             }
         ) { bookmark ->
             BookmarkCard(
-                item = bookmark.toFolderBookmarkUiModel(),
+                item = bookmark.toFolderBookmarkUiModel(bookmarkSources),
                 onClick = {
                     openBookmarkUrl(context, bookmark.bookmark.url)
                 },
@@ -292,9 +305,9 @@ private fun SearchResultList(
     }
 }
 
-private fun SearchBookmarkEntry.toFolderBookmarkUiModel() = BookmarkUiModel(
+private fun SearchBookmarkEntry.toFolderBookmarkUiModel(bookmarkSources: List<BookmarkSourceResponse>) = BookmarkUiModel(
     id = bookmark.id.toString(),
-    source = bookmark.source?.toBookmarkSource()?.displayName ?: "Web",
+    source = bookmarkSources.displayNameFor(bookmark.source),
     date = bookmark.createdAt?.take(10) ?: "",
     title = bookmark.title,
     description = bookmark.content.orEmpty().ifBlank { bookmark.url },
@@ -339,17 +352,3 @@ private fun EmptySearchResult(
         }
     }
 }
-
-// --------------------------------------------------
-// 收藏關鍵字比對
-// --------------------------------------------------
-
-private fun String.toBookmarkSource(): BookmarkSource = when (uppercase()) {
-    "THREADS" -> BookmarkSource.THREADS
-    "INSTAGRAM" -> BookmarkSource.INSTAGRAM
-    "DCARD" -> BookmarkSource.DCARD
-    "YOUTUBE" -> BookmarkSource.YOUTUBE
-    else -> BookmarkSource.WEB
-}
-
-

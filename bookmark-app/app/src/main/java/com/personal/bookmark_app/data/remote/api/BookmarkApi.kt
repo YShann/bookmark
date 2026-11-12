@@ -2,6 +2,7 @@ package com.personal.bookmark_app.data.remote.api
 
 import com.personal.bookmark_app.data.remote.dto.response.bookmark.BookmarkResponse
 import com.personal.bookmark_app.data.remote.dto.response.bookmark.BookmarkSearchResponse
+import com.personal.bookmark_app.data.remote.dto.response.bookmark.BookmarkSourceResponse
 import com.personal.bookmark_app.data.remote.dto.request.bookmark.UpdateBookmarkRequest
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -11,6 +12,9 @@ import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface BookmarkApi {
+    @GET("api/bookmark-sources")
+    suspend fun getBookmarkSources(): List<BookmarkSourceResponse>
+
     @retrofit2.http.POST("api/folders/{folderId}/bookmarks")
     suspend fun createBookmark(@Path("folderId") folderId: Long,
         @Body request: com.personal.bookmark_app.data.remote.dto.request.bookmark.CreateBookmarkRequest): BookmarkResponse

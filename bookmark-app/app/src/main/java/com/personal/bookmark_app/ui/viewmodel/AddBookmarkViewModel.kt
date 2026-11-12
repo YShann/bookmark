@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.personal.bookmark_app.data.remote.RetrofitClient
 import com.personal.bookmark_app.data.remote.api.*
 import com.personal.bookmark_app.data.remote.dto.request.bookmark.CreateBookmarkRequest
+import com.personal.bookmark_app.data.remote.dto.response.bookmark.OTHER_SOURCE_CODE
 import com.personal.bookmark_app.data.repository.BookmarkBrowserChallengeException
 import com.personal.bookmark_app.data.repository.BookmarkHttpException
 import com.personal.bookmark_app.data.repository.BookmarkMetadata
@@ -43,7 +44,7 @@ class AddBookmarkViewModel(application: Application, private val savedState: and
             savedState.get<android.os.Bundle>("browserImport") != null
         AddBookmarkUiState(sourceUrl = url, title = it.getString("title").orEmpty(),
             note = it.getString("note").orEmpty(), content = it.getString("content").orEmpty(),
-            imageUrl = it.getString("image"), selectedSource = com.personal.bookmark_app.data.repository.detectSource(url),
+            imageUrl = it.getString("image"),
             isParsing = browserImportPending,
             parseError = if (!browserImportPending && savedState.get<String>("browserFallbackUrl") == url.trim()) {
                 "尚未匯入文章，可點「重新解析」再試一次"
@@ -82,7 +83,6 @@ class AddBookmarkViewModel(application: Application, private val savedState: and
         _state.value = _state.value.copy(sourceUrl = url.orEmpty(), title = share.title,
             note = "", selectedTagIds = emptySet(), isParsing = false,
             content = "", imageUrl = null, isSaved = false, isSaving = false,
-            selectedSource = com.personal.bookmark_app.data.repository.detectSource(url.orEmpty()),
             parseError = if (url == null) "分享內容沒有有效的 HTTP／HTTPS 網址，請手動輸入" else null)
         persistDraft()
         if (url != null) parseUrl()
@@ -95,8 +95,7 @@ class AddBookmarkViewModel(application: Application, private val savedState: and
         parseGeneration++
         resetBrowserImport()
         val validUrl = value.isNotBlank() && com.personal.bookmark_app.data.repository.extractSharedUrl(value.trim()) == value.trim()
-        edit { it.copy(sourceUrl = value, content = "", imageUrl = null, isParsing = validUrl, parseError = null,
-            selectedSource = com.personal.bookmark_app.data.repository.detectSource(value.trim())) }
+        edit { it.copy(sourceUrl = value, content = "", imageUrl = null, isParsing = validUrl, parseError = null) }
         if (validUrl) {
             debounceJob = viewModelScope.launch { kotlinx.coroutines.delay(700); parseUrl() }
         }
@@ -175,8 +174,7 @@ class AddBookmarkViewModel(application: Application, private val savedState: and
             sourceUrl = result.url,
             title = if (form.title == originalTitle) result.title else form.title,
             content = result.content,
-            imageUrl = result.imageUrl,
-            selectedSource = result.source
+            imageUrl = result.imageUrl
         )
         persistDraft()
     }
@@ -294,7 +292,7 @@ class AddBookmarkViewModel(application: Application, private val savedState: and
         request {
             bookmarkApi.createBookmark(form.selectedFolderId, CreateBookmarkRequest(
                 url = form.sourceUrl.trim(), title = form.title.trim(), note = form.note.trim().ifBlank { null },
-                source = form.selectedSource.name, tags = form.selectedTagIds.toList(),
+                source = OTHER_SOURCE_CODE, tags = form.selectedTagIds.toList(),
                 content = form.content.take(500).ifBlank { null }, imageUrl = form.imageUrl,
                 addToDailyPicks = form.isAddedToDailyPicks))
             savedState.remove<android.os.Bundle>("draft")

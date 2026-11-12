@@ -48,8 +48,7 @@ public interface BookmarkRepository extends JpaRepository<Bookmark, Long> {
                          and lower(t.name) like lower(concat('%', :query, '%'))
                    ))
               and (:source is null or :source = ''
-                   or lower(b.source) = lower(:source)
-                   or (lower(:source) = 'web' and lower(b.source) = 'other'))
+                   or lower(b.source) = lower(:source))
             order by b.createdAt desc, b.id desc
             """)
     Page<Bookmark> searchForUser(

@@ -2,7 +2,7 @@ package com.personal.bookmark_app.ui.model
 
 data class DaliyBookmarkUiModel(
     val id: Long,
-    val source: BookmarkSource,
+    val source: String?,
     val tags: List<String>,
     val date: String,
     val title: String,

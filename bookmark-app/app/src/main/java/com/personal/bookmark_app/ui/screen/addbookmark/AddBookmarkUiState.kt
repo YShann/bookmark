@@ -1,7 +1,5 @@
 package com.personal.bookmark_app.ui.screen.addbookmark
 
-import com.personal.bookmark_app.ui.model.BookmarkSource
-
 data class AddBookmarkUiState(
 
     // 基本收藏資料
@@ -11,9 +9,6 @@ data class AddBookmarkUiState(
     val imageUrl: String? = null,
     val parseError: String? = null,
     val sourceUrl: String = "",
-
-    // 來源平台
-    val selectedSource: BookmarkSource = BookmarkSource.WEB,
 
     // 收藏資料夾 ID
     val selectedFolderId: Long = 0L,

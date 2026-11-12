@@ -12,6 +12,7 @@ import com.personal.bookmark_app.data.remote.dto.request.bookmark.MoveBookmarkRe
 import com.personal.bookmark_app.data.remote.dto.request.bookmark.UpdateBookmarkRequest
 import com.personal.bookmark_app.data.remote.dto.response.bookmark.BookmarkResponse
 import com.personal.bookmark_app.data.remote.dto.response.folder.FolderResponse
+import com.personal.bookmark_app.data.remote.dto.response.bookmark.OTHER_SOURCE_CODE
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -76,7 +77,8 @@ class FolderBookmarkViewModel(application: Application, savedStateHandle: SavedS
             val old = _state.value.bookmarks.firstOrNull { it.id.toString() == id } ?: return@mutate
             val updated = bookmarkApi.updateBookmark(old.id, UpdateBookmarkRequest(
                 url = old.url, title = title?.trim() ?: old.title, content = old.content,
-                note = note ?: old.note, source = old.source ?: "WEB", imageUrl = old.imageUrl, tags = tags ?: old.tags))
+                note = note ?: old.note, source = old.source ?: OTHER_SOURCE_CODE,
+                imageUrl = old.imageUrl, tags = tags ?: old.tags))
             _state.value = _state.value.copy(bookmarks = _state.value.bookmarks.map { if (it.id == old.id) updated else it })
         }
     }

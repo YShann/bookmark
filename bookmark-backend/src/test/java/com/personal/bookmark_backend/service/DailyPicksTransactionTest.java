@@ -5,6 +5,7 @@ import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.*;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.orm.jpa.*;
 import org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter;
@@ -36,17 +37,47 @@ class DailyPicksTransactionTest {
  @Autowired UserRepository users;
  @Autowired FolderRepository folders;
  @Autowired BookmarkRepository books;
+ @Autowired BookmarkSourceRepository sources;
  @Autowired DailyPickSelectionRepository selections;
  @Autowired PlatformTransactionManager manager;
  Long userId,folderId;
  @BeforeEach void setup(){
+  sources.saveAll(List.of(
+      new BookmarkSource("OTHER", "Other", 100, ""),
+      new BookmarkSource("EXAMPLE", "Example", 10, "example.net,example.com")));
   new TransactionTemplate(manager).executeWithoutResult(status->{
    var user=new User();user.setEmail(UUID.randomUUID()+"@test.example");user.setPasswordHash("test");userId=users.save(user).getId();
    var folder=new Folder();folder.setUserId(userId);folder.setName("test");folderId=folders.save(folder).getId();
   });
   for(int i=0;i<8;i++) create(false);
  }
- Bookmark create(boolean include){return service.createBookmark(userId,folderId,"https://example.org","title",null,null,"WEB",null,List.of(),include);}
+ Bookmark create(boolean include){return service.createBookmark(userId,folderId,"https://example.org","title",null,null,"OTHER",null,List.of(),include);}
+
+ @Test void onlyOtherIsUsedForTheOtherSource() {
+  var page = PageRequest.of(0, 20);
+  assertEquals(8, service.searchBookmarks(userId, null, "OTHER", page).getTotalElements());
+  assertTrue(service.searchBookmarks(userId, null, "WEB", page).isEmpty());
+  assertEquals(Map.of("OTHER", 8L), service.countSearchResultsBySource(userId, null));
+
+  assertThrows(IllegalArgumentException.class, () -> service.createBookmark(
+      userId, folderId, "https://example.org", "title", null, null, "WEB", null, List.of(), false));
+  var bookmark = create(false);
+  assertThrows(IllegalArgumentException.class, () -> service.updateBookmark(
+      userId, bookmark.getId(), bookmark.getUrl(), bookmark.getTitle(), null, null, "WEB", null, List.of()));
+ }
+
+ @Test void readsTheSourceCatalogAndMatchesConfiguredDomains() {
+  assertEquals(List.of("EXAMPLE", "OTHER"),
+      service.getBookmarkSources().stream().map(BookmarkSource::getCode).toList());
+  var matched = service.createBookmark(userId, folderId, "https://www.example.com/post",
+      "Example", null, null, "OTHER", null, List.of(), false);
+  var unmatched = service.createBookmark(userId, folderId, "https://example.com.example.org/post",
+      "Unmatched", null, null, "OTHER", null, List.of(), false);
+
+  assertEquals("EXAMPLE", matched.getSource());
+  assertEquals("OTHER", unmatched.getSource());
+  assertEquals(1, service.searchBookmarks(userId, null, "EXAMPLE", PageRequest.of(0, 20)).getTotalElements());
+ }
  @Test void uncheckedDoesNotTouchSelections(){picks.select(userId,false,null);var ids=selections.findAllByUserIdOrderByPositionAsc(userId).stream().map(DailyPickSelection::getId).toList();create(false);assertEquals(ids,selections.findAllByUserIdOrderByPositionAsc(userId).stream().map(DailyPickSelection::getId).toList());}
  @Test void concurrentGetsAndRefreshesRemainThreeUniqueRows() throws Exception {
   var executor=Executors.newFixedThreadPool(4);

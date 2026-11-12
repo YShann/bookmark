@@ -1,13 +1,12 @@
 package com.personal.bookmark_app.ui.mockdata
 
-import com.personal.bookmark_app.ui.model.BookmarkSource
 import com.personal.bookmark_app.ui.model.DaliyBookmarkUiModel
 
 val bookmarkMockData = listOf(
 
     DaliyBookmarkUiModel(
         id = 1,
-        source = BookmarkSource.INSTAGRAM,
+        source = "INSTAGRAM",
         tags = listOf("設計靈感", "字體設計", "復古風格"),
         date = "2024/04/08",
         title = "昭和復古喫茶店的招牌字體特輯",
@@ -19,7 +18,7 @@ val bookmarkMockData = listOf(
 
     DaliyBookmarkUiModel(
         id = 2,
-        source = BookmarkSource.WEB,
+        source = "OTHER",
         tags = listOf("深度閱讀", "專注力", "生活"),
         date = "2025/03/11",
         title = "專注的技術：擺脫演算法餵養的慢讀練習",
@@ -31,7 +30,7 @@ val bookmarkMockData = listOf(
 
     DaliyBookmarkUiModel(
         id = 3,
-        source = BookmarkSource.YOUTUBE,
+        source = "YOUTUBE",
         tags = listOf("生活提案", "京都旅行", "書店"),
         date = "2025/04/30",
         title = "京都巷弄裡的老書店巡禮：只賣一本書的店",

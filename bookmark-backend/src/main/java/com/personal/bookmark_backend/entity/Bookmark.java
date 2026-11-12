@@ -67,7 +67,7 @@ public class Bookmark extends BaseTimeEntity {
     @Column(
             name = "source",
             nullable = false,
-            length = 50
+            length = 30
     )
     private String source;
 

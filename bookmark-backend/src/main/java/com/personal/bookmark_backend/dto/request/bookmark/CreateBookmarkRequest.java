@@ -20,7 +20,7 @@ public record CreateBookmarkRequest(
         String note,
 
         @NotBlank(message = "收藏來源不能為空")
-        @Size(max = 50, message = "收藏來源不能超過 50 個字")
+        @Size(max = 30, message = "收藏來源不能超過 30 個字")
         String source,
 
         @Size(max = 2048, message = "預覽圖片網址長度不能超過 2048 個字")

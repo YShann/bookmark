@@ -4,7 +4,6 @@ import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonParseException
 import com.google.gson.JsonParser
-import com.personal.bookmark_app.ui.model.BookmarkSource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
@@ -14,7 +13,7 @@ import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import java.util.concurrent.TimeUnit
 
-data class BookmarkMetadata(val url: String, val title: String, val content: String, val imageUrl: String?, val source: BookmarkSource)
+data class BookmarkMetadata(val url: String, val title: String, val content: String, val imageUrl: String?)
 
 internal class BookmarkBrowserChallengeException : IllegalStateException(
     "網站要求通過瀏覽器驗證，暫時無法自動取得標題和內文"
@@ -48,12 +47,12 @@ class BookmarkMetadataParser internal constructor(private val client: OkHttpClie
             val doc = response.peekBody(2L * 1024 * 1024).byteStream().use {
                 Jsoup.parse(it, body.contentType()?.charset()?.name(), finalUrl)
             }
-            metadataFromDocument(doc, finalUrl, url)
+            metadataFromDocument(doc, finalUrl)
         }
     }
 }
 
-internal fun metadataFromDocument(doc: Document, finalUrl: String, originalUrl: String): BookmarkMetadata {
+internal fun metadataFromDocument(doc: Document, finalUrl: String): BookmarkMetadata {
     if (Regex("/(accounts/)?(login|signin)(/|[?]|$)", RegexOption.IGNORE_CASE).containsMatchIn(finalUrl)) {
         throw BookmarkPreviewUnavailableException("此貼文需要登入，無法取得公開預覽")
     }
@@ -87,8 +86,7 @@ internal fun metadataFromDocument(doc: Document, finalUrl: String, originalUrl: 
     val imageValue = meta("og:image", "twitter:image")
     val image = imageValue.takeIf { it.isNotBlank() }?.let { finalUrl.toHttpUrlOrNull()?.resolve(it)?.toString() }
         ?.takeIf { it.length <= 2048 }
-    return BookmarkMetadata(finalUrl, title.ifBlank { content }.take(255), content, image,
-        detectSource(finalUrl).takeUnless { it == BookmarkSource.WEB } ?: detectSource(originalUrl))
+    return BookmarkMetadata(finalUrl, title.ifBlank { content }.take(255), content, image)
 }
 
 private val genericTitles = setOf("instagram", "threads", "youtube", "dcard", "login", "log in")
@@ -130,15 +128,3 @@ private fun JsonObject.text(vararg keys: String): String? = keys.firstNotNullOfO
 fun extractSharedUrl(text: String): String? = Regex("https?://[^\\s<>\"\u3000]+", RegexOption.IGNORE_CASE)
     .findAll(text).map { it.value.trimEnd('.', ',', ';', '!', ')', ']', '}', '。', '，', '）', '】') }
     .firstOrNull { it.toHttpUrlOrNull() != null }
-
-fun detectSource(url: String): BookmarkSource {
-    val host = url.toHttpUrlOrNull()?.host.orEmpty().lowercase()
-    fun domain(name: String) = host == name || host.endsWith(".$name")
-    return when {
-        domain("threads.net") || domain("threads.com") -> BookmarkSource.THREADS
-        domain("instagram.com") -> BookmarkSource.INSTAGRAM
-        domain("dcard.tw") -> BookmarkSource.DCARD
-        domain("youtube.com") || domain("youtu.be") -> BookmarkSource.YOUTUBE
-        else -> BookmarkSource.WEB
-    }
-}

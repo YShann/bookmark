@@ -6,7 +6,6 @@ import androidx.lifecycle.viewModelScope
 import com.personal.bookmark_app.data.remote.RetrofitClient
 import com.personal.bookmark_app.data.remote.api.DailyPicksApi
 import com.personal.bookmark_app.data.remote.dto.response.bookmark.BookmarkResponse
-import com.personal.bookmark_app.ui.model.BookmarkSource
 import com.personal.bookmark_app.ui.model.DaliyBookmarkUiModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -65,13 +64,7 @@ class DailyPicksViewModel(application: Application) : AndroidViewModel(applicati
 
 private fun BookmarkResponse.toDailyPick() = DaliyBookmarkUiModel(
     id = id,
-    source = when (source?.uppercase()) {
-        "THREADS" -> BookmarkSource.THREADS
-        "INSTAGRAM" -> BookmarkSource.INSTAGRAM
-        "DCARD" -> BookmarkSource.DCARD
-        "YOUTUBE" -> BookmarkSource.YOUTUBE
-        else -> BookmarkSource.WEB
-    },
+    source = source,
     tags = tags,
     date = createdAt?.take(10)?.replace('-', '/') ?: "",
     title = title,
