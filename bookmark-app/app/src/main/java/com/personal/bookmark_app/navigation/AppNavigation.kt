@@ -2,7 +2,9 @@ package com.personal.bookmark_app.navigation
 
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material3.MaterialTheme
@@ -28,6 +30,8 @@ import com.personal.bookmark_app.data.repository.auth.ApiAuthRepository
 import com.personal.bookmark_app.data.repository.auth.AuthRepository
 import com.personal.bookmark_app.ui.screen.SearchBookmarkScreen
 import com.personal.bookmark_app.ui.screen.addbookmark.AddBookmarkScreen
+import com.personal.bookmark_app.ui.screen.addbookmark.BackgroundBookmarkImport
+import com.personal.bookmark_app.ui.screen.addbookmark.BookmarkBrowserImportContract
 import com.personal.bookmark_app.ui.screen.dailypicks.DailyPicksScreen
 import com.personal.bookmark_app.ui.screen.folderbookmark.FolderBookmarkScreen
 import com.personal.bookmark_app.ui.screen.forgotpassword.ForgotPasswordScreen
@@ -366,6 +370,8 @@ fun AppNavigation(
 
             val vm: com.personal.bookmark_app.ui.viewmodel.AddBookmarkViewModel = viewModel()
             val state by vm.state.collectAsStateWithLifecycle()
+            val automaticBrowserUrl by vm.automaticBrowserImport.collectAsStateWithLifecycle()
+            val browserImport = rememberLauncherForActivityResult(BookmarkBrowserImportContract(), vm::completeBrowserImport)
             LaunchedEffect(sharedBookmark?.id, state.isSaving) {
                 sharedBookmark?.takeUnless { state.isSaving }?.let {
                     vm.receiveShare(it)
@@ -378,23 +384,30 @@ fun AppNavigation(
                     navigateBackSafely()
                 }
             }
-            AddBookmarkScreen(
-                uiState = state,
-                onTitleChange = { value -> vm.edit { it.copy(title = value) } },
-                onNoteChange = { value -> vm.edit { it.copy(note = value) } },
-                onSourceChange = { value -> vm.edit { it.copy(selectedSource = value) } },
-                onSourceUrlChange = vm::changeUrl,
-                onFolderSelected = vm::selectFolder,
-                onCreateFolderClick = vm::createFolder,
-                onTagClick = vm::toggleTag,
-                onCreateTag = vm::addTag,
-                onRetry = vm::loadFolders,
-                onDailyPicksChange = { value -> vm.edit { it.copy(isAddedToDailyPicks = value) } },
-                onReparseClick = vm::parseUrl,
-                onClearTitleClick = { vm.edit { it.copy(title = "") } },
-                onSaveClick = vm::save,
-                onBackClick = { if (!state.isSaving) navigateBackSafely() }
-            )
+            Box(Modifier.fillMaxSize()) {
+                automaticBrowserUrl?.let { url ->
+                    BackgroundBookmarkImport(url, Modifier.matchParentSize()) { result ->
+                        vm.completeAutomaticBrowserImport(url, result)
+                    }
+                }
+                AddBookmarkScreen(
+                    uiState = state,
+                    onTitleChange = { value -> vm.edit { it.copy(title = value) } },
+                    onNoteChange = { value -> vm.edit { it.copy(note = value) } },
+                    onSourceChange = { value -> vm.edit { it.copy(selectedSource = value) } },
+                    onSourceUrlChange = vm::changeUrl,
+                    onFolderSelected = vm::selectFolder,
+                    onCreateFolderClick = vm::createFolder,
+                    onTagClick = vm::toggleTag,
+                    onCreateTag = vm::addTag,
+                    onRetry = vm::loadFolders,
+                    onDailyPicksChange = { value -> vm.edit { it.copy(isAddedToDailyPicks = value) } },
+                    onReparseClick = { vm.reparseOrOpenBrowser()?.let { browserImport.launch(it) } },
+                    onClearTitleClick = { vm.edit { it.copy(title = "") } },
+                    onSaveClick = vm::save,
+                    onBackClick = { if (!state.isSaving) navigateBackSafely() }
+                )
+            }
         }
 
         // ============================================

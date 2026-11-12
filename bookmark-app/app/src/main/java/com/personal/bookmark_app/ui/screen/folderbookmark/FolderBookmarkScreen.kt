@@ -41,6 +41,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.Composable
@@ -275,129 +276,133 @@ fun FolderBookmarkScreen(
 
     ) { innerPadding ->
 
-        LazyColumn(
+        PullToRefreshBox(
+            isRefreshing = data.isLoading,
+            onRefresh = viewModel::refresh,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
-            contentPadding = PaddingValues(
-                start = 20.dp,
-                end = 20.dp,
-                top = 12.dp,
-                bottom = 16.dp
-            ),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(innerPadding)
         ) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    start = 20.dp,
+                    end = 20.dp,
+                    top = 12.dp,
+                    bottom = 16.dp
+                ),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
 
-            item {
-                if (data.isLoading) androidx.compose.material3.LinearProgressIndicator(Modifier.fillMaxWidth())
-                if (data.isMutating) Text("處理中…")
-                data.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                androidx.compose.material3.TextButton(onClick = viewModel::refresh, enabled = !busy) {
-                    Text("重新載入")
+                if (data.isMutating || data.error != null) {
+                    item {
+                        if (data.isMutating) Text("處理中…")
+                        data.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                    }
                 }
-            }
-            // 搜尋欄位
-            item {
-                SearchInputField(
-                    query = uiState.searchQuery,
-                    onQueryChange = { query ->
-                        uiState = uiState.copy(
-                            searchQuery = query
-                        )
-                    },
-                    placeholder = "搜尋這個收藏夾的內容..."
-                )
-            }
-
-            // 標籤篩選
-            item {
-                FolderTagFilter(
-                    availableTags = availableTags,
-                    selectedTags = uiState.selectedTags,
-                    isExpanded = uiState.isTagFilterExpanded,
-                    onTagClick = { tag ->
-                        val newTags =
-                            uiState.selectedTags.toMutableSet()
-
-                        if (tag in newTags) {
-                            newTags.remove(tag)
-                        } else {
-                            newTags.add(tag)
-                        }
-                        uiState = uiState.copy(
-                            selectedTags = newTags
-                        )
-                    },
-                    onClearClick = {
-                        uiState = uiState.copy(
-                            selectedTags = emptySet()
-                        )
-                    },
-                    onExpandClick = {
-                        uiState = uiState.copy(
-                            isTagFilterExpanded =
-                                !uiState.isTagFilterExpanded
-                        )
-                    }
-                )
-            }
-
-            // 收藏數量與排序
-            item {
-                FolderBookmarkHeader(
-                    count = filteredBookmarks.size,
-                    selectedCount = selectedCount,
-                    isBatchManaging = uiState.isBatchManaging,
-                    isNewestFirst = uiState.isNewestFirst,
-                    onSortClick = {
-                        uiState = uiState.copy(
-                            isNewestFirst = !uiState.isNewestFirst
-                        )
-                    }
-                )
-            }
-
-            // 收藏清單
-            if (filteredBookmarks.isEmpty() && !data.isLoading && data.error == null) {
-
+                // 搜尋欄位
                 item {
-                    EmptyBookmarkView()
+                    SearchInputField(
+                        query = uiState.searchQuery,
+                        onQueryChange = { query ->
+                            uiState = uiState.copy(
+                                searchQuery = query
+                            )
+                        },
+                        placeholder = "搜尋這個收藏夾的內容..."
+                    )
                 }
 
-            } else {
-                items(
-                    items = filteredBookmarks,
-                    key = { it.id }
-                ) { bookmark ->
-
-                    BookmarkCard(
-                        item = bookmark,
-                        showActions = !busy && !uiState.isBatchManaging,
-                        isBatchManaging = uiState.isBatchManaging,
-                        isSelected = bookmark.id in selectedBookmarkIds,
-
-                        onSelectionClick = {
-                            if (busy) return@BookmarkCard
-                            toggleBookmarkSelection(bookmark.id)
-                        },
-
-                        onClick = {
-                            if (busy) return@BookmarkCard
-                            if (uiState.isBatchManaging) {
-                                toggleBookmarkSelection(bookmark.id)
-                            } else {
-                                data.bookmarks.find { it.id.toString() == bookmark.id }?.let {
-                                    com.personal.bookmark_app.ui.utils.openBookmarkUrl(context, it.url)
-                                }
-                            }
-                        },
-
-                        onEditTitleClick = { viewModel.update(bookmark.id, title = it) },
-                        onEditNoteClick = { viewModel.update(bookmark.id, note = it) },
+                // 標籤篩選
+                item {
+                    FolderTagFilter(
                         availableTags = availableTags,
-                        onTagsSave = { viewModel.update(bookmark.id, tags = it) },
-                        onDeleteClick = { viewModel.delete(listOf(bookmark.id)) }
+                        selectedTags = uiState.selectedTags,
+                        isExpanded = uiState.isTagFilterExpanded,
+                        onTagClick = { tag ->
+                            val newTags =
+                                uiState.selectedTags.toMutableSet()
+
+                            if (tag in newTags) {
+                                newTags.remove(tag)
+                            } else {
+                                newTags.add(tag)
+                            }
+                            uiState = uiState.copy(
+                                selectedTags = newTags
+                            )
+                        },
+                        onClearClick = {
+                            uiState = uiState.copy(
+                                selectedTags = emptySet()
+                            )
+                        },
+                        onExpandClick = {
+                            uiState = uiState.copy(
+                                isTagFilterExpanded =
+                                    !uiState.isTagFilterExpanded
+                            )
+                        }
                     )
+                }
+
+                // 收藏數量與排序
+                item {
+                    FolderBookmarkHeader(
+                        count = filteredBookmarks.size,
+                        selectedCount = selectedCount,
+                        isBatchManaging = uiState.isBatchManaging,
+                        isNewestFirst = uiState.isNewestFirst,
+                        onSortClick = {
+                            uiState = uiState.copy(
+                                isNewestFirst = !uiState.isNewestFirst
+                            )
+                        }
+                    )
+                }
+
+                // 收藏清單
+                if (filteredBookmarks.isEmpty() && !data.isLoading && data.error == null) {
+
+                    item {
+                        EmptyBookmarkView()
+                    }
+
+                } else {
+                    items(
+                        items = filteredBookmarks,
+                        key = { it.id }
+                    ) { bookmark ->
+
+                        BookmarkCard(
+                            item = bookmark,
+                            showActions = !busy && !uiState.isBatchManaging,
+                            isBatchManaging = uiState.isBatchManaging,
+                            isSelected = bookmark.id in selectedBookmarkIds,
+
+                            onSelectionClick = {
+                                if (busy) return@BookmarkCard
+                                toggleBookmarkSelection(bookmark.id)
+                            },
+
+                            onClick = {
+                                if (busy) return@BookmarkCard
+                                if (uiState.isBatchManaging) {
+                                    toggleBookmarkSelection(bookmark.id)
+                                } else {
+                                    data.bookmarks.find { it.id.toString() == bookmark.id }?.let {
+                                        com.personal.bookmark_app.ui.utils.openBookmarkUrl(context, it.url)
+                                    }
+                                }
+                            },
+
+                            onEditTitleClick = { viewModel.update(bookmark.id, title = it) },
+                            onEditNoteClick = { viewModel.update(bookmark.id, note = it) },
+                            availableTags = availableTags,
+                            onTagsSave = { viewModel.update(bookmark.id, tags = it) },
+                            onDeleteClick = { viewModel.delete(listOf(bookmark.id)) }
+                        )
+                    }
                 }
             }
         }

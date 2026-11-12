@@ -41,8 +41,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.collect
 import com.personal.bookmark_app.ui.components.BookmarkCard
 import com.personal.bookmark_app.ui.components.SearchInputField
 import com.personal.bookmark_app.ui.model.BookmarkSource
@@ -50,6 +48,7 @@ import com.personal.bookmark_app.ui.model.BookmarkUiModel
 import com.personal.bookmark_app.ui.utils.openBookmarkUrl
 import com.personal.bookmark_app.ui.viewmodel.SearchBookmarkEntry
 import com.personal.bookmark_app.ui.viewmodel.SearchBookmarkViewModel
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -104,8 +103,6 @@ fun SearchBookmarkScreen(
                 .padding(innerPadding)
                 .padding(horizontal = 20.dp)
         ) {
-            Spacer(modifier = Modifier.height(16.dp))
-
             // 平台篩選
             SourceFilterSection(
                 sourceBookmarkCounts = sourceBookmarkCounts,
@@ -224,8 +221,10 @@ private fun SourceFilterSection(
             )
         )
 
-        // 各個收藏平台
-        BookmarkSource.entries.forEach { source ->
+        val visibleSources = BookmarkSource.entries.filter { source ->
+            source == selectedSource || (sourceBookmarkCounts[source] ?: 0) > 0
+        }
+        visibleSources.forEach { source ->
             FilterChip(
                 selected = selectedSource == source,
                 onClick = {

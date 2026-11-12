@@ -30,10 +30,10 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -57,6 +57,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.personal.bookmark_app.ui.components.MultilineTextFieldView
@@ -123,7 +125,8 @@ fun AddBookmarkScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 16.dp),
+                .padding(horizontal = 20.dp)
+                .padding(top = 4.dp, bottom = 20.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             // 封面、網址與資料夾
@@ -146,32 +149,54 @@ fun AddBookmarkScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
 
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically) {
-                        Text("來源網址 URL", style = MaterialTheme.typography.bodySmall)
-                        androidx.compose.material3.TextButton(onClick = onReparseClick,
-                            enabled = !uiState.isParsing && !uiState.isSaving && uiState.sourceUrl.isNotBlank()) {
-                            Text(if (uiState.isParsing) "解析中…" else "重新解析")
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("來源網址 URL", style = MaterialTheme.typography.bodySmall)
+                            ReparseAction(
+                                isParsing = uiState.isParsing,
+                                enabled = !uiState.isParsing && !uiState.isSaving && uiState.sourceUrl.isNotBlank(),
+                                onClick = onReparseClick
+                            )
                         }
+                        TextFieldView(
+                            value = uiState.sourceUrl,
+                            onValueChange = onSourceUrlChange,
+                            placeholder = "https://",
+                            enabled = !uiState.isSaving
+                        )
+                        if (uiState.isParsing) {
+                            androidx.compose.material3.LinearProgressIndicator(Modifier.fillMaxWidth())
+                        }
+                        if (uiState.content.isNotBlank()) Text(
+                            uiState.content,
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
-                    TextFieldView(value = uiState.sourceUrl, onValueChange = onSourceUrlChange,
-                        placeholder = "https://", enabled = !uiState.isSaving)
-                    Text(
-                        text = folders.find { it.id == uiState.selectedFolderId }?.title ?: "選擇收藏分類夾",
-                        modifier = Modifier.fillMaxWidth().clickable(enabled = !uiState.isLoading && !uiState.isSaving) {
-                            showFolderSheet = true
-                        }.padding(vertical = 12.dp)
+                    Spacer(modifier = Modifier.height(2.dp))
+                    BookmarkFolderSelector(
+                        selectedFolder = folders.find { it.id == uiState.selectedFolderId },
+                        enabled = !uiState.isLoading && !uiState.isSaving,
+                        onClick = { showFolderSheet = true }
                     )
-                    if (uiState.isParsing) androidx.compose.material3.LinearProgressIndicator(Modifier.fillMaxWidth())
-                    uiState.parseError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                    if (uiState.content.isNotBlank()) Text(uiState.content,
-                        style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    uiState.parseError?.let {
+                        Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                    }
                     if (uiState.isLoading) Text("載入中…")
                     if (uiState.isSaving) Text("儲存中…")
-                    uiState.errorMessage?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                    uiState.errorMessage?.let {
+                        Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                    }
                     if (folders.isEmpty() && !uiState.isLoading) {
                         androidx.compose.material3.TextButton(onClick = onRetry) { Text("重新載入") }
-                        androidx.compose.material3.TextButton(onClick = { showAddFolderDialog = true }) { Text("新增資料夾") }
+                        androidx.compose.material3.TextButton(onClick = {
+                            showAddFolderDialog = true
+                        }) { Text("新增資料夾") }
                     }
 
                 }
@@ -228,10 +253,14 @@ fun AddBookmarkScreen(
                     Spacer(modifier = Modifier.height(8.dp))
 
 
-                    DailyPicksOption(checked = uiState.isAddedToDailyPicks,
+                    DailyPicksOption(
+                        checked = uiState.isAddedToDailyPicks,
                         onCheckedChange = { if (!uiState.isSaving) onDailyPicksChange(it) })
-                    Text("收藏總數達三筆後，儲存時會加入今日拾藏；已有三筆拾藏時隨機替換一筆。",
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        "收藏總數達三筆後，儲存時會加入今日拾藏；已有三筆拾藏時隨機替換一筆。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
 
                 }
             }
@@ -350,6 +379,42 @@ private fun AddBookmarkTopBar(
  * ------------------------------------------------------- */
 
 @Composable
+private fun ReparseAction(
+    isParsing: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    val contentColor = if (enabled) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+    }
+
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(6.dp))
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .padding(horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = Icons.Default.Refresh,
+            contentDescription = null,
+            tint = contentColor,
+            modifier = Modifier.size(16.dp)
+        )
+
+        Spacer(modifier = Modifier.width(4.dp))
+
+        Text(
+            text = if (isParsing) "解析中…" else "重新解析",
+            style = MaterialTheme.typography.bodySmall,
+            color = contentColor
+        )
+    }
+}
+
+@Composable
 private fun BookmarkPreviewCard(
     preview: BookmarkPreviewUiModel,
     folders: List<FolderUiModel>,
@@ -379,31 +444,11 @@ private fun BookmarkPreviewCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            Row(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(6.dp))
-                    .clickable(
-                        enabled = !isParsing,
-                        onClick = onReparseClick
-                    )
-                    .padding(horizontal = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Refresh,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(16.dp)
-                )
-
-                Spacer(modifier = Modifier.width(4.dp))
-
-                Text(
-                    text = if (isParsing) "解析中" else "重新解析",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
+            ReparseAction(
+                isParsing = isParsing,
+                enabled = !isParsing,
+                onClick = onReparseClick
+            )
         }
 
         // 來源網址內容
@@ -438,64 +483,78 @@ private fun BookmarkPreviewCard(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // 收藏資料夾標題
+        BookmarkFolderSelector(
+            selectedFolder = selectedFolder,
+            enabled = true,
+            onClick = onFolderClick
+        )
+    }
+}
+
+@Composable
+private fun BookmarkFolderSelector(
+    selectedFolder: FolderUiModel?,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(
-            text = "收藏分類夾",
+            text = "選擇收藏夾",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
-        // 資料夾選擇
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(8.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant)
-                .clickable(onClick = onFolderClick)
-                .padding(12.dp),
+                .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+                .padding(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
 
-            // 資料夾封面
-            Box(
-                modifier = Modifier
-                    .size(42.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(MaterialTheme.colorScheme.surface),
-                contentAlignment = Alignment.Center
+            Surface(
+                modifier = Modifier.size(40.dp),
+                shape = RoundedCornerShape(6.dp),
+                color = MaterialTheme.colorScheme.surface,
+                shadowElevation = 1.dp
             ) {
-
-                Icon(
-                    imageVector = Icons.Default.Folder,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(22.dp)
-                )
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Outlined.Folder,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = selectedFolder?.title ?: "未選擇資料夾",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-
-                Text(
-                    text = "${selectedFolder?.count ?: 0} 篇收藏",
+                    text = selectedFolder?.title ?: "選擇收藏夾",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
+
+                if (selectedFolder != null) {
+                    Text(
+                        text = "${selectedFolder.count} 篇收藏",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
 
             Icon(
                 imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
-                contentDescription = "選擇資料夾",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp)
             )
         }
     }

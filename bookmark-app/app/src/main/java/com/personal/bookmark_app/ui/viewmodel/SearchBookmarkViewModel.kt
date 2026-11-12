@@ -131,8 +131,22 @@ class SearchBookmarkViewModel(application: Application) : AndroidViewModel(appli
         viewModelScope.launch {
             try {
                 withContext(Dispatchers.IO) { bookmarkApi.deleteBookmark(entry.bookmark.id) }
-                _bookmarks.value = _bookmarks.value.filterNot { it.bookmark.id == entry.bookmark.id }
-                _totalCount.value = (_totalCount.value - 1).coerceAtLeast(0)
+                val visibleBookmarks = _bookmarks.value
+                _bookmarks.value = visibleBookmarks.filterNot { it.bookmark.id == entry.bookmark.id }
+                if (_bookmarks.value.size < visibleBookmarks.size) {
+                    _totalCount.value = (_totalCount.value - 1).coerceAtLeast(0)
+                    val storedSource = entry.bookmark.source
+                    val deletedSource = if (storedSource.equals("OTHER", ignoreCase = true)) {
+                        BookmarkSource.WEB
+                    } else {
+                        BookmarkSource.entries.firstOrNull { it.name.equals(storedSource, ignoreCase = true) }
+                    }
+                    if (deletedSource != null) {
+                        val counts = _sourceCounts.value
+                        val remaining = ((counts[deletedSource] ?: 0) - 1).coerceAtLeast(0)
+                        _sourceCounts.value = counts + (deletedSource to remaining)
+                    }
+                }
                 _error.value = null
             } catch (_: Exception) {
                 _error.value = "收藏刪除失敗，請稍後再試。"

@@ -6,6 +6,11 @@ import androidx.lifecycle.viewModelScope
 import com.personal.bookmark_app.data.remote.RetrofitClient
 import com.personal.bookmark_app.data.remote.api.*
 import com.personal.bookmark_app.data.remote.dto.request.bookmark.CreateBookmarkRequest
+import com.personal.bookmark_app.data.repository.BookmarkBrowserChallengeException
+import com.personal.bookmark_app.data.repository.BookmarkHttpException
+import com.personal.bookmark_app.data.repository.BookmarkMetadata
+import com.personal.bookmark_app.data.repository.BookmarkPreviewUnavailableException
+import com.personal.bookmark_app.data.repository.browserPostLink
 import com.personal.bookmark_app.ui.model.*
 import com.personal.bookmark_app.ui.screen.addbookmark.AddBookmarkUiState
 import kotlinx.coroutines.CancellationException
@@ -30,16 +35,26 @@ class AddBookmarkViewModel(application: Application, private val savedState: and
     private var parseJob: kotlinx.coroutines.Job? = null
     private var parseGeneration = 0
     private var debounceJob: kotlinx.coroutines.Job? = null
+    val automaticBrowserImport = savedState.getStateFlow<String?>("automaticBrowserImport", null)
     private val _state = MutableStateFlow(savedState.get<android.os.Bundle>("draft")?.let {
-        AddBookmarkUiState(sourceUrl = it.getString("url").orEmpty(), title = it.getString("title").orEmpty(),
+        val url = it.getString("url").orEmpty()
+        val browserImportPending = automaticBrowserImport.value != null ||
+            savedState.get<android.os.Bundle>("browserImport") != null
+        AddBookmarkUiState(sourceUrl = url, title = it.getString("title").orEmpty(),
             note = it.getString("note").orEmpty(), content = it.getString("content").orEmpty(),
-            imageUrl = it.getString("image"), selectedSource = com.personal.bookmark_app.data.repository.detectSource(it.getString("url").orEmpty()),
+            imageUrl = it.getString("image"), selectedSource = com.personal.bookmark_app.data.repository.detectSource(url),
+            isParsing = browserImportPending,
+            parseError = if (!browserImportPending && savedState.get<String>("browserFallbackUrl") == url.trim()) {
+                "尚未匯入文章，可點「重新解析」再試一次"
+            } else null,
             isAddedToDailyPicks = it.getBoolean("daily", true))
     } ?: AddBookmarkUiState())
     val state = _state.asStateFlow()
     init {
         loadFolders()
-        if (_state.value.sourceUrl.isNotBlank() && _state.value.content.isBlank()) parseUrl()
+        if (savedState.get<String>("browserFallbackUrl") == null &&
+            _state.value.sourceUrl.isNotBlank() && _state.value.content.isBlank()
+        ) parseUrl()
     }
     fun edit(transform: (AddBookmarkUiState) -> AddBookmarkUiState) {
         if (!_state.value.isSaving && !_state.value.isSaved) {
@@ -61,6 +76,7 @@ class AddBookmarkViewModel(application: Application, private val savedState: and
         debounceJob?.cancel()
         parseJob?.cancel()
         parseGeneration++
+        resetBrowserImport()
         val url = com.personal.bookmark_app.data.repository.extractSharedUrl(share.text)
         _state.value = _state.value.copy(sourceUrl = url.orEmpty(), title = share.title,
             note = "", selectedTagIds = emptySet(), isParsing = false,
@@ -76,12 +92,92 @@ class AddBookmarkViewModel(application: Application, private val savedState: and
         debounceJob?.cancel()
         parseJob?.cancel()
         parseGeneration++
+        resetBrowserImport()
         val validUrl = value.isNotBlank() && com.personal.bookmark_app.data.repository.extractSharedUrl(value.trim()) == value.trim()
         edit { it.copy(sourceUrl = value, content = "", imageUrl = null, isParsing = validUrl, parseError = null,
             selectedSource = com.personal.bookmark_app.data.repository.detectSource(value.trim())) }
         if (validUrl) {
             debounceJob = viewModelScope.launch { kotlinx.coroutines.delay(700); parseUrl() }
         }
+    }
+
+    fun reparseOrOpenBrowser(): String? {
+        val form = _state.value
+        if (form.isSaving || form.isSaved || form.isParsing) return null
+        val url = form.sourceUrl.trim()
+        if (savedState.get<String>("browserFallbackUrl") == url) return beginBrowserImport(url)
+        parseUrl()
+        return null
+    }
+
+    private fun beginBrowserImport(url: String): String? {
+        val form = _state.value
+        if (form.sourceUrl.trim() != url || form.isSaving || form.isSaved ||
+            savedState.get<android.os.Bundle>("browserImport") != null
+        ) return null
+        savedState["browserImport"] = android.os.Bundle().apply {
+            putString("url", url)
+            putString("title", form.title)
+        }
+        _state.value = form.copy(isParsing = true, parseError = null)
+        return url
+    }
+
+    fun completeBrowserImport(result: BookmarkMetadata?) {
+        val request = savedState.remove<android.os.Bundle>("browserImport") ?: return
+        completeBrowserImport(
+            request.getString("url").orEmpty(), request.getString("title").orEmpty(), result,
+            "尚未匯入文章，可點「重新解析」再試一次"
+        )
+    }
+
+    fun completeAutomaticBrowserImport(url: String, result: BookmarkMetadata?) {
+        if (automaticBrowserImport.value != url) return
+        val originalTitle = savedState.remove<String>("automaticBrowserTitle").orEmpty()
+        savedState["automaticBrowserImport"] = null
+        completeBrowserImport(url, originalTitle, result, "背景解析未取得貼文，可點「重新解析」開啟貼文頁")
+    }
+
+    private fun completeBrowserImport(
+        url: String,
+        originalTitle: String,
+        result: BookmarkMetadata?,
+        failureMessage: String
+    ) {
+        val form = _state.value
+        if (url != form.sourceUrl.trim() || form.isSaving || form.isSaved) return
+        if (result == null || result.url != url) {
+            _state.value = form.copy(isParsing = false, parseError = failureMessage)
+            return
+        }
+        resetBrowserImport()
+        applyMetadata(result, originalTitle)
+        _state.value = _state.value.copy(isParsing = false, parseError = null)
+    }
+
+    private fun queueBrowserImport(url: String, originalTitle: String) {
+        savedState["browserFallbackUrl"] = url
+        savedState["automaticBrowserTitle"] = originalTitle
+        savedState["automaticBrowserImport"] = url
+    }
+
+    private fun resetBrowserImport() {
+        savedState.remove<String>("automaticBrowserTitle")
+        savedState["automaticBrowserImport"] = null
+        savedState.remove<String>("browserFallbackUrl")
+        savedState.remove<android.os.Bundle>("browserImport")
+    }
+
+    private fun applyMetadata(result: BookmarkMetadata, originalTitle: String) {
+        val form = _state.value
+        _state.value = form.copy(
+            sourceUrl = result.url,
+            title = if (form.title == originalTitle) result.title else form.title,
+            content = result.content,
+            imageUrl = result.imageUrl,
+            selectedSource = result.source
+        )
+        persistDraft()
     }
 
     fun parseUrl() {
@@ -100,17 +196,38 @@ class AddBookmarkViewModel(application: Application, private val savedState: and
             try {
                 val result = parser.parse(url)
                 if (generation == parseGeneration) {
-                    _state.value = _state.value.copy(sourceUrl = result.url,
-                        title = if (_state.value.title == originalTitle) result.title else _state.value.title,
-                        content = result.content, imageUrl = result.imageUrl, selectedSource = result.source)
-                    persistDraft()
+                    val titleWasEdited = _state.value.title != originalTitle
+                    applyMetadata(result, originalTitle)
+                    if (result.content.isBlank() && browserPostLink(result.url) != null) {
+                        val replaceableTitle = if (titleWasEdited) originalTitle else _state.value.title
+                        queueBrowserImport(result.url, replaceableTitle)
+                    } else {
+                        savedState.remove<String>("browserFallbackUrl")
+                    }
                 }
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
-                if (generation == parseGeneration) _state.value = _state.value.copy(
-                    parseError = (e.message ?: "解析失敗") + "，可重新解析或手動輸入標題後儲存")
+                if (generation == parseGeneration) {
+                    val browserFallback = browserPostLink(url) != null &&
+                        (e is BookmarkBrowserChallengeException || e is BookmarkPreviewUnavailableException ||
+                            e is BookmarkHttpException && e.status in setOf(403, 429))
+                    if (browserFallback) {
+                        queueBrowserImport(url, originalTitle)
+                    } else {
+                        val action = if (e is BookmarkBrowserChallengeException) {
+                            "，可手動輸入標題後儲存"
+                        } else {
+                            "，可重新解析或手動輸入標題後儲存"
+                        }
+                        _state.value = _state.value.copy(parseError = (e.message ?: "解析失敗") + action)
+                    }
+                }
             } finally {
-                if (generation == parseGeneration) _state.value = _state.value.copy(isParsing = false)
+                if (generation == parseGeneration && automaticBrowserImport.value == null &&
+                    savedState.get<android.os.Bundle>("browserImport") == null
+                ) {
+                    _state.value = _state.value.copy(isParsing = false)
+                }
             }
         }
     }
