@@ -35,9 +35,9 @@ import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -66,11 +66,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.personal.bookmark_app.ui.model.FolderDisplayMode
-import com.personal.bookmark_app.ui.model.FolderUiModel
 import com.personal.bookmark_app.data.remote.dto.response.user.UserProfileResponse
 import com.personal.bookmark_app.ui.components.LinkGoogleDialog
 import com.personal.bookmark_app.ui.components.requestGoogleIdToken
+import com.personal.bookmark_app.ui.model.FolderDisplayMode
+import com.personal.bookmark_app.ui.model.FolderUiModel
 import com.personal.bookmark_app.ui.viewmodel.HomeViewModel
 import com.skydoves.landscapist.ImageOptions
 import com.skydoves.landscapist.coil3.CoilImage
@@ -78,6 +78,7 @@ import com.skydoves.landscapist.coil3.CoilImage
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
+    initialProfile: UserProfileResponse,
     onSearchClick: () -> Unit = {},
     onAddBookmarkClick: () -> Unit = {},
     onDailyPicksClick: () -> Unit = {},
@@ -105,7 +106,7 @@ fun HomeScreen(
     val displayMode by homeViewModel.folderDisplayMode.collectAsState()
     val folders by homeViewModel.folders.collectAsState()
     val isRefreshingFolders by homeViewModel.isRefreshingFolders.collectAsState()
-    val profile by homeViewModel.profile.collectAsState()
+    val updatedProfile by homeViewModel.profile.collectAsState()
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -113,7 +114,7 @@ fun HomeScreen(
             HomeTopAppBar(
                 onSearchClick = onSearchClick,
                 onAddBookmarkClick = onAddBookmarkClick,
-                profile = profile,
+                profile = updatedProfile ?: initialProfile,
                 onLinkGoogle = homeViewModel::linkGoogle,
                 onAvatarSelected = { uri ->
                     homeViewModel.updateAvatar(uri)
@@ -433,7 +434,7 @@ private fun DailyPicksCard(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
-                        text = "從遺忘的角落拾起3則收藏。",
+                        text = "從遺忘的角落拾起 3 則收藏。",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -477,7 +478,7 @@ private fun FolderSection(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp)
-            .padding(top = 16.dp, bottom = 20.dp)
+            .padding(top = 12.dp, bottom = 20.dp)
     ) {
         // Section Header
         Row(
@@ -577,7 +578,7 @@ private fun FolderSection(
         }
 
         Spacer(
-            modifier = Modifier.height(12.dp)
+            modifier = Modifier.height(8.dp)
         )
 
         // 根據顯示方式切換內容
@@ -767,9 +768,12 @@ private fun FolderListItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            val thumbnailModifier = Modifier
+                .size(56.dp)
+                .clip(RoundedCornerShape(6.dp))
             // 收藏夾縮圖
             if (folder.imageUrl.isNotBlank()) {
                 CoilImage(
@@ -782,20 +786,16 @@ private fun FolderListItem(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .clip(RoundedCornerShape(6.dp)),
-                            iconSize = 32.dp,
+                            iconSize = 24.dp,
                             contentDescription = "資料夾封面"
                         )
                     },
-                    modifier = Modifier
-                        .size(70.dp)
-                        .clip(RoundedCornerShape(6.dp))
+                    modifier = thumbnailModifier
                 )
             } else {
                 FolderImageFallback(
-                    modifier = Modifier
-                        .size(70.dp)
-                        .clip(RoundedCornerShape(6.dp)),
-                    iconSize = 32.dp,
+                    modifier = thumbnailModifier,
+                    iconSize = 24.dp,
                     contentDescription = "資料夾封面"
                 )
             }

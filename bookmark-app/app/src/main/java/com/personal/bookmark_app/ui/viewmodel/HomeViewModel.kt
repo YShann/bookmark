@@ -42,19 +42,11 @@ class HomeViewModel(
     val folders = _folders.asStateFlow()
     private val _isRefreshingFolders = MutableStateFlow(false)
     val isRefreshingFolders = _isRefreshingFolders.asStateFlow()
-    private val _profile = MutableStateFlow(UserProfileResponse(email = "", avatarImageUrl = null))
+    private val _profile = MutableStateFlow<UserProfileResponse?>(null)
     val profile = _profile.asStateFlow()
 
     init {
         refreshFolders()
-        refreshProfile()
-    }
-
-    fun refreshProfile() {
-        viewModelScope.launch {
-            withContext(Dispatchers.IO) { userRepository.getProfile() }
-                .onSuccess { _profile.value = it }
-        }
     }
 
     fun updateAvatar(uri: android.net.Uri) {

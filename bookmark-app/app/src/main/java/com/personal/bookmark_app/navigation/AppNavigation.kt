@@ -4,10 +4,15 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -20,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
@@ -31,7 +37,9 @@ import androidx.navigation.navArgument
 import com.personal.bookmark_app.data.local.UserPreferencesRepository
 import com.personal.bookmark_app.data.remote.RetrofitClient
 import com.personal.bookmark_app.data.remote.api.BookmarkApi
+import com.personal.bookmark_app.data.remote.api.UserApi
 import com.personal.bookmark_app.data.remote.dto.response.bookmark.BookmarkSourceResponse
+import com.personal.bookmark_app.data.remote.dto.response.user.UserProfileResponse
 import com.personal.bookmark_app.data.repository.auth.ApiAuthRepository
 import com.personal.bookmark_app.data.repository.auth.AuthRepository
 import com.personal.bookmark_app.ui.screen.SearchBookmarkScreen
@@ -70,17 +78,50 @@ fun AppNavigation(
     }
 
     key(sessionActive) {
-        SessionNavigation(sessionActive, preferences, sharedBookmark, onShareHandled)
+        if (sessionActive) {
+            val userApi = remember(context) {
+                RetrofitClient.authenticated(context).create(UserApi::class.java)
+            }
+            var attempt by remember { mutableStateOf(0) }
+            var result by remember(attempt) { mutableStateOf<Result<UserProfileResponse>?>(null) }
+            LaunchedEffect(userApi, attempt) {
+                result = runCatching {
+                    userApi.getProfile().also { check(!it.email.isNullOrBlank()) }
+                }.onFailure { if (it is CancellationException) throw it }
+            }
+
+            val profile = result?.getOrNull()
+            if (profile != null) {
+                SessionNavigation(profile, preferences, sharedBookmark, onShareHandled)
+            } else {
+                Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
+                    if (result == null) {
+                        CircularProgressIndicator()
+                    } else {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Text("無法確認登入狀態，請檢查連線後再試")
+                            Button(onClick = { attempt++ }) { Text("重試") }
+                        }
+                    }
+                }
+            }
+        } else {
+            SessionNavigation(null, preferences, sharedBookmark, onShareHandled)
+        }
     }
 }
 
 @Composable
 private fun SessionNavigation(
-    signedIn: Boolean,
+    profile: UserProfileResponse?,
     preferences: UserPreferencesRepository,
     sharedBookmark: com.personal.bookmark_app.SharedBookmark?,
     onShareHandled: (String) -> Unit
 ) {
+    val signedIn = profile != null
     val navController = rememberNavController()
     val context = LocalContext.current
 
@@ -356,8 +397,10 @@ private fun SessionNavigation(
 
         // Home
         composable(Screen.HOME) {
+            if (profile == null) return@composable
 
             HomeScreen(
+                initialProfile = profile,
                 onSearchClick = { navController.navigate(Screen.SEARCH_BOOKMARK) },
                 onAddBookmarkClick = { navController.navigate(Screen.ADD_BOOKMARK) },
                 onDailyPicksClick = { navController.navigate(Screen.DAILY_PICKS) },

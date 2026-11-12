@@ -2,6 +2,10 @@ package com.personal.bookmark_app.data.local
 
 
 import android.content.Context
+import androidx.datastore.core.DataMigration
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -15,6 +19,35 @@ private val Context.dataStore by preferencesDataStore(
     name = "user_preferences"
 )
 
+private val ACCESS_TOKEN = stringPreferencesKey("access_token")
+private val REFRESH_TOKEN = stringPreferencesKey("refresh_token")
+private var sessionStore: DataStore<Preferences>? = null
+
+@Synchronized
+private fun sessionDataStore(context: Context): DataStore<Preferences> {
+    sessionStore?.let { return it }
+    val appContext = context.applicationContext
+    return PreferenceDataStoreFactory.create(
+        migrations = listOf(object : DataMigration<Preferences> {
+            override suspend fun shouldMigrate(currentData: Preferences): Boolean {
+                val old = appContext.dataStore.data.first()
+                return old.contains(ACCESS_TOKEN) || old.contains(REFRESH_TOKEN)
+            }
+
+            // Credentials in the old file may have come from a previous installation.
+            override suspend fun migrate(currentData: Preferences): Preferences = currentData
+
+            override suspend fun cleanUp() {
+                appContext.dataStore.edit {
+                    it.remove(ACCESS_TOKEN)
+                    it.remove(REFRESH_TOKEN)
+                }
+            }
+        }),
+        produceFile = { appContext.noBackupFilesDir.resolve("session.preferences_pb") }
+    ).also { sessionStore = it }
+}
+
 internal class SessionTokens(val accessToken: String?, val refreshToken: String)
 
 class UserPreferencesRepository(
@@ -24,9 +57,9 @@ class UserPreferencesRepository(
     companion object {
         private val FOLDER_DISPLAY_MODE =
             stringPreferencesKey("folder_display_mode")
-        private val ACCESS_TOKEN = stringPreferencesKey("access_token")
-        private val REFRESH_TOKEN = stringPreferencesKey("refresh_token")
     }
+
+    private val session = sessionDataStore(context)
 
     // 讀取使用者上次選擇的顯示方式
     val folderDisplayMode: Flow<FolderDisplayMode> =
@@ -51,24 +84,24 @@ class UserPreferencesRepository(
     }
 
     suspend fun saveTokens(accessToken: String, refreshToken: String) {
-        context.dataStore.edit { preferences ->
+        session.edit { preferences ->
             preferences[ACCESS_TOKEN] = accessToken
             preferences[REFRESH_TOKEN] = refreshToken
         }
     }
 
-    val hasSession: Flow<Boolean> = context.dataStore.data
+    val hasSession: Flow<Boolean> = session.data
         .map { !it[REFRESH_TOKEN].isNullOrBlank() }
         .distinctUntilChanged()
 
     internal suspend fun sessionTokens(): SessionTokens? {
-        val preferences = context.dataStore.data.first()
+        val preferences = session.data.first()
         val refreshToken = preferences[REFRESH_TOKEN]?.takeIf { it.isNotBlank() } ?: return null
         return SessionTokens(preferences[ACCESS_TOKEN], refreshToken)
     }
 
     internal suspend fun updateAccessToken(refreshToken: String, accessToken: String): Boolean {
-        val updated = context.dataStore.edit { preferences ->
+        val updated = session.edit { preferences ->
             if (preferences[REFRESH_TOKEN] == refreshToken) preferences[ACCESS_TOKEN] = accessToken
         }
         return updated[REFRESH_TOKEN] == refreshToken
@@ -76,7 +109,7 @@ class UserPreferencesRepository(
 
     suspend fun clearTokens(expectedRefreshToken: String? = null): String? {
         var refreshToken: String? = null
-        context.dataStore.edit { preferences ->
+        session.edit { preferences ->
             if (expectedRefreshToken != null && preferences[REFRESH_TOKEN] != expectedRefreshToken) {
                 return@edit
             }
