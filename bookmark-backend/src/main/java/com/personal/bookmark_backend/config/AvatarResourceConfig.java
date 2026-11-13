@@ -7,6 +7,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import org.springframework.web.servlet.resource.PathResourceResolver;
+import org.springframework.core.io.Resource;
+
+import java.io.IOException;
 
 @Configuration
 @RequiredArgsConstructor
@@ -22,6 +26,16 @@ public class AvatarResourceConfig implements WebMvcConfigurer {
         }
 
         registry.addResourceHandler("/uploads/avatars/**")
-                .addResourceLocations(location);
+                .addResourceLocations(location)
+                .resourceChain(false)
+                .addResolver(new PathResourceResolver() {
+                    @Override
+                    protected Resource getResource(String path, Resource directory) throws IOException {
+                        if (!AvatarStorageService.isAvatarFileName(path)) {
+                            return null;
+                        }
+                        return super.getResource(path, directory);
+                    }
+                });
     }
 }

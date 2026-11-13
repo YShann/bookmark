@@ -19,11 +19,13 @@ import com.personal.bookmark_backend.dto.response.auth.MessageResponse;
 import com.personal.bookmark_backend.exception.UnauthorizedException;
 import com.personal.bookmark_backend.service.AuthService;
 import com.personal.bookmark_backend.service.GoogleAuthService;
+import com.personal.bookmark_backend.service.PasswordResetRateLimiter;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -36,6 +38,7 @@ public class AuthController {
     private final AuthService authService;
     private final GoogleAuthService googleAuthService;
     private final AuthMapper authMapper;
+    private final PasswordResetRateLimiter rateLimiter;
 
     /**
      * 1. 發送註冊 Email 驗證碼
@@ -44,9 +47,10 @@ public class AuthController {
      */
     @PostMapping("/registration-code")
     public ResponseEntity<MessageResponse> sendRegistrationCode(
-            @Valid @RequestBody SendRegistrationCodeRequest request
+            @Valid @RequestBody SendRegistrationCodeRequest request, HttpServletRequest servletRequest
     ) {
 
+        rateLimiter.checkSource("registration-send", servletRequest.getRemoteAddr(), 10);
         authService.sendRegistrationCode(request.email());
 
         return ResponseEntity.ok(
@@ -61,9 +65,10 @@ public class AuthController {
      */
     @PostMapping("/register")
     public ResponseEntity<MessageResponse> register(
-            @Valid @RequestBody RegisterRequest request
+            @Valid @RequestBody RegisterRequest request, HttpServletRequest servletRequest
     ) {
 
+        rateLimiter.checkSource("registration-verify", servletRequest.getRemoteAddr(), 50);
         authService.verifyEmailAndRegister(
                 request.email(),
                 request.verificationCode(),
@@ -83,9 +88,10 @@ public class AuthController {
      */
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(
-            @Valid @RequestBody LoginRequest request
+            @Valid @RequestBody LoginRequest request, HttpServletRequest servletRequest
     ) {
 
+        rateLimiter.checkSource("login", servletRequest.getRemoteAddr(), 60);
         AuthService.AuthResponse result =
                 authService.login(
                         request.email(),
@@ -99,8 +105,9 @@ public class AuthController {
 
     @PostMapping("/google")
     public ResponseEntity<AuthResponse> loginWithGoogle(
-            @Valid @RequestBody GoogleLoginRequest request
+            @Valid @RequestBody GoogleLoginRequest request, HttpServletRequest servletRequest
     ) {
+        rateLimiter.checkSource("login", servletRequest.getRemoteAddr(), 60);
         return ResponseEntity.ok(
                 authMapper.toResponse(googleAuthService.login(request.idToken(), request.password()))
         );
@@ -121,9 +128,8 @@ public class AuthController {
                         request.refreshToken()
                 );
 
-        return ResponseEntity.ok(
-                authMapper.toResponse(result)
-        );
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+                .body(authMapper.toResponse(result));
     }
 
     /**
@@ -145,12 +151,12 @@ public class AuthController {
 
     @PostMapping("/refresh-session")
     public ResponseEntity<AuthResponse> refreshSession(
-            @Valid @RequestBody RefreshTokenRequest request
+            @Valid @RequestBody RefreshTokenRequest request,
+            @RequestHeader(value = "X-Bookmark-Refresh-Request", required = false) String requestId
     ) {
         try {
-            return ResponseEntity.ok(
-                    authMapper.toResponse(authService.refreshSession(request.refreshToken()))
-            );
+            return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+                    .body(authMapper.toResponse(authService.refreshSession(request.refreshToken(), requestId)));
         } catch (UnauthorizedException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .header("X-Bookmark-Auth-Action", "sign-in")

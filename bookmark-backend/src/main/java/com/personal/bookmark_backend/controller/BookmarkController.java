@@ -11,6 +11,7 @@ import com.personal.bookmark_backend.entity.Bookmark;
 import com.personal.bookmark_backend.entity.BookmarkSource;
 import com.personal.bookmark_backend.service.BookmarkService;
 import com.personal.bookmark_backend.service.BookmarkResponseAssembler;
+import com.personal.bookmark_backend.service.PasswordResetRateLimiter;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +35,7 @@ public class BookmarkController {
 
     private final BookmarkService bookmarkService;
     private final BookmarkResponseAssembler bookmarkResponses;
+    private final PasswordResetRateLimiter rateLimiter;
 
     // =====================================================
     // 共用方法：取得登入者 ID
@@ -58,6 +60,7 @@ public class BookmarkController {
         Long userId = getUserId(authentication);
 
         // 查詢收藏夾內的所有收藏
+        rateLimiter.checkSource("folder-bookmark-list", userId.toString(), 60);
         List<Bookmark> bookmarks = bookmarkService.getFolderBookmarks(userId, folderId);
 
         return ResponseEntity.ok(bookmarkResponses.toResponses(userId, bookmarks));
@@ -75,6 +78,7 @@ public class BookmarkController {
     ) {
         Long userId = getUserId(authentication);
         Sort.Direction direction = newestFirst ? Sort.Direction.DESC : Sort.Direction.ASC;
+        List<String> tags = validatedTags(parameters, query);
         Sort sort = Sort.by(
                 new Sort.Order(direction, "createdAt"),
                 Sort.Order.desc("id")
@@ -88,7 +92,7 @@ public class BookmarkController {
                 userId,
                 folderId,
                 query,
-                parameters.getOrDefault("tag", List.of()),
+                tags,
                 request
         );
         return PageResponse.from(
@@ -104,12 +108,23 @@ public class BookmarkController {
             @RequestParam MultiValueMap<String, String> parameters,
             Authentication authentication
     ) {
+        Long userId = getUserId(authentication);
+        List<String> tags = validatedTags(parameters, query);
+        rateLimiter.checkSource("folder-bookmark-ids", userId.toString(), 60);
         return bookmarkService.getMatchingFolderBookmarkIds(
-                getUserId(authentication),
+                userId,
                 folderId,
                 query,
-                parameters.getOrDefault("tag", List.of())
+                tags
         );
+    }
+
+    private List<String> validatedTags(MultiValueMap<String, String> parameters, String query) {
+        List<String> tags = parameters.getOrDefault("tag", List.of());
+        if (query.length() > 255 || tags.size() > 50 || tags.stream().anyMatch(tag -> tag.length() > 30)) {
+            throw new IllegalArgumentException("收藏篩選條件過長或過多");
+        }
+        return tags;
     }
 
     @GetMapping("/bookmarks/daily-picks")
@@ -144,6 +159,10 @@ public class BookmarkController {
         Long userId = getUserId(authentication);
         String normalizedQuery = query == null || query.isBlank() ? null : query.trim();
         String normalizedSource = source == null || source.isBlank() ? null : source.trim();
+        if ((normalizedQuery != null && normalizedQuery.length() > 255)
+                || (normalizedSource != null && normalizedSource.length() > 30)) {
+            throw new IllegalArgumentException("收藏搜尋條件過長");
+        }
         int safePage = Math.max(0, page);
         int safeSize = Math.max(1, Math.min(size, 50));
 

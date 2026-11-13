@@ -8,7 +8,9 @@ import lombok.Setter;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "email_verification_codes")
+@Table(name = "email_verification_codes", indexes = {
+        @Index(name = "idx_email_verification_code_latest", columnList = "email, created_at, id")
+})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -45,6 +47,9 @@ public class EmailVerificationCode {
     // 驗證成功時間，尚未驗證成功時為 NULL
     @Column(name = "verified_at")
     private LocalDateTime verifiedAt;
+
+    @Column(nullable = false)
+    private int attempts;
 
     // 驗證碼建立時間
     @Column(

@@ -77,6 +77,7 @@ public class AuthService {
     private final PasswordResetRateLimiter passwordResetRateLimiter;
     private final PlatformTransactionManager transactionManager;
     private final EntityManager entityManager;
+    private static final int MAX_REGISTRATION_ATTEMPTS = 5;
     private static final int RESET_CODE_MINUTES = 5;
     private static final int MAX_RESET_ATTEMPTS = 5;
     private static final int RESET_TOKEN_MINUTES = 10;
@@ -107,7 +108,7 @@ public class AuthService {
 
         LocalDateTime resendCutoff = LocalDateTime.now().minusSeconds(RESEND_SECONDS);
         boolean recentlySent = emailVerificationCodeRepository
-                .findTopByEmailOrderByCreatedAtDesc(normalizedEmail)
+                .findTopByEmailOrderByCreatedAtDescIdDesc(normalizedEmail)
                 .map(code -> code.getCreatedAt().isAfter(resendCutoff))
                 .orElse(false);
         if (recentlySent) {
@@ -138,7 +139,6 @@ public class AuthService {
     /**
      * 驗證 Email 並建立正式使用者帳號
      */
-    @Transactional
     public void verifyEmailAndRegister(
             String email,
             String verificationCode,
@@ -155,6 +155,15 @@ public class AuthService {
             );
         }
 
+        // 先提交錯誤次數，再回傳錯誤。
+        boolean registered = Boolean.TRUE.equals(new TransactionTemplate(transactionManager)
+                .execute(status -> registerWithCode(normalizedEmail, verificationCode, password)));
+        if (!registered) {
+            throw new IllegalArgumentException("驗證碼錯誤");
+        }
+    }
+
+    private boolean registerWithCode(String normalizedEmail, String verificationCode, String password) {
         // 再次確認 Email 尚未註冊
         if (userRepository.existsByEmail(normalizedEmail)) {
             throw new ConflictException(
@@ -165,7 +174,7 @@ public class AuthService {
         // 取得該 Email 最近一次發送的驗證碼
         EmailVerificationCode savedCode =
                 emailVerificationCodeRepository
-                        .findTopByEmailOrderByCreatedAtDesc(normalizedEmail)
+                        .findFirstByEmailOrderByCreatedAtDescIdDesc(normalizedEmail)
                         .orElseThrow(() ->
                                 new IllegalArgumentException(
                                         "請先取得 Email 驗證碼"
@@ -188,12 +197,17 @@ public class AuthService {
             );
         }
 
+        if (savedCode.getAttempts() >= MAX_REGISTRATION_ATTEMPTS) {
+            throw new TooManyRequestsException();
+        }
+
         // 比對驗證碼雜湊值
         if (!passwordEncoder.matches(
                 verificationCode,
                 savedCode.getCodeHash()
         )) {
-            throw new IllegalArgumentException("驗證碼錯誤");
+            savedCode.setAttempts(savedCode.getAttempts() + 1);
+            return false;
         }
 
         // 標記驗證碼已使用
@@ -210,6 +224,7 @@ public class AuthService {
         user.setEmailVerifiedAt(now);
 
         createDefaultFolder(userRepository.save(user).getId());
+        return true;
     }
 
     void createDefaultFolder(Long userId) {
@@ -231,6 +246,10 @@ public class AuthService {
     public AuthResponse login(String email, String password) {
 
         String normalizedEmail = normalizeEmail(email);
+        passwordResetRateLimiter.checkLoginAccount(hashValue(normalizedEmail));
+        if (!CredentialInput.fitsBcrypt(password)) {
+            throw new UnauthorizedException(INVALID_LOGIN);
+        }
 
         User user = userRepository.findByEmail(normalizedEmail)
                 .orElseThrow(() -> new UnauthorizedException(UNREGISTERED_EMAIL));
@@ -247,7 +266,7 @@ public class AuthService {
         }
 
         // 驗證密碼
-        if (password == null || user.getPasswordHash() == null
+        if (user.getPasswordHash() == null
                 || !passwordEncoder.matches(
                 password,
                 user.getPasswordHash()
@@ -261,59 +280,49 @@ public class AuthService {
     }
 
     AuthResponse issueSession(User user) {
-        // 產生 Access Token
-        String accessToken =
-                jwtService.generateAccessToken(user.getId());
-
-        // 產生 Refresh Token
-        String refreshToken =
-                refreshTokenService.createRefreshToken(user.getId());
-
-        return new AuthResponse(
-                user.getId(),
-                user.getEmail(),
-                accessToken,
-                refreshToken
-        );
+        return sessionResponse(user, refreshTokenService.createRefreshToken(user.getId()));
     }
 
     /**
      * 使用 Refresh Token 更新 Access Token
      */
-    @Transactional
     public AuthResponse refreshAccessToken(String rawRefreshToken) {
-
-        // 驗證並輪替 Refresh Token
-        RefreshTokenService.RefreshTokenRotationResult result =
-                refreshTokenService.rotateRefreshToken(
-                        rawRefreshToken
-                );
-        return refreshedSession(result.userId(), result.refreshToken());
+        var session = refreshTokenService.rotateRefreshToken(rawRefreshToken, null);
+        if (session == null) {
+            throw new IllegalArgumentException("Refresh Token 無效或已失效");
+        }
+        return refreshedSession(session);
     }
 
-    @Transactional
-    public AuthResponse refreshSession(String rawRefreshToken) {
-        return refreshedSession(refreshTokenService.renewSession(rawRefreshToken), rawRefreshToken);
+    public AuthResponse refreshSession(String rawRefreshToken, String requestId) {
+        if (!CredentialInput.isSessionToken(requestId)) {
+            throw new UnauthorizedException("請更新 App 後重新登入");
+        }
+        var session = refreshTokenService.rotateRefreshToken(rawRefreshToken, requestId);
+        if (session == null) {
+            throw new UnauthorizedException("Refresh Token 無效或已失效");
+        }
+        return refreshedSession(session);
     }
 
-    private AuthResponse refreshedSession(Long userId, String refreshToken) {
+    private AuthResponse refreshedSession(RefreshTokenService.SessionToken session) {
         // 取得使用者資料
-        User user = userRepository.findById(userId)
+        User user = userRepository.findById(session.userId())
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "使用者不存在"
                         )
                 );
 
-        // 產生新的 Access Token
-        String newAccessToken =
-                jwtService.generateAccessToken(user.getId());
+        return sessionResponse(user, session);
+    }
 
+    private AuthResponse sessionResponse(User user, RefreshTokenService.SessionToken session) {
         return new AuthResponse(
                 user.getId(),
                 user.getEmail(),
-                newAccessToken,
-                refreshToken
+                jwtService.generateAccessToken(user.getId(), session.id()),
+                session.rawToken()
         );
     }
 
@@ -333,7 +342,8 @@ public class AuthService {
      */
     @Transactional
     public void logoutAll(Long userId) {
-
+        userRepository.lockById(userId)
+                .orElseThrow(() -> new UnauthorizedException("登入已失效，請重新登入"));
         refreshTokenService.revokeAllUserRefreshTokens(
                 userId
         );
@@ -373,7 +383,7 @@ public class AuthService {
 
         String normalizedEmail = email.trim().toLowerCase(Locale.ROOT);
 
-        if (!normalizedEmail.matches(
+        if (normalizedEmail.length() > 255 || !normalizedEmail.matches(
                 "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"
         )) {
             throw new IllegalArgumentException(
@@ -389,6 +399,9 @@ public class AuthService {
      * 至少 8 碼，且包含英文字母與數字
      */
     private void validatePassword(String password) {
+        if (password != null && !CredentialInput.fitsBcrypt(password)) {
+            throw new IllegalArgumentException("密碼不可超過 72 個 UTF-8 位元組");
+        }
 
         if (password == null
                 || password.length() < 8
@@ -404,7 +417,7 @@ public class AuthService {
     /**
      * 使用 SHA-256 計算雜湊值
      */
-    private String hashValue(String value) {
+    static String hashValue(String value) {
 
         try {
             MessageDigest digest =
@@ -463,7 +476,7 @@ public class AuthService {
 
     @Transactional
     public void resetPassword(String resetToken, String newPassword, String confirmPassword) {
-        if (resetToken == null || !resetToken.matches("[A-Za-z0-9_-]{43}")) {
+        if (!CredentialInput.isSessionToken(resetToken)) {
             throw new IllegalArgumentException(INVALID_RESET_TOKEN);
         }
         validatePassword(newPassword);

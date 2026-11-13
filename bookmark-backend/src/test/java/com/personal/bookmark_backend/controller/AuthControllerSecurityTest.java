@@ -5,6 +5,7 @@ import com.personal.bookmark_backend.entity.User;
 import com.personal.bookmark_backend.exception.*;
 import com.personal.bookmark_backend.mapper.AuthMapperImpl;
 import com.personal.bookmark_backend.mapper.UserMapperImpl;
+import com.personal.bookmark_backend.repository.RefreshTokenRepository;
 import com.personal.bookmark_backend.security.JwtAuthenticationFilter;
 import com.personal.bookmark_backend.service.*;
 
@@ -59,8 +60,13 @@ class AuthControllerSecurityTest {
         }
 
         @Bean
-        AvatarStorageService avatarStorageService() {
-            return mock(AvatarStorageService.class);
+        RefreshTokenRepository refreshTokens() {
+            return mock(RefreshTokenRepository.class);
+        }
+
+        @Bean
+        PasswordResetRateLimiter rateLimiter() {
+            return new PasswordResetRateLimiter();
         }
 
         @Bean
@@ -85,11 +91,15 @@ class AuthControllerSecurityTest {
     GoogleAuthService googleAuth;
     @Autowired
     JwtService jwt;
+    @Autowired
+    RefreshTokenRepository refreshTokens;
     MockMvc mvc;
 
     @BeforeEach
     void setup() {
         reset(auth, googleAuth);
+        reset(refreshTokens);
+        when(refreshTokens.existsActiveSession(1L, 42L)).thenReturn(true);
         mvc = MockMvcBuilders.webAppContextSetup(context).addFilters(security).build();
     }
 
@@ -108,15 +118,17 @@ class AuthControllerSecurityTest {
 
     @Test
     void persistentSessionCanRenewWithoutAccessTokenAndSignalsRevocation() throws Exception {
-        when(auth.refreshSession("refresh"))
-                .thenReturn(new AuthService.AuthResponse(42L, "user@gmail.com", "access", "refresh"))
+        String requestId = "a".repeat(43);
+        when(auth.refreshSession("refresh", requestId))
+                .thenReturn(new AuthService.AuthResponse(42L, "user@gmail.com", "access", "replacement"))
                 .thenThrow(new UnauthorizedException("invalid session"));
         var request = post("/api/auth/refresh-session").contentType("application/json")
+                .header("X-Bookmark-Refresh-Request", requestId)
                 .content("{\"refreshToken\":\"refresh\"}");
         mvc.perform(request)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accessToken").value("access"))
-                .andExpect(jsonPath("$.refreshToken").value("refresh"));
+                .andExpect(jsonPath("$.refreshToken").value("replacement"));
         mvc.perform(request)
                 .andExpect(status().isUnauthorized())
                 .andExpect(header().string("X-Bookmark-Auth-Action", "sign-in"));
@@ -164,7 +176,7 @@ class AuthControllerSecurityTest {
         user.setPasswordHash("hash");
         when(googleAuth.link(42L, "google-id-token", "password")).thenReturn(user);
         mvc.perform(post("/api/users/me/google")
-                        .header("Authorization", "Bearer " + jwt.generateAccessToken(42L))
+                        .header("Authorization", "Bearer " + jwt.generateAccessToken(42L, 1L))
                         .contentType("application/json")
                         .content("{\"idToken\":\"google-id-token\",\"password\":\"password\"}"))
                 .andExpect(status().isOk())
@@ -252,10 +264,18 @@ class AuthControllerSecurityTest {
     void validJwtStillAuthenticatesProtectedEndpoint() throws Exception {
         mvc.perform(post("/api/auth/logout-all").header(
                         "Authorization",
-                        "Bearer " + jwt.generateAccessToken(42L)
+                        "Bearer " + jwt.generateAccessToken(42L, 1L)
                 ))
                 .andExpect(status().isOk());
         verify(auth).logoutAll(42L);
+    }
+
+    @Test
+    void signedTokenForRevokedSessionIsRejected() throws Exception {
+        mvc.perform(post("/api/auth/logout-all")
+                        .header("Authorization", "Bearer " + jwt.generateAccessToken(42L, 2L)))
+                .andExpect(status().isUnauthorized());
+        verifyNoInteractions(auth);
     }
 
     @Test

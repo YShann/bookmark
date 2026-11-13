@@ -1,200 +1,167 @@
 package com.personal.bookmark_backend.service;
 
 import com.personal.bookmark_backend.entity.RefreshToken;
-import com.personal.bookmark_backend.exception.UnauthorizedException;
 import com.personal.bookmark_backend.repository.RefreshTokenRepository;
 import com.personal.bookmark_backend.repository.UserRepository;
+import io.jsonwebtoken.io.Decoders;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
-import lombok.RequiredArgsConstructor;
-
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
+import javax.crypto.Mac;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.Base64;
-import java.util.HexFormat;
 
 @Service
-@RequiredArgsConstructor
 public class RefreshTokenService {
+    private static final int IDLE_DAYS = 30;
+    private static final int ABSOLUTE_DAYS = 180;
+    private static final int RETRY_SECONDS = 120;
+    private static final LocalDateTime LEGACY_NO_EXPIRATION = LocalDateTime.of(2000, 1, 1, 0, 0);
+    private static final Base64.Encoder TOKEN_ENCODER = Base64.getUrlEncoder().withoutPadding();
 
-    // Reserved value for sessions without a deadline in the existing NOT NULL column.
-    private static final LocalDateTime NO_EXPIRATION = LocalDateTime.of(2000, 1, 1, 0, 0);
-    private static final String INVALID_REFRESH_TOKEN = "Refresh Token 無效或已失效";
-
-    private final RefreshTokenRepository refreshTokenRepository;
-    private final UserRepository userRepository;
+    private final RefreshTokenRepository refreshTokens;
+    private final UserRepository users;
     private final EntityManager entityManager;
+    private final SecureRandom random = new SecureRandom();
+    private final SecretKey rotationKey;
 
-    @Value("${jwt.refresh-token-expiration}")
-    private long refreshTokenExpiration;
-
-    // 使用安全亂數產生 Refresh Token
-    private final SecureRandom secureRandom = new SecureRandom();
-
-    /**
-     * 建立新的 Refresh Token
-     *
-     * @param userId 使用者 ID
-     * @return 原始 Refresh Token
-     */
-    @Transactional
-    public String createRefreshToken(Long userId) {
-
-        // 產生 32 bytes 的安全隨機資料
-        byte[] randomBytes = new byte[32];
-        secureRandom.nextBytes(randomBytes);
-
-        // 使用 Base64 URL 格式轉成字串
-        String rawToken = Base64.getUrlEncoder()
-                .withoutPadding()
-                .encodeToString(randomBytes);
-
-        // 資料庫只儲存 Token 的 SHA-256 雜湊值
-        String tokenHash = hashToken(rawToken);
-
-        RefreshToken refreshToken = new RefreshToken();
-
-        refreshToken.setUserId(userId);
-        refreshToken.setTokenHash(tokenHash);
-        refreshToken.setExpiresAt(expirationFrom(LocalDateTime.now()));
-        refreshToken.setRevokedAt(null);
-
-        refreshTokenRepository.save(refreshToken);
-
-        // 只有這次回傳給使用者原始 Token
-        return rawToken;
-    }
-
-    /**
-     * 更新 Refresh Token
-     * <p>
-     * 驗證舊 Token 後撤銷舊 Token，
-     * 並產生一組新的 Refresh Token。
-     */
-    @Transactional
-    public RefreshTokenRotationResult rotateRefreshToken(String rawToken) {
-        RefreshToken oldToken = lockActiveToken(rawToken);
-        Long userId = oldToken.getUserId();
-        oldToken.setRevokedAt(LocalDateTime.now());
-        refreshTokenRepository.save(oldToken);
-        return new RefreshTokenRotationResult(userId, createRefreshToken(userId));
+    public RefreshTokenService(RefreshTokenRepository refreshTokens, UserRepository users,
+                               EntityManager entityManager, @Value("${jwt.secret}") String secret) {
+        this.refreshTokens = refreshTokens;
+        this.users = users;
+        this.entityManager = entityManager;
+        var signingKey = new SecretKeySpec(Decoders.BASE64.decode(secret), "HmacSHA256");
+        this.rotationKey = new SecretKeySpec(hmac(signingKey, "bookmark-refresh-key-v1"), "HmacSHA256");
     }
 
     @Transactional
-    public Long renewSession(String rawToken) {
-        RefreshToken token;
-        try {
-            token = lockActiveToken(rawToken);
-        } catch (IllegalArgumentException e) {
-            throw new UnauthorizedException(INVALID_REFRESH_TOKEN);
+    public SessionToken createRefreshToken(Long userId) {
+        byte[] bytes = new byte[32];
+        random.nextBytes(bytes);
+        LocalDateTime now = LocalDateTime.now();
+        return store(userId, null, now.plusDays(ABSOLUTE_DAYS), now, TOKEN_ENCODER.encodeToString(bytes));
+    }
+
+    // Returning null lets replay revocation commit before the caller sends the error response.
+    @Transactional
+    public SessionToken rotateRefreshToken(String rawToken, String requestId) {
+        RefreshToken token = lockToken(rawToken);
+        if (token == null) return null;
+
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime absoluteExpiry = token.getAbsoluteExpiresAt();
+        boolean legacy = absoluteExpiry == null && token.getSuccessorId() == null;
+        if (legacy && token.getCreatedAt() != null) {
+            absoluteExpiry = token.getCreatedAt().plusDays(ABSOLUTE_DAYS);
+        }
+        if (absoluteExpiry == null || !absoluteExpiry.isAfter(now)) return null;
+        String requestHash = requestId == null ? null : AuthService.hashValue(requestId);
+        if (token.getRevokedAt() != null) {
+            if (token.getSuccessorId() == null) return null;
+            if (requestHash != null && requestHash.equals(token.getRotationRequestHash())
+                    && token.getRevokedAt().plusSeconds(RETRY_SECONDS).isAfter(now)) {
+                return retry(token, rawToken, requestId, now);
+            }
+            revokeFamily(token, now);
+            return null;
         }
 
-        // Keep the same credential so a lost response can be retried.
-        token.setExpiresAt(expirationFrom(LocalDateTime.now()));
-        return token.getUserId();
+        LocalDateTime idleExpiry = token.getExpiresAt();
+        if (idleExpiry == null || (!idleExpiry.isAfter(now)
+                && !(legacy && LEGACY_NO_EXPIRATION.equals(idleExpiry)))) return null;
+        // The client must retain both inputs to recover the same successor. Only hashes reach the DB.
+        String replacement = deriveSuccessor(rawToken, requestId == null ? randomRequestId() : requestId);
+        SessionToken next = store(token.getUserId(), familyId(token), absoluteExpiry, now, replacement);
+        token.setAbsoluteExpiresAt(absoluteExpiry);
+        token.setRevokedAt(now);
+        token.setSuccessorId(next.id());
+        token.setRotationRequestHash(requestHash);
+        return next;
     }
 
-    private RefreshToken lockActiveToken(String rawToken) {
-        RefreshToken token = refreshTokenRepository
-                .findByTokenHashAndRevokedAtIsNull(hashToken(rawToken))
-                .orElseThrow(() -> new IllegalArgumentException(INVALID_REFRESH_TOKEN));
-        userRepository.lockById(token.getUserId())
-                .orElseThrow(() -> new IllegalArgumentException(INVALID_REFRESH_TOKEN));
+    private SessionToken retry(RefreshToken token, String rawToken, String requestId, LocalDateTime now) {
+        String replacement = deriveSuccessor(rawToken, requestId);
+        return refreshTokens.lockById(token.getSuccessorId())
+                .filter(next -> next.getRevokedAt() == null
+                        && next.getExpiresAt() != null && next.getExpiresAt().isAfter(now)
+                        && next.getAbsoluteExpiresAt() != null && next.getAbsoluteExpiresAt().isAfter(now))
+                .filter(next -> next.getTokenHash().equals(AuthService.hashValue(replacement)))
+                .map(next -> new SessionToken(next.getId(), next.getUserId(), replacement))
+                .orElse(null);
+    }
+
+    private SessionToken store(Long userId, Long familyId, LocalDateTime absoluteExpiry,
+                               LocalDateTime now, String rawToken) {
+        var token = new RefreshToken();
+        token.setUserId(userId);
+        token.setFamilyId(familyId);
+        token.setAbsoluteExpiresAt(absoluteExpiry);
+        LocalDateTime idleExpiry = now.plusDays(IDLE_DAYS);
+        token.setExpiresAt(idleExpiry.isBefore(absoluteExpiry) ? idleExpiry : absoluteExpiry);
+        token.setTokenHash(AuthService.hashValue(rawToken));
+        var saved = refreshTokens.save(token);
+        return new SessionToken(saved.getId(), userId, rawToken);
+    }
+
+    private RefreshToken lockToken(String rawToken) {
+        if (!CredentialInput.isSessionToken(rawToken)) return null;
+        RefreshToken token = refreshTokens.findByTokenHash(AuthService.hashValue(rawToken)).orElse(null);
+        if (token == null || users.lockById(token.getUserId()).isEmpty()) return null;
         entityManager.refresh(token, LockModeType.PESSIMISTIC_WRITE);
-        LocalDateTime expiry = token.getExpiresAt();
-        if (token.getRevokedAt() != null
-                || (!NO_EXPIRATION.equals(expiry) && !expiry.isAfter(LocalDateTime.now()))) {
-            throw new IllegalArgumentException(INVALID_REFRESH_TOKEN);
-        }
         return token;
     }
 
-    private LocalDateTime expirationFrom(LocalDateTime now) {
-        return refreshTokenExpiration == 0
-                ? NO_EXPIRATION
-                : now.plus(refreshTokenExpiration, ChronoUnit.MILLIS);
-    }
-
-    /**
-     * 撤銷指定的 Refresh Token
-     * <p>
-     * 用於使用者登出。
-     */
     @Transactional
     public void revokeRefreshToken(String rawToken) {
-
-        if (rawToken == null || rawToken.isBlank()) {
-            return;
-        }
-
-        String tokenHash = hashToken(rawToken);
-
-        refreshTokenRepository
-                .findByTokenHashAndRevokedAtIsNull(tokenHash)
-                .ifPresent(token -> {
-                    token.setRevokedAt(LocalDateTime.now());
-                    refreshTokenRepository.save(token);
-                });
+        RefreshToken token = lockToken(rawToken);
+        if (token != null) revokeFamily(token, LocalDateTime.now());
     }
 
-    /**
-     * 撤銷使用者所有尚未撤銷的 Refresh Token
-     * <p>
-     * 可用於帳號安全管理，例如強制所有裝置登出。
-     */
+    private void revokeFamily(RefreshToken token, LocalDateTime now) {
+        refreshTokens.lockActiveFamily(token.getUserId(), familyId(token))
+                .forEach(active -> active.setRevokedAt(now));
+    }
+
+    private Long familyId(RefreshToken token) {
+        return token.getFamilyId() == null ? token.getId() : token.getFamilyId();
+    }
+
     @Transactional
     public void revokeAllUserRefreshTokens(Long userId) {
-
         LocalDateTime now = LocalDateTime.now();
-
-        refreshTokenRepository
-                .findAllByUserIdAndRevokedAtIsNull(userId)
+        refreshTokens.findAllByUserIdAndRevokedAtIsNull(userId)
                 .forEach(token -> token.setRevokedAt(now));
     }
 
-    /**
-     * 使用 SHA-256 對 Token 進行雜湊
-     */
-    private String hashToken(String rawToken) {
+    private String randomRequestId() {
+        byte[] bytes = new byte[32];
+        random.nextBytes(bytes);
+        return TOKEN_ENCODER.encodeToString(bytes);
+    }
 
-        if (rawToken == null || rawToken.isBlank()) {
-            throw new IllegalArgumentException(
-                    "Refresh Token 不可為空"
-            );
-        }
+    private String deriveSuccessor(String rawToken, String requestId) {
+        return TOKEN_ENCODER.encodeToString(hmac(rotationKey, rawToken + ":" + requestId));
+    }
 
+    private static byte[] hmac(SecretKey key, String data) {
         try {
-            MessageDigest digest =
-                    MessageDigest.getInstance("SHA-256");
-
-            byte[] hashBytes = digest.digest(
-                    rawToken.getBytes(java.nio.charset.StandardCharsets.UTF_8)
-            );
-
-            return HexFormat.of().formatHex(hashBytes);
-
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException(
-                    "無法使用 SHA-256 雜湊演算法", e
-            );
+            Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(key);
+            return mac.doFinal(data.getBytes(StandardCharsets.US_ASCII));
+        } catch (GeneralSecurityException e) {
+            throw new IllegalStateException("無法換發 Refresh Token", e);
         }
     }
 
-    /**
-     * Refresh Token 更新結果
-     */
-    public record RefreshTokenRotationResult(
-            Long userId,
-            String refreshToken
-    ) {
-    }
+    public record SessionToken(Long id, Long userId, String rawToken) {}
 }
 

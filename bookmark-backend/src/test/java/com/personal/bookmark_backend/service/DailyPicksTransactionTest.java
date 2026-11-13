@@ -29,7 +29,8 @@ class DailyPicksTransactionTest {
     @Configuration
     @EnableTransactionManagement
     @EnableJpaRepositories(basePackages = "com.personal.bookmark_backend.repository")
-    @Import({DailyPickSelectionService.class, BookmarkService.class, TagService.class, FolderCoverUpdater.class})
+    @Import({DailyPickSelectionService.class, BookmarkService.class, TagService.class,
+            FolderCoverUpdater.class, PasswordResetRateLimiter.class})
     static class Config {
         @Bean
         DataSource dataSource() {

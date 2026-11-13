@@ -18,7 +18,6 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDateTime;
-import java.nio.charset.StandardCharsets;
 
 @Service
 @RequiredArgsConstructor
@@ -28,6 +27,7 @@ public class GoogleAuthService {
     private final AuthService authService;
     private final PlatformTransactionManager transactionManager;
     private final PasswordEncoder passwordEncoder;
+    private final PasswordResetRateLimiter rateLimiter;
 
     public User link(Long userId, String idToken, String password) {
         GoogleAccount account = verifier.verify(idToken);
@@ -45,7 +45,8 @@ public class GoogleAuthService {
 
     private User linkGoogle(User user, GoogleAccount account, String password) {
         requireMatchingEmail(user, account);
-        if (user.getPasswordHash() == null || password.getBytes(StandardCharsets.UTF_8).length > 72
+        rateLimiter.checkLoginAccount(AuthService.hashValue(user.getEmail()));
+        if (user.getPasswordHash() == null || !CredentialInput.fitsBcrypt(password)
                 || !passwordEncoder.matches(password, user.getPasswordHash())) {
             throw new ForbiddenException("目前密碼不正確");
         }

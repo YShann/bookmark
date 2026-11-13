@@ -8,6 +8,7 @@ public record LinkGoogleRequest(
         @Size(max = 8192, message = "Google ID Token 過長")
         String idToken,
         @NotBlank(message = "請輸入目前密碼")
+        @Size(max = 72, message = "密碼不可超過 72 個 UTF-8 位元組")
         String password
 ) {
 }

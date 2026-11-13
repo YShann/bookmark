@@ -21,7 +21,10 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.when;
 
 @SpringJUnitConfig(PasswordResetTransactionTest.Config.class)
-@TestPropertySource(properties = {"spring.mail.username=test@example.com", "jwt.refresh-token-expiration=2592000000"})
+@TestPropertySource(properties = {
+        "spring.mail.username=test@example.com",
+        "jwt.secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+})
 class GoogleAccountLinkingTest {
     private static final String PASSWORD = "TestPassword123";
 

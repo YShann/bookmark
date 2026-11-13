@@ -1,6 +1,8 @@
 package com.personal.bookmark_app.data.repository.user
 
 import android.content.ContentResolver
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
 import com.personal.bookmark_app.data.remote.api.UserApi
 import com.personal.bookmark_app.data.remote.backendMessage
@@ -11,6 +13,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import retrofit2.HttpException
+import java.io.ByteArrayOutputStream
 import javax.inject.Inject
 
 class ApiUserRepository @Inject constructor(
@@ -53,10 +56,32 @@ class ApiUserRepository @Inject constructor(
         require(imageBytes.isNotEmpty()) { "所選圖片是空的" }
         require(imageBytes.size <= 10 * 1024 * 1024) { "圖片大小不可超過 10 MB" }
 
+        val (uploadExtension, uploadType, uploadBytes) = if (extension == "webp") {
+            val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size, options)
+            require(options.outWidth > 0 && options.outHeight > 0) { "無法讀取所選的圖片" }
+            require(options.outWidth.toLong() * options.outHeight <= 16_000_000) {
+                "頭像不可超過 1600 萬像素"
+            }
+            val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+                ?: error("無法讀取所選的圖片")
+            val png = try {
+                ByteArrayOutputStream().use {
+                    check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)) { "無法轉換頭像圖片" }
+                    it.toByteArray()
+                }
+            } finally {
+                bitmap.recycle()
+            }
+            require(png.size <= 10 * 1024 * 1024) { "處理後的圖片不可超過 10 MB" }
+            Triple("png", "image/png", png)
+        } else {
+            Triple(extension, mimeType, imageBytes)
+        }
         val imagePart = MultipartBody.Part.createFormData(
             "file",
-            "avatar.$extension",
-            imageBytes.toRequestBody(mimeType.toMediaType())
+            "avatar.$uploadExtension",
+            uploadBytes.toRequestBody(uploadType.toMediaType())
         )
         api.updateAvatar(imagePart)
     }

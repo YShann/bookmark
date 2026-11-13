@@ -2,6 +2,7 @@ package com.personal.bookmark_backend.security;
 
 
 import com.personal.bookmark_backend.service.JwtService;
+import com.personal.bookmark_backend.repository.RefreshTokenRepository;
 
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
@@ -24,6 +25,7 @@ import java.util.Collections;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
+    private final RefreshTokenRepository refreshTokens;
 
     @Override
     protected void doFilterInternal(
@@ -48,17 +50,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         try {
             // 從 Token 取得使用者 ID
-            Long userId = jwtService.extractUserId(token);
+            var identity = jwtService.authenticate(token);
 
             // 如果目前尚未建立 Authentication
-            if (userId != null &&
-                    SecurityContextHolder.getContext().getAuthentication() == null &&
-                    jwtService.isTokenValid(token, userId)) {
+            if (SecurityContextHolder.getContext().getAuthentication() == null &&
+                    refreshTokens.existsActiveSession(identity.sessionId(), identity.userId())) {
 
                 // 建立使用者身分資訊
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(
-                                userId,
+                                identity.userId(),
                                 null,
                                 Collections.emptyList()
                         );

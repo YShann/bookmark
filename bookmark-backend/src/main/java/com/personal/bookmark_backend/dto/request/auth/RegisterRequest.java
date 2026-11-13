@@ -19,6 +19,7 @@ public record RegisterRequest(
         String verificationCode,
 
         @NotBlank(message = "密碼不可為空")
+        @Size(max = 72, message = "密碼不可超過 72 個 UTF-8 位元組")
         String password
 
 ) {

@@ -34,9 +34,10 @@ public class JwtService {
      * 產生 Access Token
      *
      * @param userId 使用者 ID
+     * @param sessionId Refresh Token 資料列的 ID
      * @return JWT Token 字串
      */
-    public String generateAccessToken(Long userId) {
+    public String generateAccessToken(Long userId, Long sessionId) {
 
         Date now = new Date();
 
@@ -46,6 +47,7 @@ public class JwtService {
 
         return Jwts.builder()
                 .subject(userId.toString())
+                .claim("sid", sessionId)
                 .issuedAt(now)
                 .expiration(expiration)
                 .signWith(secretKey)
@@ -55,28 +57,17 @@ public class JwtService {
     /**
      * 從 Token 取得使用者 ID
      */
-    public Long extractUserId(String token) {
-
+    public AccessIdentity authenticate(String token) {
         Claims claims = parseClaims(token);
-
-        return Long.parseLong(claims.getSubject());
-    }
-
-    /**
-     * 驗證 Token 是否有效，以及是否屬於指定使用者
-     */
-    public boolean isTokenValid(String token, Long userId) {
-
-        try {
-            Claims claims = parseClaims(token);
-
-            return claims.getSubject().equals(userId.toString())
-                    && claims.getExpiration().after(new Date());
-
-        } catch (JwtException | IllegalArgumentException e) {
-            return false;
+        Long sessionId = claims.get("sid", Long.class);
+        Date expiration = claims.getExpiration();
+        if (sessionId == null || sessionId <= 0 || expiration == null || !expiration.after(new Date())) {
+            throw new JwtException("Invalid access token");
         }
+        return new AccessIdentity(Long.parseLong(claims.getSubject()), sessionId);
     }
+
+    public record AccessIdentity(Long userId, Long sessionId) {}
 
     /**
      * 解析並驗證 JWT

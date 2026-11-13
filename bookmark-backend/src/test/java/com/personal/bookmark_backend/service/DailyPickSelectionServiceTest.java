@@ -16,7 +16,8 @@ class DailyPickSelectionServiceTest {
     BookmarkRepository books = mock(BookmarkRepository.class);
     DailyPickSelectionRepository rows = mock(DailyPickSelectionRepository.class);
     UserRepository users = mock(UserRepository.class);
-    DailyPickSelectionService service = new DailyPickSelectionService(books, rows, users);
+    DailyPickSelectionService service = new DailyPickSelectionService(
+            books, rows, users, new PasswordResetRateLimiter());
     List<DailyPickSelection> data = new ArrayList<>();
     List<Bookmark> all = new ArrayList<>();
 

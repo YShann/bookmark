@@ -2,6 +2,7 @@ package com.personal.bookmark_backend.service;
 
 import com.personal.bookmark_backend.entity.*;
 import com.personal.bookmark_backend.exception.UnauthorizedException;
+import com.personal.bookmark_backend.exception.TooManyRequestsException;
 import com.personal.bookmark_backend.repository.*;
 import com.personal.bookmark_backend.security.GoogleIdTokenVerifier;
 
@@ -32,7 +33,10 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @SpringJUnitConfig(PasswordResetTransactionTest.Config.class)
-@TestPropertySource(properties = {"spring.mail.username=test@example.com", "jwt.refresh-token-expiration=0"})
+@TestPropertySource(properties = {
+        "spring.mail.username=test@example.com",
+        "jwt.secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+})
 class PasswordResetTransactionTest {
     @Configuration
     @EnableTransactionManagement
@@ -95,6 +99,10 @@ class PasswordResetTransactionTest {
     @Autowired
     RefreshTokenRepository refreshTokens;
     @Autowired
+    EmailVerificationCodeRepository registrationCodes;
+    @Autowired
+    JwtService jwt;
+    @Autowired
     PasswordEncoder encoder;
     @Autowired
     JavaMailSender mail;
@@ -142,6 +150,41 @@ class PasswordResetTransactionTest {
     }
 
     @Test
+    void registrationFailuresCommitAndBlockCorrectCode() {
+        String recipient = UUID.randomUUID() + "@example.com";
+        EmailVerificationCode saved = new EmailVerificationCode();
+        saved.setEmail(recipient);
+        saved.setCodeHash(encoder.encode("123456"));
+        saved.setExpiresAt(LocalDateTime.now().plusMinutes(10));
+        registrationCodes.save(saved);
+
+        for (int i = 0; i < 5; i++) {
+            assertThrows(IllegalArgumentException.class,
+                    () -> auth.verifyEmailAndRegister(recipient, "654321", "ValidPassword123"));
+        }
+        assertEquals(5, registrationCodes.findById(saved.getId()).orElseThrow().getAttempts());
+        assertThrows(TooManyRequestsException.class,
+                () -> auth.verifyEmailAndRegister(recipient, "123456", "ValidPassword123"));
+        assertFalse(users.existsByEmail(recipient));
+    }
+
+    @Test
+    void logoutRevokesOnlyItsAccessTokenSessionAndLogoutAllRevokesTheRest() {
+        var first = auth.login(email, "OldPass123");
+        var second = auth.login(email, "OldPass123");
+        var firstSession = jwt.authenticate(first.accessToken());
+        var secondSession = jwt.authenticate(second.accessToken());
+        assertNotEquals(firstSession.sessionId(), secondSession.sessionId());
+
+        auth.logout(first.refreshToken());
+        assertFalse(refreshTokens.existsActiveSession(firstSession.sessionId(), userId));
+        assertTrue(refreshTokens.existsActiveSession(secondSession.sessionId(), userId));
+
+        auth.logoutAll(userId);
+        assertFalse(refreshTokens.existsActiveSession(secondSession.sessionId(), userId));
+    }
+
+    @Test
     void registrationUsesConfiguredSenderAndRejectsImmediateResend() {
         String recipient = "new-" + email;
         auth.sendRegistrationCode(recipient);
@@ -177,39 +220,90 @@ class PasswordResetTransactionTest {
     }
 
     @Test
-    void persistentSessionCanRetryRenewalUntilLogout() {
+    void rotationRecoversLostResponseAndLogoutWithPreviousTokenRevokesSuccessor() {
         var login = auth.login(email, "OldPass123");
         var refreshToken = login.refreshToken();
-        assertTrue(refreshTokens.findAllByUserId(userId).get(0).getExpiresAt().isBefore(LocalDateTime.now()));
-        assertEquals(refreshToken, auth.refreshSession(refreshToken).refreshToken());
-        assertEquals(refreshToken, auth.refreshSession(refreshToken).refreshToken());
-        assertEquals(1, refreshTokens.findAllByUserId(userId).size());
+        String requestId = "a".repeat(43);
+        var renewed = auth.refreshSession(refreshToken, requestId);
+        assertNotEquals(refreshToken, renewed.refreshToken());
+        assertEquals(renewed.refreshToken(), auth.refreshSession(refreshToken, requestId).refreshToken());
+        assertEquals(2, refreshTokens.findAllByUserId(userId).size());
 
         auth.logout(refreshToken);
-        assertThrows(UnauthorizedException.class, () -> auth.refreshSession(refreshToken));
+        assertThrows(UnauthorizedException.class, () -> auth.refreshSession(renewed.refreshToken(), requestId));
+        assertFalse(refreshTokens.existsActiveSession(
+                jwt.authenticate(renewed.accessToken()).sessionId(), userId));
     }
 
     @Test
-    void renewUpgradesAValidLegacyTokenButDoesNotReviveAnExpiredOne() {
+    void replayWithDifferentRequestRevokesOnlyThatDevice() {
+        var first = auth.login(email, "OldPass123");
+        var other = auth.login(email, "OldPass123");
+        String requestId = "a".repeat(43);
+        String replayId = "b".repeat(43);
+        var renewed = auth.refreshSession(first.refreshToken(), requestId);
+        assertThrows(UnauthorizedException.class, () -> auth.refreshSession(first.refreshToken(), replayId));
+        assertThrows(UnauthorizedException.class, () -> auth.refreshSession(renewed.refreshToken(), replayId));
+        assertNotNull(auth.refreshSession(other.refreshToken(), requestId));
+    }
+
+    @Test
+    void concurrentRetriesShareOneSuccessor() throws Exception {
+        var original = auth.login(email, "OldPass123");
+        String requestId = "a".repeat(43);
+        var gate = new CountDownLatch(1);
+        var workers = Executors.newFixedThreadPool(2);
+        try {
+            Callable<String> rotate = () -> {
+                gate.await();
+                return auth.refreshSession(original.refreshToken(), requestId).refreshToken();
+            };
+            var first = workers.submit(rotate);
+            var second = workers.submit(rotate);
+            gate.countDown();
+            assertEquals(first.get(10, TimeUnit.SECONDS), second.get(10, TimeUnit.SECONDS));
+            assertEquals(2, refreshTokens.findAllByUserId(userId).size());
+        } finally {
+            workers.shutdownNow();
+        }
+    }
+
+    @Test
+    void sameRequestOutsideRetryWindowRevokesSuccessor() {
+        var original = auth.login(email, "OldPass123");
+        String requestId = "a".repeat(43);
+        var renewed = auth.refreshSession(original.refreshToken(), requestId);
+        var old = refreshTokens.findById(jwt.authenticate(original.accessToken()).sessionId()).orElseThrow();
+        old.setRevokedAt(LocalDateTime.now().minusMinutes(3));
+        refreshTokens.save(old);
+
+        assertThrows(UnauthorizedException.class, () -> auth.refreshSession(original.refreshToken(), requestId));
+        assertThrows(UnauthorizedException.class, () -> auth.refreshSession(renewed.refreshToken(), requestId));
+    }
+
+    @Test
+    void rotationEnforcesBothExpirationLimits() {
         var expired = auth.login(email, "OldPass123").refreshToken();
         var expiredRecord = refreshTokens.findAllByUserId(userId).get(0);
         expiredRecord.setExpiresAt(LocalDateTime.now().minusDays(1));
         refreshTokens.save(expiredRecord);
-        assertThrows(UnauthorizedException.class, () -> auth.refreshSession(expired));
+        String requestId = "a".repeat(43);
+        assertThrows(UnauthorizedException.class, () -> auth.refreshSession(expired, requestId));
 
-        var legacy = auth.login(email, "OldPass123").refreshToken();
+        var valid = auth.login(email, "OldPass123").refreshToken();
         var validRecord = refreshTokens.findAllByUserId(userId).stream()
                 .filter(token -> !token.getId().equals(expiredRecord.getId()))
                 .findFirst().orElseThrow();
-        var persistentExpiry = validRecord.getExpiresAt();
-        validRecord.setExpiresAt(LocalDateTime.now().plusDays(1));
-        refreshTokens.save(validRecord);
-
-        assertEquals(legacy, auth.refreshSession(legacy).refreshToken());
-        assertEquals(
-                persistentExpiry,
-                refreshTokens.findById(validRecord.getId()).orElseThrow().getExpiresAt()
-        );
+        validRecord.setAbsoluteExpiresAt(LocalDateTime.now().plusDays(1));
+        var absoluteExpiry = refreshTokens.save(validRecord).getAbsoluteExpiresAt();
+        var renewed = auth.refreshSession(valid, requestId);
+        var record = refreshTokens.findById(jwt.authenticate(renewed.accessToken()).sessionId()).orElseThrow();
+        assertEquals(record.getAbsoluteExpiresAt(), record.getExpiresAt());
+        assertTrue(Math.abs(java.time.Duration.between(absoluteExpiry, record.getExpiresAt()).toMillis()) < 1);
+        record.setAbsoluteExpiresAt(LocalDateTime.now().minusSeconds(1));
+        refreshTokens.save(record);
+        assertFalse(refreshTokens.existsActiveSession(record.getId(), userId));
+        assertThrows(UnauthorizedException.class, () -> auth.refreshSession(renewed.refreshToken(), requestId));
     }
 
     @Test

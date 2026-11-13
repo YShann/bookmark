@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.first
 import dagger.hilt.android.qualifiers.ApplicationContext
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -24,6 +25,8 @@ private val Context.dataStore by preferencesDataStore(
 
 private val ACCESS_TOKEN = stringPreferencesKey("access_token")
 private val REFRESH_TOKEN = stringPreferencesKey("refresh_token")
+private val SESSION_ID = stringPreferencesKey("local_session_id")
+private val REFRESH_REQUEST_ID = stringPreferencesKey("refresh_request_id")
 private var sessionStore: DataStore<Preferences>? = null
 
 @Synchronized
@@ -46,12 +49,20 @@ private fun sessionDataStore(context: Context): DataStore<Preferences> {
                     it.remove(REFRESH_TOKEN)
                 }
             }
+        }, object : DataMigration<Preferences> {
+            override suspend fun shouldMigrate(currentData: Preferences): Boolean =
+                REFRESH_TOKEN in currentData && SESSION_ID !in currentData
+
+            override suspend fun migrate(currentData: Preferences): Preferences =
+                currentData.toMutablePreferences().apply { this[SESSION_ID] = UUID.randomUUID().toString() }
+
+            override suspend fun cleanUp() = Unit
         }),
         produceFile = { appContext.noBackupFilesDir.resolve("session.preferences_pb") }
     ).also { sessionStore = it }
 }
 
-internal class SessionTokens(val accessToken: String?, val refreshToken: String)
+internal class SessionTokens(val sessionId: String, val accessToken: String?, val refreshToken: String)
 
 @Singleton
 class UserPreferencesRepository @Inject constructor(
@@ -91,6 +102,8 @@ class UserPreferencesRepository @Inject constructor(
         session.edit { preferences ->
             preferences[ACCESS_TOKEN] = accessToken
             preferences[REFRESH_TOKEN] = refreshToken
+            preferences[SESSION_ID] = UUID.randomUUID().toString()
+            preferences.remove(REFRESH_REQUEST_ID)
         }
     }
 
@@ -101,14 +114,40 @@ class UserPreferencesRepository @Inject constructor(
     internal suspend fun sessionTokens(): SessionTokens? {
         val preferences = session.data.first()
         val refreshToken = preferences[REFRESH_TOKEN]?.takeIf { it.isNotBlank() } ?: return null
-        return SessionTokens(preferences[ACCESS_TOKEN], refreshToken)
+        val sessionId = preferences[SESSION_ID] ?: return null
+        return SessionTokens(sessionId, preferences[ACCESS_TOKEN], refreshToken)
     }
 
-    internal suspend fun updateAccessToken(refreshToken: String, accessToken: String): Boolean {
+    internal suspend fun beginRefresh(expected: SessionTokens, requestId: String): String? {
         val updated = session.edit { preferences ->
-            if (preferences[REFRESH_TOKEN] == refreshToken) preferences[ACCESS_TOKEN] = accessToken
+            if (preferences[SESSION_ID] == expected.sessionId &&
+                preferences[REFRESH_TOKEN] == expected.refreshToken &&
+                REFRESH_REQUEST_ID !in preferences
+            ) {
+                preferences[REFRESH_REQUEST_ID] = requestId
+            }
         }
-        return updated[REFRESH_TOKEN] == refreshToken
+        return updated[REFRESH_REQUEST_ID].takeIf {
+            updated[SESSION_ID] == expected.sessionId && updated[REFRESH_TOKEN] == expected.refreshToken
+        }
+    }
+
+    internal suspend fun finishRefresh(
+        expected: SessionTokens, requestId: String, accessToken: String, refreshToken: String
+    ): Boolean {
+        var applied = false
+        session.edit { preferences ->
+            if (preferences[SESSION_ID] == expected.sessionId &&
+                preferences[REFRESH_TOKEN] == expected.refreshToken &&
+                preferences[REFRESH_REQUEST_ID] == requestId
+            ) {
+                preferences[ACCESS_TOKEN] = accessToken
+                preferences[REFRESH_TOKEN] = refreshToken
+                preferences.remove(REFRESH_REQUEST_ID)
+                applied = true
+            }
+        }
+        return applied
     }
 
     suspend fun clearTokens(expectedRefreshToken: String? = null): String? {
@@ -118,6 +157,8 @@ class UserPreferencesRepository @Inject constructor(
                 return@edit
             }
             preferences.remove(ACCESS_TOKEN)
+            preferences.remove(SESSION_ID)
+            preferences.remove(REFRESH_REQUEST_ID)
             refreshToken = preferences.remove(REFRESH_TOKEN)
         }
         return refreshToken

@@ -57,6 +57,18 @@ public class RefreshToken {
     @Column(name = "revoked_at")
     private LocalDateTime revokedAt;
 
+    @Column(name = "family_id")
+    private Long familyId;
+
+    @Column(name = "absolute_expires_at", nullable = false)
+    private LocalDateTime absoluteExpiresAt;
+
+    @Column(name = "successor_id")
+    private Long successorId;
+
+    @Column(name = "rotation_request_hash", length = 64)
+    private String rotationRequestHash;
+
     // Token 建立時間
     @Column(
             name = "created_at",

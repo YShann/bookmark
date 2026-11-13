@@ -49,6 +49,21 @@ class PasswordResetRateLimiterTest {
     }
 
     @Test
+    void loginAccountAndSourceLimitsExpire() {
+        var clock = new TestClock();
+        var limiter = new PasswordResetRateLimiter(clock);
+        for (int i = 0; i < 10; i++) limiter.checkLoginAccount("account");
+        assertThrows(TooManyRequestsException.class, () -> limiter.checkLoginAccount("account"));
+        limiter.checkLoginAccount("another");
+        limiter.checkSource("login", "ip", 1);
+        assertThrows(TooManyRequestsException.class, () -> limiter.checkSource("login", "ip", 1));
+        limiter.checkSource("login", "another-ip", 1);
+        clock.now = clock.now.plusSeconds(600);
+        assertDoesNotThrow(() -> limiter.checkLoginAccount("account"));
+        assertDoesNotThrow(() -> limiter.checkSource("login", "ip", 1));
+    }
+
+    @Test
     void registrationAndResetHaveSeparateSixtySecondCooldowns() {
         var clock = new TestClock();
         var limiter = new PasswordResetRateLimiter(clock);

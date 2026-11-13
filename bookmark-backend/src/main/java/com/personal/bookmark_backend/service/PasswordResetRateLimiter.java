@@ -7,6 +7,8 @@ import org.springframework.stereotype.Component;
 import java.time.Clock;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.PriorityQueue;
+import java.util.Comparator;
 
 /**
  * 單一 JVM 的有界限流；多副本部署須改用共享限流儲存。
@@ -17,6 +19,7 @@ public class PasswordResetRateLimiter {
 
     private final Clock clock;
     private final Map<String, Window> windows = new HashMap<>();
+    private final PriorityQueue<Window> expirations = new PriorityQueue<>(Comparator.comparingLong(window -> window.until));
 
     public PasswordResetRateLimiter() {
         this(Clock.systemUTC());
@@ -42,24 +45,41 @@ public class PasswordResetRateLimiter {
         consume("registration:cooldown:" + accountHash, startCheck(), 1, RESEND_SECONDS * 1000L);
     }
 
+    public synchronized void checkLoginAccount(String accountHash) {
+        consume("login:account:" + accountHash, startCheck(), 10, 600_000);
+    }
+
+    public synchronized void checkSource(String action, String source, int limit) {
+        consume(action + ":source:" + source, startCheck(), limit, 600_000);
+    }
+
     private long startCheck() {
         long now = clock.millis();
-        windows.entrySet().removeIf(entry -> entry.getValue().until <= now);
-        if (windows.size() >= 20000) throw new TooManyRequestsException();
+        while (!expirations.isEmpty() && expirations.peek().until <= now) {
+            windows.remove(expirations.remove().key);
+        }
         return now;
     }
 
     private void consume(String key, long now, int limit, long duration) {
-        Window window = windows.computeIfAbsent(key, ignored -> new Window(now + duration));
+        Window window = windows.get(key);
+        if (window == null) {
+            if (windows.size() >= 20000) throw new TooManyRequestsException();
+            window = new Window(key, now + duration);
+            windows.put(key, window);
+            expirations.add(window);
+        }
         if (window.count >= limit) throw new TooManyRequestsException();
         window.count++;
     }
 
     private static class Window {
+        final String key;
         final long until;
         int count;
 
-        Window(long until) {
+        Window(String key, long until) {
+            this.key = key;
             this.until = until;
         }
     }

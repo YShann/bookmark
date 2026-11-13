@@ -5,7 +5,6 @@ import com.personal.bookmark_backend.dto.request.auth.LinkGoogleRequest;
 import com.personal.bookmark_backend.dto.response.user.UserProfileResponse;
 import com.personal.bookmark_backend.entity.User;
 import com.personal.bookmark_backend.service.UserProfileService;
-import com.personal.bookmark_backend.service.AvatarStorageService;
 import com.personal.bookmark_backend.service.GoogleAuthService;
 
 import jakarta.validation.Valid;
@@ -29,7 +28,6 @@ import org.springframework.web.bind.annotation.RestController;
 public class UserController {
 
     private final UserProfileService userProfileService;
-    private final AvatarStorageService avatarStorageService;
     private final GoogleAuthService googleAuthService;
     private final UserMapper userMapper;
 
@@ -59,14 +57,13 @@ public class UserController {
             @RequestPart("file") MultipartFile file,
             Authentication authentication
     ) {
-        String fileName = avatarStorageService.store(file);
-        String avatarUrl = ServletUriComponentsBuilder.fromCurrentContextPath()
-                .path("/uploads/avatars/")
-                .path(fileName)
-                .toUriString();
         User user = userProfileService.updateAvatar(
                 userId(authentication),
-                avatarUrl
+                file,
+                fileName -> ServletUriComponentsBuilder.fromCurrentContextPath()
+                        .path("/uploads/avatars/")
+                        .path(fileName)
+                        .toUriString()
         );
         return ResponseEntity.ok(userMapper.toResponse(user));
     }

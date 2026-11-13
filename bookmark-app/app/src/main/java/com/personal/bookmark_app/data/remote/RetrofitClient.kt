@@ -1,5 +1,7 @@
 package com.personal.bookmark_app.data.remote
 
+import android.util.Base64
+
 import com.personal.bookmark_app.BuildConfig
 import com.personal.bookmark_app.data.local.SessionTokens
 import com.personal.bookmark_app.data.local.UserPreferencesRepository
@@ -12,6 +14,8 @@ import okhttp3.OkHttpClient
 import retrofit2.HttpException
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.io.IOException
+import java.security.SecureRandom
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -21,6 +25,7 @@ class RetrofitClient @Inject constructor(
     private val authApi: AuthApi
 ) {
     private val refreshMutex = Mutex()
+    private val random = SecureRandom()
 
     fun authenticated(): Retrofit {
         val client = OkHttpClient.Builder()
@@ -55,11 +60,22 @@ class RetrofitClient @Inject constructor(
         failedSession: SessionTokens
     ): String? = refreshMutex.withLock {
         val current = preferences.sessionTokens() ?: return@withLock null
-        if (current.refreshToken != failedSession.refreshToken) return@withLock null
-        if (current.accessToken != failedSession.accessToken) return@withLock current.accessToken
+        if (current.sessionId != failedSession.sessionId) return@withLock null
+        if (current.refreshToken != failedSession.refreshToken ||
+            current.accessToken != failedSession.accessToken
+        ) return@withLock current.accessToken
+
+        val requestId = preferences.beginRefresh(current, Base64.encodeToString(
+            ByteArray(32).also(random::nextBytes),
+            Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING
+        )) ?: return@withLock null
 
         val renewed = try {
-            authApi.refreshSession(RefreshTokenRequest(current.refreshToken))
+            try {
+                authApi.refreshSession(requestId, RefreshTokenRequest(current.refreshToken))
+            } catch (_: IOException) {
+                authApi.refreshSession(requestId, RefreshTokenRequest(current.refreshToken))
+            }
         } catch (error: HttpException) {
             val authAction = error.response()?.headers()?.get("X-Bookmark-Auth-Action")
             if (error.code() == 401 && authAction == "sign-in") {
@@ -68,6 +84,8 @@ class RetrofitClient @Inject constructor(
             return@withLock null
         }
 
-        renewed.accessToken.takeIf { preferences.updateAccessToken(current.refreshToken, it) }
+        renewed.accessToken.takeIf {
+            preferences.finishRefresh(current, requestId, it, renewed.refreshToken)
+        }
     }
 }
