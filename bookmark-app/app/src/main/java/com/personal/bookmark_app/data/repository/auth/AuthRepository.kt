@@ -36,7 +36,11 @@ interface AuthRepository {
 
     suspend fun verifyResetCode(email: String, code: String): Result<String>
 
-    suspend fun resetPassword(resetToken: String, newPassword: String, confirmPassword: String): Result<Unit>
+    suspend fun resetPassword(
+        resetToken: String,
+        newPassword: String,
+        confirmPassword: String
+    ): Result<Unit>
 
     suspend fun logout(): Result<Unit>
 }

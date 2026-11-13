@@ -1,5 +1,9 @@
 package com.personal.bookmark_app.ui.screen.folderbookmark
 
+import androidx.compose.ui.platform.LocalContext
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
+import com.personal.bookmark_app.ui.utils.openBookmarkUrl
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -17,7 +21,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -35,14 +38,12 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -54,16 +55,20 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.personal.bookmark_app.ui.components.BookmarkCard
+import androidx.paging.LoadState
+import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.itemKey
+import com.personal.bookmark_app.ui.components.bookmark.BookmarkCard
+import com.personal.bookmark_app.ui.components.bookmark.MoveBookmarkSheet
 import com.personal.bookmark_app.ui.components.SearchInputField
 import com.personal.bookmark_app.ui.components.TagInfoPopup
 import com.personal.bookmark_app.data.remote.dto.response.bookmark.BookmarkSourceResponse
-import com.personal.bookmark_app.data.remote.dto.response.bookmark.displayNameFor
-import com.personal.bookmark_app.ui.screen.addbookmark.AddFolderDialog
+import com.personal.bookmark_app.ui.model.toUiModel
 import com.personal.bookmark_app.ui.screen.folderbookmark.batchmanage.BatchManageBottomBar
 import com.personal.bookmark_app.ui.screen.folderbookmark.batchmanage.DeleteBookmarkDialog
-import com.personal.bookmark_app.ui.screen.folderbookmark.batchmanage.MoveBookmarkSheet
+import com.personal.bookmark_app.ui.viewmodel.FolderBookmarkViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,22 +81,20 @@ fun FolderBookmarkScreen(
     // UI State
     // ------------------------------------
 
-    var uiState by remember {
-        mutableStateOf(FolderBookmarkUiState())
-    }
+    var isTagFilterExpanded by remember { mutableStateOf(false) }
+    var isBatchManaging by remember { mutableStateOf(false) }
 
-    val viewModel: com.personal.bookmark_app.ui.viewmodel.FolderBookmarkViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
-    val data by viewModel.state.collectAsStateWithLifecycle()
-    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
-        viewModel.refresh()
-    }
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val folderName = data.folderName
-    val bookmarks = remember(data.bookmarks, bookmarkSources) {
-        data.bookmarks.map { it.toUiModel(bookmarkSources) }
-    }
-    val availableTags = remember(data.bookmarks) { data.bookmarks.flatMap { it.tags }.distinct().sorted() }
-    val busy = data.isLoading || data.isMutating
+    val viewModel: FolderBookmarkViewModel = hiltViewModel()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val bookmarks = viewModel.bookmarks.collectAsLazyPagingItems()
+    val isRefreshingBookmarks = bookmarks.loadState.refresh is LoadState.Loading
+    val loading = uiState.isLoading || isRefreshingBookmarks
+    val loadFailed =
+        bookmarks.loadState.refresh is LoadState.Error || bookmarks.loadState.append is LoadState.Error
+    val context = LocalContext.current
+    val folderName = uiState.folderName
+    val availableTags = uiState.tags
+    val busy = loading || uiState.isMutating
 
     // 已選取的收藏 ID
     var selectedBookmarkIds by remember {
@@ -107,67 +110,12 @@ fun FolderBookmarkScreen(
         mutableStateOf<List<String>>(emptyList())
     }
 
-    val moveSheetState = rememberModalBottomSheetState(
-        skipPartiallyExpanded = true
-    )
-
-    var showAddFolderDialog by remember {
-        mutableStateOf(false)
-    }
-
-    val availableFolders = data.folders.filterNot { it.id == folderId }
-    androidx.compose.runtime.LaunchedEffect(data.bookmarks) {
-        selectedBookmarkIds = selectedBookmarkIds.intersect(data.bookmarks.map { it.id.toString() }.toSet())
-        val tags = data.bookmarks.flatMap { it.tags }.toSet()
-        uiState = uiState.copy(selectedTags = uiState.selectedTags.intersect(tags))
-    }
-    androidx.activity.compose.BackHandler(enabled = uiState.isBatchManaging || data.isMutating) {
-        if (!data.isMutating) {
-            uiState = uiState.copy(isBatchManaging = false)
+    val availableFolders = uiState.folders.filterNot { it.id == folderId }
+    BackHandler(enabled = isBatchManaging || uiState.isMutating) {
+        if (!uiState.isMutating) {
+            isBatchManaging = false
             selectedBookmarkIds = emptySet()
         }
-    }
-
-    // ------------------------------------
-    // 收藏搜尋、篩選、排序
-    // ------------------------------------
-
-    val filteredBookmarks = remember(
-        bookmarks,
-        data.bookmarks,
-        uiState.searchQuery,
-        uiState.selectedTags,
-        uiState.isNewestFirst
-    ) {
-        bookmarks
-            .filter { bookmark ->
-
-                val matchesSearch =
-                    uiState.searchQuery.isBlank() ||
-                            bookmark.title.contains(
-                                uiState.searchQuery, ignoreCase = true
-                            ) ||
-                            bookmark.description.contains(
-                                uiState.searchQuery, ignoreCase = true
-                            ) ||
-                            bookmark.note.orEmpty().contains(uiState.searchQuery, ignoreCase = true) ||
-                            bookmark.source.contains(
-                                uiState.searchQuery, ignoreCase = true
-                            )
-
-                val matchesTags =
-                    uiState.selectedTags.isEmpty() ||
-                            uiState.selectedTags.all { it in bookmark.tags }
-
-                matchesSearch && matchesTags
-            }
-            .let { result ->
-                if (uiState.isNewestFirst) {
-                    result.sortedByDescending { item -> data.bookmarks.firstOrNull { it.id.toString() == item.id }?.createdAt }
-                } else {
-                    result.sortedBy { item -> data.bookmarks.firstOrNull { it.id.toString() == item.id }?.createdAt }
-                }
-            }
     }
 
     // ------------------------------------
@@ -175,9 +123,13 @@ fun FolderBookmarkScreen(
     // ------------------------------------
 
     // 目前顯示的收藏是否全部選取
-    val isAllSelected =
-        filteredBookmarks.isNotEmpty() &&
-                filteredBookmarks.all { it.id in selectedBookmarkIds }
+    var matchingIds by remember(uiState.searchQuery, uiState.selectedTags, uiState.totalCount) {
+        mutableStateOf<Set<String>?>(null)
+    }
+    val loadedBookmarks = bookmarks.itemSnapshotList.items
+    val loadedIds = remember(loadedBookmarks) { loadedBookmarks.map { it.id.toString() }.toSet() }
+    val allIds = matchingIds ?: loadedIds.takeIf { it.size.toLong() == uiState.totalCount }
+    val isAllSelected = !allIds.isNullOrEmpty() && allIds.all { it in selectedBookmarkIds }
 
     // 已選取數量
     val selectedCount = selectedBookmarkIds.size
@@ -195,16 +147,25 @@ fun FolderBookmarkScreen(
     // 全選 / 取消全選
     // toggle 切換
     fun toggleSelectAll() {
-        val visibleIds = filteredBookmarks.map { it.id }.toSet()
-
-        selectedBookmarkIds =
-            if (isAllSelected) {
-                // 取消目前畫面顯示項目的選取，保留其他篩選條件外的選取
-                selectedBookmarkIds - visibleIds
+        if (busy) return
+        fun toggleIds(ids: Set<String>) {
+            selectedBookmarkIds = if (ids.all { it in selectedBookmarkIds }) {
+                selectedBookmarkIds - ids
             } else {
-                // 選取目前畫面顯示的項目，保留之前已選取的項目
-                selectedBookmarkIds + visibleIds
+                selectedBookmarkIds + ids
             }
+        }
+
+        if (!allIds.isNullOrEmpty() && viewModel.isBookmarkFilterApplied()) {
+            toggleIds(allIds)
+            return
+        }
+
+        viewModel.getMatchingIds { ids ->
+            if (!isBatchManaging) return@getMatchingIds
+            matchingIds = ids
+            toggleIds(ids)
+        }
     }
 
     // ------------------------------------
@@ -212,7 +173,7 @@ fun FolderBookmarkScreen(
     // ------------------------------------
 
     fun finishBatchManaging() {
-        uiState = uiState.copy(isBatchManaging = false)
+        isBatchManaging = false
         selectedBookmarkIds = emptySet()
         showDeleteDialog = false
         bookmarkIdsToMove = emptyList()
@@ -227,15 +188,27 @@ fun FolderBookmarkScreen(
         if (idsToDelete.isEmpty()) return
         if (busy) return
         showDeleteDialog = false
-        viewModel.delete(idsToDelete) { finishBatchManaging() }
+        viewModel.delete(
+            idsToDelete,
+            onRemoved = { removed ->
+                if (removed.isNotEmpty()) matchingIds = null
+                selectedBookmarkIds -= removed
+            }) { finishBatchManaging() }
+    }
+
+    fun openMoveSheet(ids: List<String>) {
+        viewModel.loadMoveFolders { bookmarkIdsToMove = ids }
     }
 
     fun moveBookmarks(destination: Long) {
         val ids = bookmarkIdsToMove
         if (ids.isEmpty() || busy) return
         bookmarkIdsToMove = emptyList()
-        viewModel.move(ids, destination) {
-            if (uiState.isBatchManaging) finishBatchManaging()
+        viewModel.move(ids, destination, onRemoved = { removed ->
+            if (removed.isNotEmpty()) matchingIds = null
+            selectedBookmarkIds -= removed
+        }) {
+            if (isBatchManaging) finishBatchManaging()
         }
     }
 
@@ -248,10 +221,10 @@ fun FolderBookmarkScreen(
         topBar = {
             FolderBookmarkTopBar(
                 folderName = folderName,
-                isBatchManaging = uiState.isBatchManaging,
+                isBatchManaging = isBatchManaging,
                 onBackClick = {
-                    if (data.isMutating) return@FolderBookmarkTopBar
-                    if (uiState.isBatchManaging) {
+                    if (uiState.isMutating) return@FolderBookmarkTopBar
+                    if (isBatchManaging) {
                         finishBatchManaging()
                     } else {
                         onBackClick()
@@ -259,24 +232,24 @@ fun FolderBookmarkScreen(
                 },
                 onBatchManageClick = {
                     if (busy) return@FolderBookmarkTopBar
-                    if (uiState.isBatchManaging) {
+                    if (isBatchManaging) {
                         finishBatchManaging()
                     } else {
-                        uiState = uiState.copy(isBatchManaging = true)
+                        isBatchManaging = true
                         selectedBookmarkIds = emptySet()
                     }
                 }
             )
         },
         bottomBar = {
-            if (uiState.isBatchManaging) {
+            if (isBatchManaging) {
                 BatchManageBottomBar(
                     isAllSelected = isAllSelected,
-                    hasBookmarks = filteredBookmarks.isNotEmpty(),
+                    hasBookmarks = uiState.totalCount > 0 && !busy,
                     hasSelection = selectedCount > 0 && !busy,
                     onSelectAllClick = { if (!busy) toggleSelectAll() },
                     onDeleteClick = { showDeleteDialog = true },
-                    onMoveClick = { bookmarkIdsToMove = selectedBookmarkIds.toList() }
+                    onMoveClick = { openMoveSheet(selectedBookmarkIds.toList()) }
                 )
             }
         }
@@ -284,8 +257,13 @@ fun FolderBookmarkScreen(
     ) { innerPadding ->
 
         PullToRefreshBox(
-            isRefreshing = data.isLoading,
-            onRefresh = viewModel::refresh,
+            isRefreshing = isRefreshingBookmarks || uiState.isMutating,
+            onRefresh = {
+                if (!busy) {
+                    matchingIds = null
+                    viewModel.refresh()
+                }
+            },
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
@@ -301,21 +279,23 @@ fun FolderBookmarkScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
 
-                if (data.isMutating || data.error != null) {
+                if (uiState.error != null || loadFailed) {
                     item {
-                        if (data.isMutating) Text("處理中…")
-                        data.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                        uiState.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                        if (loadFailed && uiState.error == null) {
+                            Text(
+                                "載入收藏夾失敗，請重試",
+                                modifier = Modifier.clickable { bookmarks.retry() },
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
                     }
                 }
                 // 搜尋欄位
                 item {
                     SearchInputField(
                         query = uiState.searchQuery,
-                        onQueryChange = { query ->
-                            uiState = uiState.copy(
-                                searchQuery = query
-                            )
-                        },
+                        onQueryChange = viewModel::onQueryChange,
                         placeholder = "搜尋這個收藏夾的內容..."
                     )
                 }
@@ -325,51 +305,26 @@ fun FolderBookmarkScreen(
                     FolderTagFilter(
                         availableTags = availableTags,
                         selectedTags = uiState.selectedTags,
-                        isExpanded = uiState.isTagFilterExpanded,
-                        onTagClick = { tag ->
-                            val newTags =
-                                uiState.selectedTags.toMutableSet()
-
-                            if (tag in newTags) {
-                                newTags.remove(tag)
-                            } else {
-                                newTags.add(tag)
-                            }
-                            uiState = uiState.copy(
-                                selectedTags = newTags
-                            )
-                        },
-                        onClearClick = {
-                            uiState = uiState.copy(
-                                selectedTags = emptySet()
-                            )
-                        },
-                        onExpandClick = {
-                            uiState = uiState.copy(
-                                isTagFilterExpanded =
-                                    !uiState.isTagFilterExpanded
-                            )
-                        }
+                        isExpanded = isTagFilterExpanded,
+                        onTagClick = viewModel::toggleTag,
+                        onClearClick = viewModel::clearTags,
+                        onExpandClick = { isTagFilterExpanded = !isTagFilterExpanded }
                     )
                 }
 
                 // 收藏數量與排序
                 item {
                     FolderBookmarkHeader(
-                        count = filteredBookmarks.size,
+                        count = uiState.totalCount,
                         selectedCount = selectedCount,
-                        isBatchManaging = uiState.isBatchManaging,
+                        isBatchManaging = isBatchManaging,
                         isNewestFirst = uiState.isNewestFirst,
-                        onSortClick = {
-                            uiState = uiState.copy(
-                                isNewestFirst = !uiState.isNewestFirst
-                            )
-                        }
+                        onSortClick = viewModel::toggleSortOrder
                     )
                 }
 
                 // 收藏清單
-                if (filteredBookmarks.isEmpty() && !data.isLoading && data.error == null) {
+                if (bookmarks.itemCount == 0 && !loading && !loadFailed && uiState.error == null) {
 
                     item {
                         EmptyBookmarkView()
@@ -377,14 +332,16 @@ fun FolderBookmarkScreen(
 
                 } else {
                     items(
-                        items = filteredBookmarks,
-                        key = { it.id }
-                    ) { bookmark ->
+                        count = bookmarks.itemCount,
+                        key = bookmarks.itemKey { it.id }
+                    ) { index ->
+                        val response = bookmarks[index] ?: return@items
+                        val bookmark = response.toUiModel(bookmarkSources)
 
                         BookmarkCard(
                             item = bookmark,
-                            showActions = !busy && !uiState.isBatchManaging,
-                            isBatchManaging = uiState.isBatchManaging,
+                            showActions = !busy && !isBatchManaging,
+                            isBatchManaging = isBatchManaging,
                             isSelected = bookmark.id in selectedBookmarkIds,
 
                             onSelectionClick = {
@@ -394,21 +351,26 @@ fun FolderBookmarkScreen(
 
                             onClick = {
                                 if (busy) return@BookmarkCard
-                                if (uiState.isBatchManaging) {
+                                if (isBatchManaging) {
                                     toggleBookmarkSelection(bookmark.id)
                                 } else {
-                                    data.bookmarks.find { it.id.toString() == bookmark.id }?.let {
-                                        com.personal.bookmark_app.ui.utils.openBookmarkUrl(context, it.url)
-                                    }
+                                    openBookmarkUrl(context, response.url)
                                 }
                             },
 
-                            onEditTitleClick = { viewModel.update(bookmark.id, title = it) },
-                            onEditNoteClick = { viewModel.update(bookmark.id, note = it) },
+                            onEditTitleClick = { viewModel.update(response, title = it) },
+                            onEditNoteClick = { viewModel.update(response, note = it) },
                             availableTags = availableTags,
-                            onTagsSave = { viewModel.update(bookmark.id, tags = it) },
-                            onDeleteClick = { viewModel.delete(listOf(bookmark.id)) },
-                            onMoveClick = { bookmarkIdsToMove = listOf(bookmark.id) }
+                            onTagsSave = { viewModel.update(response, tags = it) },
+                            onDeleteClick = {
+                                viewModel.delete(
+                                    listOf(bookmark.id),
+                                    onRemoved = { removed ->
+                                        if (removed.isNotEmpty()) matchingIds = null
+                                        selectedBookmarkIds -= removed
+                                    })
+                            },
+                            onMoveClick = { openMoveSheet(listOf(bookmark.id)) }
                         )
                     }
                 }
@@ -437,30 +399,12 @@ fun FolderBookmarkScreen(
     // ------------------------------------
 
     if (bookmarkIdsToMove.isNotEmpty()) {
-        ModalBottomSheet(
-            onDismissRequest = {
-                bookmarkIdsToMove = emptyList()
-            },
-            sheetState = moveSheetState,
-            containerColor = MaterialTheme.colorScheme.surface
-        ) {
-            MoveBookmarkSheet(
-                selectedCount = bookmarkIdsToMove.size,
-                folders = availableFolders,
-                onFolderClick = ::moveBookmarks,
-                onCreateFolderClick = {
-                    showAddFolderDialog = true
-                }
-            )
-        }
-    }
-
-    if (showAddFolderDialog) {
-        AddFolderDialog(
-            onDismiss = {
-                showAddFolderDialog = false
-            },
-            onConfirm = viewModel::createFolder
+        MoveBookmarkSheet(
+            selectedCount = bookmarkIdsToMove.size,
+            folders = availableFolders,
+            onDismiss = { bookmarkIdsToMove = emptyList() },
+            onMove = ::moveBookmarks,
+            onCreateFolder = viewModel::createFolder
         )
     }
 }
@@ -567,7 +511,7 @@ private fun FolderTagFilter(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
         color = MaterialTheme.colorScheme.surfaceVariant,
-        border = androidx.compose.foundation.BorderStroke(
+        border = BorderStroke(
             1.dp,
             MaterialTheme.colorScheme.outlineVariant
         )
@@ -726,7 +670,7 @@ private fun FolderTagFilter(
 
 @Composable
 private fun FolderBookmarkHeader(
-    count: Int,
+    count: Long,
     selectedCount: Int,
     isBatchManaging: Boolean,
     isNewestFirst: Boolean,
@@ -806,15 +750,3 @@ private fun EmptyBookmarkView() {
         )
     }
 }
-
-private fun com.personal.bookmark_app.data.remote.dto.response.bookmark.BookmarkResponse.toUiModel(
-    bookmarkSources: List<BookmarkSourceResponse>
-) =
-    com.personal.bookmark_app.ui.model.BookmarkUiModel(
-        id = id.toString(),
-        source = bookmarkSources.displayNameFor(source),
-        date = createdAt?.take(10).orEmpty(),
-        title = title,
-        description = content.orEmpty().ifBlank { url },
-        imageUrl = imageUrl.orEmpty(), tags = tags, note = note
-    )

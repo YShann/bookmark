@@ -9,4 +9,5 @@ public record LinkGoogleRequest(
         String idToken,
         @NotBlank(message = "請輸入目前密碼")
         String password
-) {}
+) {
+}

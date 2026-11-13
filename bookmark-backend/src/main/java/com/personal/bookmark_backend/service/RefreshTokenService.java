@@ -4,9 +4,11 @@ import com.personal.bookmark_backend.entity.RefreshToken;
 import com.personal.bookmark_backend.exception.UnauthorizedException;
 import com.personal.bookmark_backend.repository.RefreshTokenRepository;
 import com.personal.bookmark_backend.repository.UserRepository;
+
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -73,7 +75,7 @@ public class RefreshTokenService {
 
     /**
      * 更新 Refresh Token
-     *
+     * <p>
      * 驗證舊 Token 後撤銷舊 Token，
      * 並產生一組新的 Refresh Token。
      */
@@ -123,7 +125,7 @@ public class RefreshTokenService {
 
     /**
      * 撤銷指定的 Refresh Token
-     *
+     * <p>
      * 用於使用者登出。
      */
     @Transactional
@@ -145,7 +147,7 @@ public class RefreshTokenService {
 
     /**
      * 撤銷使用者所有尚未撤銷的 Refresh Token
-     *
+     * <p>
      * 可用於帳號安全管理，例如強制所有裝置登出。
      */
     @Transactional

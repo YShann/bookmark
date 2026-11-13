@@ -25,4 +25,5 @@ data class ForgotPasswordUiState(
     val isFormValid: Boolean
         get() = isEmailValid
 }
+
 enum class PasswordResetStep { EMAIL, CODE, PASSWORD, SUCCESS }

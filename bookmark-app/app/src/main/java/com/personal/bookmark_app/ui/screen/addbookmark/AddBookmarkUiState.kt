@@ -1,5 +1,10 @@
 package com.personal.bookmark_app.ui.screen.addbookmark
 
+import com.personal.bookmark_app.ui.model.FolderUiModel
+import com.personal.bookmark_app.ui.model.TagOptionUiModel
+import com.personal.bookmark_app.ui.utils.MAX_BOOKMARK_TITLE_LENGTH
+import java.net.URI
+
 data class AddBookmarkUiState(
 
     // 基本收藏資料
@@ -21,14 +26,11 @@ data class AddBookmarkUiState(
 
     // 網址解析狀態
     val isParsing: Boolean = false,
-
-    // 彈出視窗狀態
-    val isFolderSelectorVisible: Boolean = false,
-    val isTagCreatorVisible: Boolean = false,
+    val automaticBrowserUrl: String? = null,
 
     // 錯誤訊息
-    val folders: List<com.personal.bookmark_app.ui.model.FolderUiModel> = emptyList(),
-    val tags: List<com.personal.bookmark_app.ui.model.TagOptionUiModel> = emptyList(),
+    val folders: List<FolderUiModel> = emptyList(),
+    val tags: List<TagOptionUiModel> = emptyList(),
     val isLoading: Boolean = true,
     val isSaving: Boolean = false,
     val isSaved: Boolean = false,
@@ -50,8 +52,10 @@ data class AddBookmarkUiState(
 
     // 表單是否可以儲存
     val isFormValid: Boolean
-        get() = isTitleValid && title.trim().length <= 255 && sourceUrl.length <= 2048 &&
-            runCatching { java.net.URI(sourceUrl.trim()).let {
-                it.scheme?.lowercase() in setOf("http", "https") && !it.host.isNullOrBlank()
-            } }.getOrDefault(false) && selectedFolderId > 0 && !isLoading && !isSaving && !isSaved && !isParsing
+        get() = isTitleValid && title.trim().length <= MAX_BOOKMARK_TITLE_LENGTH && sourceUrl.length <= 2048 &&
+                runCatching {
+                    URI(sourceUrl.trim()).let {
+                        it.scheme?.lowercase() in setOf("http", "https") && !it.host.isNullOrBlank()
+                    }
+                }.getOrDefault(false) && selectedFolderId > 0 && !isLoading && !isSaving && !isSaved && !isParsing
 }

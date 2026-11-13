@@ -1,13 +1,14 @@
 package com.personal.bookmark_app.ui.screen.addbookmark
 
+import androidx.compose.material3.TextButton
+import com.personal.bookmark_app.ui.components.AddFolderDialog
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -18,22 +19,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowLeft
-import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Link
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -43,7 +35,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -51,22 +42,14 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.personal.bookmark_app.ui.components.MultilineTextFieldView
-import com.personal.bookmark_app.ui.components.TagInfoPopup
 import com.personal.bookmark_app.ui.components.TextFieldView
-import com.personal.bookmark_app.ui.model.BookmarkPreviewUiModel
-import com.personal.bookmark_app.ui.model.FolderUiModel
-import com.personal.bookmark_app.ui.model.TagOptionUiModel
 
 @Composable
 fun AddBookmarkScreen(
@@ -134,7 +117,7 @@ fun AddBookmarkScreen(
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 ),
-                border = androidx.compose.foundation.BorderStroke(
+                border = BorderStroke(
                     1.dp,
                     MaterialTheme.colorScheme.outlineVariant
                 ),
@@ -147,35 +130,14 @@ fun AddBookmarkScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
 
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("來源網址 URL", style = MaterialTheme.typography.bodySmall)
-                            ReparseAction(
-                                isParsing = uiState.isParsing,
-                                enabled = !uiState.isParsing && !uiState.isSaving && uiState.sourceUrl.isNotBlank(),
-                                onClick = onReparseClick
-                            )
-                        }
-                        TextFieldView(
-                            value = uiState.sourceUrl,
-                            onValueChange = onSourceUrlChange,
-                            placeholder = "https://",
-                            enabled = !uiState.isSaving
-                        )
-                        if (uiState.isParsing) {
-                            androidx.compose.material3.LinearProgressIndicator(Modifier.fillMaxWidth())
-                        }
-                        if (uiState.content.isNotBlank()) Text(
-                            uiState.content,
-                            style = MaterialTheme.typography.bodySmall,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
+                    BookmarkSourceField(
+                        sourceUrl = uiState.sourceUrl,
+                        content = uiState.content,
+                        isParsing = uiState.isParsing,
+                        isSaving = uiState.isSaving,
+                        onSourceUrlChange = onSourceUrlChange,
+                        onReparseClick = onReparseClick
+                    )
                     Spacer(modifier = Modifier.height(2.dp))
                     BookmarkFolderSelector(
                         selectedFolder = folders.find { it.id == uiState.selectedFolderId },
@@ -183,16 +145,24 @@ fun AddBookmarkScreen(
                         onClick = { showFolderSheet = true }
                     )
                     uiState.parseError?.let {
-                        Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                        Text(
+                            it,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
                     }
                     if (uiState.isLoading) Text("載入中…")
                     if (uiState.isSaving) Text("儲存中…")
                     uiState.errorMessage?.let {
-                        Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                        Text(
+                            it,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
                     }
                     if (folders.isEmpty() && !uiState.isLoading) {
-                        androidx.compose.material3.TextButton(onClick = onRetry) { Text("重新載入") }
-                        androidx.compose.material3.TextButton(onClick = {
+                        TextButton(onClick = onRetry) { Text("重新載入") }
+                        TextButton(onClick = {
                             showAddFolderDialog = true
                         }) { Text("新增資料夾") }
                     }
@@ -361,194 +331,7 @@ private fun AddBookmarkTopBar(
 
 
 /* -------------------------------------------------------
- * 1. 文章預覽、來源網址、收藏資料夾
- * ------------------------------------------------------- */
-
-@Composable
-private fun ReparseAction(
-    isParsing: Boolean,
-    enabled: Boolean,
-    onClick: () -> Unit
-) {
-    val contentColor = if (enabled) {
-        MaterialTheme.colorScheme.primary
-    } else {
-        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-    }
-
-    Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(6.dp))
-            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
-            .padding(horizontal = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            imageVector = Icons.Default.Refresh,
-            contentDescription = null,
-            tint = contentColor,
-            modifier = Modifier.size(16.dp)
-        )
-
-        Spacer(modifier = Modifier.width(4.dp))
-
-        Text(
-            text = if (isParsing) "解析中…" else "重新解析",
-            style = MaterialTheme.typography.bodySmall,
-            color = contentColor
-        )
-    }
-}
-
-@Composable
-private fun BookmarkPreviewCard(
-    preview: BookmarkPreviewUiModel,
-    folders: List<FolderUiModel>,
-    selectedFolderId: Long,
-    isParsing: Boolean,
-    onFolderClick: () -> Unit,
-    onReparseClick: () -> Unit
-) {
-
-    val selectedFolder = folders.find {
-        it.id == selectedFolderId
-    }
-
-    Column(
-        verticalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        // 來源網址標題
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-
-            Text(
-                text = "來源網址 URL",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            ReparseAction(
-                isParsing = isParsing,
-                enabled = !isParsing,
-                onClick = onReparseClick
-            )
-        }
-
-        // 來源網址內容
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(48.dp)
-                .clip(RoundedCornerShape(6.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant)
-                .padding(horizontal = 12.dp)
-                .padding(start = 0.dp, end = 24.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-
-            Icon(
-                imageVector = Icons.Default.Link,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(16.dp)
-            )
-
-            Spacer(modifier = Modifier.width(10.dp))
-
-            Text(
-                text = preview.sourceUrl,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        BookmarkFolderSelector(
-            selectedFolder = selectedFolder,
-            enabled = true,
-            onClick = onFolderClick
-        )
-    }
-}
-
-@Composable
-private fun BookmarkFolderSelector(
-    selectedFolder: FolderUiModel?,
-    enabled: Boolean,
-    onClick: () -> Unit
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(
-            text = "選擇收藏夾",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(8.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant)
-                .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
-                .padding(10.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-
-            Surface(
-                modifier = Modifier.size(40.dp),
-                shape = RoundedCornerShape(6.dp),
-                color = MaterialTheme.colorScheme.surface,
-                shadowElevation = 1.dp
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = Icons.Outlined.Folder,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-            }
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = selectedFolder?.title ?: "選擇收藏夾",
-                    style = MaterialTheme.typography.bodySmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                if (selectedFolder != null) {
-                    Text(
-                        text = "${selectedFolder.count} 篇收藏",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            Icon(
-                imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp)
-            )
-        }
-    }
-}
-
-
-/* -------------------------------------------------------
- * 3. 文章標題
+ * 文章標題
  * ------------------------------------------------------- */
 
 @Composable
@@ -613,7 +396,7 @@ private fun BookmarkTitleSection(
 
 
 /* -------------------------------------------------------
- * 4. 個人札記
+ * 個人札記
  * ------------------------------------------------------- */
 
 @Composable
@@ -668,210 +451,7 @@ private fun BookmarkNoteSection(
 
 
 /* -------------------------------------------------------
- * 5. 索引標籤
- * ------------------------------------------------------- */
-
-@Composable
-private fun BookmarkTagSection(
-    tags: List<TagOptionUiModel>,
-    selectedTagIds: Set<String>,
-    onTagClick: (String) -> Unit,
-    onAddCustomTagClick: () -> Unit
-) {
-    var showTagInfo by remember { mutableStateOf(false) }
-    var isTagsExpanded by remember { mutableStateOf(false) }
-    val canAddTag = selectedTagIds.size < 5
-
-    // 標籤標題及選取數量
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-
-            Text(
-                text = "標籤分類",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Spacer(modifier = Modifier.width(5.dp))
-
-            Box {
-                Icon(
-                    imageVector = Icons.Default.Info,
-                    contentDescription = "標籤篩選說明",
-                    modifier = Modifier
-                        .size(15.dp)
-                        .clickable {
-                            showTagInfo = !showTagInfo
-                        },
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                if (showTagInfo) {
-                    TagInfoPopup(
-                        onDismiss = {
-                            showTagInfo = false
-                        },
-                        message = "顯示此資料夾內既有標籤，亦可自訂新增；最多可選取 5 個標籤。"
-                    )
-                }
-            }
-        }
-
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Surface(
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.surfaceVariant
-            ) {
-                Text(
-                    text = "已選 ${selectedTagIds.size}/5 個",
-                    modifier = Modifier.padding(
-                        horizontal = 12.dp,
-                        vertical = 5.dp
-                    ),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            }
-
-            if (tags.isNotEmpty()) {
-                Row(
-                    modifier = Modifier
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null
-                        ) {
-                            isTagsExpanded = !isTagsExpanded
-                        }
-                        .padding(horizontal = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    Text(
-                        text = if (isTagsExpanded) "收合" else "展開",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    Icon(
-                        imageVector = if (isTagsExpanded) {
-                            Icons.Default.ExpandLess
-                        } else {
-                            Icons.Default.ExpandMore
-                        },
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        }
-    }
-
-    // 標籤選項
-    FlowRow(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        maxLines = if (isTagsExpanded) Int.MAX_VALUE else 2
-    ) {
-        tags.forEach { tag ->
-            val isSelected = tag.id in selectedTagIds
-
-            Surface(
-                modifier = Modifier
-                    .height(36.dp)
-                    .clickable {
-                        if (isSelected || selectedTagIds.size < 5) {
-                            onTagClick(tag.id)
-                        }
-                    },
-                shape = RoundedCornerShape(6.dp),
-                color = if (isSelected) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.surface
-                },
-                border = if (isSelected) {
-                    null
-                } else {
-                    BorderStroke(
-                        width = 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant
-                    )
-                }
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = if (isSelected) {
-                            "# ${tag.name} ×"
-                        } else {
-                            "+ ${tag.name}"
-                        },
-                        style = MaterialTheme.typography.labelMedium,
-                        color = if (isSelected) {
-                            MaterialTheme.colorScheme.onPrimary
-                        } else {
-                            MaterialTheme.colorScheme.onSurface
-                        }
-                    )
-                }
-            }
-        }
-    }
-
-    // 自訂新標籤
-    Surface(
-        modifier = Modifier
-            .height(36.dp)
-            .clickable(
-                enabled = canAddTag,
-                onClick = onAddCustomTagClick
-            ),
-        shape = RoundedCornerShape(6.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(
-            width = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant
-        )
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Default.Add,
-                contentDescription = null,
-                modifier = Modifier.size(16.dp),
-                tint = MaterialTheme.colorScheme.onSurface
-            )
-
-            Spacer(modifier = Modifier.width(4.dp))
-
-            Text(
-                text = "自訂新標籤",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-        }
-    }
-}
-
-
-/* -------------------------------------------------------
- * 6. 今日拾藏
+ * 今日拾藏
  * ------------------------------------------------------- */
 
 @Composable

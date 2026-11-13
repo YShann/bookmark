@@ -1,13 +1,16 @@
 package com.personal.bookmark_backend.controller;
 
+import com.personal.bookmark_backend.mapper.UserMapper;
 import com.personal.bookmark_backend.dto.request.auth.LinkGoogleRequest;
 import com.personal.bookmark_backend.dto.response.user.UserProfileResponse;
 import com.personal.bookmark_backend.entity.User;
 import com.personal.bookmark_backend.service.UserProfileService;
 import com.personal.bookmark_backend.service.AvatarStorageService;
 import com.personal.bookmark_backend.service.GoogleAuthService;
+
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.MediaType;
@@ -28,19 +31,27 @@ public class UserController {
     private final UserProfileService userProfileService;
     private final AvatarStorageService avatarStorageService;
     private final GoogleAuthService googleAuthService;
+    private final UserMapper userMapper;
 
     @GetMapping
-    public ResponseEntity<UserProfileResponse> getProfile(Authentication authentication) {
+    public ResponseEntity<UserProfileResponse> getProfile(
+            Authentication authentication
+    ) {
         User user = userProfileService.getProfile(userId(authentication));
-        return ResponseEntity.ok(toResponse(user));
+        return ResponseEntity.ok(userMapper.toResponse(user));
     }
 
     @PostMapping("/google")
     public ResponseEntity<UserProfileResponse> linkGoogle(
-            @Valid @RequestBody LinkGoogleRequest request, Authentication authentication
+            @Valid @RequestBody LinkGoogleRequest request,
+            Authentication authentication
     ) {
-        User user = googleAuthService.link(userId(authentication), request.idToken(), request.password());
-        return ResponseEntity.ok(toResponse(user));
+        User user = googleAuthService.link(
+                userId(authentication),
+                request.idToken(),
+                request.password()
+        );
+        return ResponseEntity.ok(userMapper.toResponse(user));
     }
 
     @PostMapping(value = "/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -57,14 +68,10 @@ public class UserController {
                 userId(authentication),
                 avatarUrl
         );
-        return ResponseEntity.ok(toResponse(user));
+        return ResponseEntity.ok(userMapper.toResponse(user));
     }
 
     private Long userId(Authentication authentication) {
         return (Long) authentication.getPrincipal();
-    }
-
-    private UserProfileResponse toResponse(User user) {
-        return new UserProfileResponse(user.getEmail(), user.getAvatarUrl(), user.getGoogleSubject() != null);
     }
 }

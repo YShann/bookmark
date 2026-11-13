@@ -4,6 +4,7 @@ import com.personal.bookmark_backend.entity.*;
 import com.personal.bookmark_backend.exception.UnauthorizedException;
 import com.personal.bookmark_backend.repository.*;
 import com.personal.bookmark_backend.security.GoogleIdTokenVerifier;
+
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.*;
@@ -20,70 +21,134 @@ import org.springframework.mail.*;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+
 import javax.sql.DataSource;
+
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.*;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @SpringJUnitConfig(PasswordResetTransactionTest.Config.class)
-@TestPropertySource(properties={"spring.mail.username=test@example.com", "jwt.refresh-token-expiration=0"})
+@TestPropertySource(properties = {"spring.mail.username=test@example.com", "jwt.refresh-token-expiration=0"})
 class PasswordResetTransactionTest {
-    @Configuration @EnableTransactionManagement
-    @EnableJpaRepositories(basePackages="com.personal.bookmark_backend.repository")
+    @Configuration
+    @EnableTransactionManagement
+    @EnableJpaRepositories(basePackages = "com.personal.bookmark_backend.repository")
     @Import({AuthService.class, RefreshTokenService.class, PasswordResetRateLimiter.class, GoogleAuthService.class})
     static class Config {
-        @Bean DataSource dataSource() { return new DriverManagerDataSource("jdbc:h2:mem:reset;MODE=MySQL;DB_CLOSE_DELAY=-1;LOCK_TIMEOUT=10000", "sa", ""); }
-        @Bean LocalContainerEntityManagerFactoryBean entityManagerFactory(DataSource ds) {
+        @Bean
+        DataSource dataSource() {
+            return new DriverManagerDataSource(
+                    "jdbc:h2:mem:reset;MODE=MySQL;DB_CLOSE_DELAY=-1;LOCK_TIMEOUT=10000",
+                    "sa",
+                    ""
+            );
+        }
+
+        @Bean
+        LocalContainerEntityManagerFactoryBean entityManagerFactory(DataSource ds) {
             var factory = new LocalContainerEntityManagerFactoryBean();
-            factory.setDataSource(ds); factory.setPackagesToScan("com.personal.bookmark_backend.entity");
+            factory.setDataSource(ds);
+            factory.setPackagesToScan("com.personal.bookmark_backend.entity");
             factory.setJpaVendorAdapter(new HibernateJpaVendorAdapter());
             factory.setJpaPropertyMap(Map.of("hibernate.hbm2ddl.auto", "create-drop"));
             return factory;
         }
-        @Bean PlatformTransactionManager transactionManager(jakarta.persistence.EntityManagerFactory emf) { return new JpaTransactionManager(emf); }
-        @Bean JavaMailSender mailSender() { return mock(JavaMailSender.class); }
-        @Bean PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(4); }
-        @Bean JwtService jwtService() { return new JwtService(Base64.getEncoder().encodeToString(new byte[32]), 900000); }
-        @Bean GoogleIdTokenVerifier googleIdTokenVerifier() { return mock(GoogleIdTokenVerifier.class); }
+
+        @Bean
+        PlatformTransactionManager transactionManager(jakarta.persistence.EntityManagerFactory emf) {
+            return new JpaTransactionManager(emf);
+        }
+
+        @Bean
+        JavaMailSender mailSender() {
+            return mock(JavaMailSender.class);
+        }
+
+        @Bean
+        PasswordEncoder passwordEncoder() {
+            return new BCryptPasswordEncoder(4);
+        }
+
+        @Bean
+        JwtService jwtService() {
+            return new JwtService(Base64.getEncoder().encodeToString(new byte[32]), 900000);
+        }
+
+        @Bean
+        GoogleIdTokenVerifier googleIdTokenVerifier() {
+            return mock(GoogleIdTokenVerifier.class);
+        }
     }
-    @Autowired AuthService auth;
-    @Autowired RefreshTokenService refresh;
-    @Autowired UserRepository users;
-    @Autowired PasswordResetCodeRepository codes;
-    @Autowired RefreshTokenRepository refreshTokens;
-    @Autowired PasswordEncoder encoder;
-    @Autowired JavaMailSender mail;
-    @Autowired PlatformTransactionManager manager;
+
+    @Autowired
+    AuthService auth;
+    @Autowired
+    RefreshTokenService refresh;
+    @Autowired
+    UserRepository users;
+    @Autowired
+    PasswordResetCodeRepository codes;
+    @Autowired
+    RefreshTokenRepository refreshTokens;
+    @Autowired
+    PasswordEncoder encoder;
+    @Autowired
+    JavaMailSender mail;
+    @Autowired
+    PlatformTransactionManager manager;
     Long userId;
     String email;
     BlockingQueue<SimpleMailMessage> messages;
     TransactionTemplate tx;
 
-    @BeforeEach void setup() {
+    @BeforeEach
+    void setup() {
         tx = new TransactionTemplate(manager);
-        email = UUID.randomUUID()+"@example.com";
-        User user = new User(); user.setEmail(email); user.setPasswordHash(encoder.encode("OldPass123"));
-        user.setEmailVerifiedAt(LocalDateTime.now()); userId = users.save(user).getId();
+        email = UUID.randomUUID() + "@example.com";
+        User user = new User();
+        user.setEmail(email);
+        user.setPasswordHash(encoder.encode("OldPass123"));
+        user.setEmailVerifiedAt(LocalDateTime.now());
+        userId = users.save(user).getId();
         messages = new LinkedBlockingQueue<>();
         reset(mail);
-        doAnswer(call -> { messages.add(call.getArgument(0)); return null; }).when(mail).send(any(SimpleMailMessage.class));
+        doAnswer(call -> {
+            messages.add(call.getArgument(0));
+            return null;
+        }).when(mail).send(any(SimpleMailMessage.class));
     }
+
     void seed(String code) {
         tx.executeWithoutResult(status -> {
-            var saved = new PasswordResetCode(); saved.setUserId(userId); saved.setCodeHash(encoder.encode(code));
-            saved.setExpiresAt(LocalDateTime.now().plusMinutes(5)); codes.save(saved);
+            var saved = new PasswordResetCode();
+            saved.setUserId(userId);
+            saved.setCodeHash(encoder.encode(code));
+            saved.setExpiresAt(LocalDateTime.now().plusMinutes(5));
+            codes.save(saved);
         });
     }
-    PasswordResetCode saved() { return tx.execute(status -> codes.findByUserId(userId).orElseThrow()); }
-    String token() { seed("012345"); return auth.verifyResetCode(email, "012345", email); }
 
-    @Test void registrationUsesConfiguredSenderAndRejectsImmediateResend() {
+    PasswordResetCode saved() {
+        return tx.execute(status -> codes.findByUserId(userId).orElseThrow());
+    }
+
+    String token() {
+        seed("012345");
+        return auth.verifyResetCode(email, "012345", email);
+    }
+
+    @Test
+    void registrationUsesConfiguredSenderAndRejectsImmediateResend() {
         String recipient = "new-" + email;
         auth.sendRegistrationCode(recipient);
-        assertThrows(com.personal.bookmark_backend.exception.TooManyRequestsException.class,
-                () -> auth.sendRegistrationCode(" " + recipient.toUpperCase(Locale.ROOT) + " "));
+        assertThrows(
+                com.personal.bookmark_backend.exception.TooManyRequestsException.class,
+                () -> auth.sendRegistrationCode(" " + recipient.toUpperCase(Locale.ROOT) + " ")
+        );
 
         SimpleMailMessage message = messages.remove();
         assertEquals("test@example.com", message.getFrom());
@@ -91,21 +156,28 @@ class PasswordResetTransactionTest {
         assertTrue(messages.isEmpty());
     }
 
-    @Test void fullFlowRevokesRefreshAndNotifiesWithoutPassword() throws Exception {
+    @Test
+    void fullFlowRevokesRefreshAndNotifiesWithoutPassword() throws Exception {
         var login = auth.login(email, "OldPass123");
         String token = token();
         assertNotEquals(token, saved().getResetTokenHash());
-        assertThrows(IllegalArgumentException.class, () -> auth.verifyResetCode(email,"012345",email));
-        auth.resetPassword(token,"NewPass123","NewPass123");
+        assertThrows(IllegalArgumentException.class, () -> auth.verifyResetCode(email, "012345", email));
+        auth.resetPassword(token, "NewPass123", "NewPass123");
         assertNull(saved().getResetTokenHash());
-        assertThrows(IllegalArgumentException.class, () -> auth.resetPassword(token,"OtherPass123","OtherPass123"));
-        assertThrows(RuntimeException.class, () -> auth.login(email,"OldPass123"));
-        assertNotNull(auth.login(email,"NewPass123").accessToken());
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> auth.resetPassword(token, "OtherPass123", "OtherPass123")
+        );
+        assertThrows(RuntimeException.class, () -> auth.login(email, "OldPass123"));
+        assertNotNull(auth.login(email, "NewPass123").accessToken());
         assertThrows(IllegalArgumentException.class, () -> auth.refreshAccessToken(login.refreshToken()));
-        var message = messages.poll(5, TimeUnit.SECONDS); assertNotNull(message);
+        var message = messages.poll(5, TimeUnit.SECONDS);
+        assertNotNull(message);
         assertFalse(message.getText().contains("NewPass123"));
     }
-    @Test void persistentSessionCanRetryRenewalUntilLogout() {
+
+    @Test
+    void persistentSessionCanRetryRenewalUntilLogout() {
         var login = auth.login(email, "OldPass123");
         var refreshToken = login.refreshToken();
         assertTrue(refreshTokens.findAllByUserId(userId).get(0).getExpiresAt().isBefore(LocalDateTime.now()));
@@ -117,7 +189,8 @@ class PasswordResetTransactionTest {
         assertThrows(UnauthorizedException.class, () -> auth.refreshSession(refreshToken));
     }
 
-    @Test void renewUpgradesAValidLegacyTokenButDoesNotReviveAnExpiredOne() {
+    @Test
+    void renewUpgradesAValidLegacyTokenButDoesNotReviveAnExpiredOne() {
         var expired = auth.login(email, "OldPass123").refreshToken();
         var expiredRecord = refreshTokens.findAllByUserId(userId).get(0);
         expiredRecord.setExpiresAt(LocalDateTime.now().minusDays(1));
@@ -133,114 +206,229 @@ class PasswordResetTransactionTest {
         refreshTokens.save(validRecord);
 
         assertEquals(legacy, auth.refreshSession(legacy).refreshToken());
-        assertEquals(persistentExpiry, refreshTokens.findById(validRecord.getId()).orElseThrow().getExpiresAt());
+        assertEquals(
+                persistentExpiry,
+                refreshTokens.findById(validRecord.getId()).orElseThrow().getExpiresAt()
+        );
     }
 
-    @Test void fiveFailuresPersistAndBlockCorrectCode() {
+    @Test
+    void fiveFailuresPersistAndBlockCorrectCode() {
         seed("012345");
-        for (int i=1; i<=5; i++) {
-            assertThrows(IllegalArgumentException.class, () -> auth.verifyResetCode(email,"999999",email));
+        for (int i = 1; i <= 5; i++) {
+            assertThrows(IllegalArgumentException.class, () -> auth.verifyResetCode(email, "999999", email));
             assertEquals(i, saved().getAttempts());
         }
-        assertThrows(IllegalArgumentException.class, () -> auth.verifyResetCode(email,"012345",email));
+        assertThrows(IllegalArgumentException.class, () -> auth.verifyResetCode(email, "012345", email));
         assertNull(saved().getVerifiedAt());
     }
-    @Test void expiredCodeAndTokenAreRejected() {
+
+    @Test
+    void expiredCodeAndTokenAreRejected() {
         seed("012345");
-        tx.executeWithoutResult(s -> codes.findByUserId(userId).orElseThrow().setExpiresAt(LocalDateTime.now().minusSeconds(1)));
-        assertThrows(IllegalArgumentException.class, () -> auth.verifyResetCode(email,"012345",email));
-        tx.executeWithoutResult(s -> codes.findByUserId(userId).orElseThrow().setExpiresAt(LocalDateTime.now().plusMinutes(5)));
-        String token = auth.verifyResetCode(email,"012345",email);
-        tx.executeWithoutResult(s -> codes.findByUserId(userId).orElseThrow().setResetTokenExpiresAt(LocalDateTime.now().minusSeconds(1)));
-        assertThrows(IllegalArgumentException.class, () -> auth.resetPassword(token,"NewPass123","NewPass123"));
+        tx.executeWithoutResult(s -> codes.findByUserId(userId)
+                .orElseThrow()
+                .setExpiresAt(LocalDateTime.now().minusSeconds(1)));
+        assertThrows(IllegalArgumentException.class, () -> auth.verifyResetCode(email, "012345", email));
+        tx.executeWithoutResult(s -> codes.findByUserId(userId)
+                .orElseThrow()
+                .setExpiresAt(LocalDateTime.now().plusMinutes(5)));
+        String token = auth.verifyResetCode(email, "012345", email);
+        tx.executeWithoutResult(s -> codes.findByUserId(userId)
+                .orElseThrow()
+                .setResetTokenExpiresAt(LocalDateTime.now().minusSeconds(1)));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> auth.resetPassword(token, "NewPass123", "NewPass123")
+        );
         assertTrue(encoder.matches("OldPass123", users.findById(userId).orElseThrow().getPasswordHash()));
     }
-    @Test void invalidPasswordsDoNotConsumeToken() {
+
+    @Test
+    void invalidPasswordsDoNotConsumeToken() {
         String token = token();
-        assertThrows(IllegalArgumentException.class, () -> auth.resetPassword(token,"short","short"));
-        assertThrows(IllegalArgumentException.class, () -> auth.resetPassword(token,"NewPass123","Mismatch123"));
+        assertThrows(IllegalArgumentException.class, () -> auth.resetPassword(token, "short", "short"));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> auth.resetPassword(token, "NewPass123", "Mismatch123")
+        );
         assertNotNull(saved().getResetTokenHash());
     }
-    @Test void concurrentResetHasExactlyOneWinner() throws Exception {
+
+    @Test
+    void concurrentResetHasExactlyOneWinner() throws Exception {
         String token = token();
         var pool = Executors.newFixedThreadPool(2);
         var gate = new CountDownLatch(1);
-        Callable<Boolean> task = () -> { gate.await(); try { auth.resetPassword(token,"NewPass123","NewPass123"); return true; } catch (IllegalArgumentException e) { return false; } };
+        Callable<Boolean> task = () -> {
+            gate.await();
+            try {
+                auth.resetPassword(token, "NewPass123", "NewPass123");
+                return true;
+            } catch (IllegalArgumentException e) {
+                return false;
+            }
+        };
         try {
-            var one=pool.submit(task); var two=pool.submit(task); gate.countDown();
-            assertNotEquals(one.get(10,TimeUnit.SECONDS), two.get(10,TimeUnit.SECONDS));
-        } finally { pool.shutdownNow(); }
-        assertNotNull(messages.poll(5,TimeUnit.SECONDS));
+            var one = pool.submit(task);
+            var two = pool.submit(task);
+            gate.countDown();
+            assertNotEquals(one.get(10, TimeUnit.SECONDS), two.get(10, TimeUnit.SECONDS));
+        } finally {
+            pool.shutdownNow();
+        }
+        assertNotNull(messages.poll(5, TimeUnit.SECONDS));
     }
-    @Test void outerRollbackPreservesPasswordTokenAndRefresh() {
-        String token = token(); var login = auth.login(email,"OldPass123");
-        assertThrows(IllegalStateException.class, () -> tx.executeWithoutResult(s -> {
-            auth.resetPassword(token,"NewPass123","NewPass123"); throw new IllegalStateException("rollback");
-        }));
+
+    @Test
+    void outerRollbackPreservesPasswordTokenAndRefresh() {
+        String token = token();
+        var login = auth.login(email, "OldPass123");
+        assertThrows(
+                IllegalStateException.class, () -> tx.executeWithoutResult(s -> {
+                    auth.resetPassword(token, "NewPass123", "NewPass123");
+                    throw new IllegalStateException("rollback");
+                })
+        );
         assertNotNull(saved().getResetTokenHash());
-        assertTrue(encoder.matches("OldPass123",users.findById(userId).orElseThrow().getPasswordHash()));
+        assertTrue(encoder.matches("OldPass123", users.findById(userId).orElseThrow().getPasswordHash()));
         assertNotNull(auth.refreshAccessToken(login.refreshToken()));
         verifyNoInteractions(mail);
     }
-    @Test void resendReplacesExistingRowAndInvalidatesOldToken() throws Exception {
-        String oldToken = token(); Long id = saved().getId();
-        tx.executeWithoutResult(s -> codes.findByUserId(userId).orElseThrow().setExpiresAt(LocalDateTime.now().plusMinutes(3)));
-        auth.forgotPassword(email,email);
-        var message=messages.poll(5,TimeUnit.SECONDS); assertNotNull(message);
-        PasswordResetCode saved = saved(); assertEquals(id,saved.getId());
-        assertNull(saved.getResetTokenHash()); assertNull(saved.getVerifiedAt()); assertEquals(0,saved.getAttempts());
-        var matcher=java.util.regex.Pattern.compile("[0-9]{6}").matcher(message.getText()); assertTrue(matcher.find());
-        assertTrue(encoder.matches(matcher.group(),saved.getCodeHash()));
-        assertThrows(IllegalArgumentException.class, () -> auth.resetPassword(oldToken,"NewPass123","NewPass123"));
-        assertThrows(IllegalArgumentException.class, () -> auth.verifyResetCode(email,"012345",email));
-        assertNotNull(auth.verifyResetCode(email,matcher.group(),email));
-        assertThrows(com.personal.bookmark_backend.exception.TooManyRequestsException.class, () -> auth.forgotPassword(email,email));
+
+    @Test
+    void resendReplacesExistingRowAndInvalidatesOldToken() throws Exception {
+        String oldToken = token();
+        Long id = saved().getId();
+        tx.executeWithoutResult(s -> codes.findByUserId(userId)
+                .orElseThrow()
+                .setExpiresAt(LocalDateTime.now().plusMinutes(3)));
+        auth.forgotPassword(email, email);
+        var message = messages.poll(5, TimeUnit.SECONDS);
+        assertNotNull(message);
+        PasswordResetCode saved = saved();
+        assertEquals(id, saved.getId());
+        assertNull(saved.getResetTokenHash());
+        assertNull(saved.getVerifiedAt());
+        assertEquals(0, saved.getAttempts());
+        var matcher = java.util.regex.Pattern.compile("[0-9]{6}").matcher(message.getText());
+        assertTrue(matcher.find());
+        assertTrue(encoder.matches(matcher.group(), saved.getCodeHash()));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> auth.resetPassword(oldToken, "NewPass123", "NewPass123")
+        );
+        assertThrows(IllegalArgumentException.class, () -> auth.verifyResetCode(email, "012345", email));
+        assertNotNull(auth.verifyResetCode(email, matcher.group(), email));
+        assertThrows(
+                com.personal.bookmark_backend.exception.TooManyRequestsException.class,
+                () -> auth.forgotPassword(email, email)
+        );
     }
-    @Test void smtpFailureRollsBackReplacement() throws Exception {
-        String token=token();
-        tx.executeWithoutResult(s -> codes.findByUserId(userId).orElseThrow().setExpiresAt(LocalDateTime.now().plusMinutes(3)));
-        var attempted=new CountDownLatch(1);
-        doAnswer(call -> { attempted.countDown(); throw new MailSendException("simulated"); }).when(mail).send(any(SimpleMailMessage.class));
-        String previous=saved().getResetTokenHash();
-        auth.forgotPassword(email,email); assertTrue(attempted.await(5,TimeUnit.SECONDS));
-        assertEquals(previous,saved().getResetTokenHash());
+
+    @Test
+    void smtpFailureRollsBackReplacement() throws Exception {
+        String token = token();
+        tx.executeWithoutResult(s -> codes.findByUserId(userId)
+                .orElseThrow()
+                .setExpiresAt(LocalDateTime.now().plusMinutes(3)));
+        var attempted = new CountDownLatch(1);
+        doAnswer(call -> {
+            attempted.countDown();
+            throw new MailSendException("simulated");
+        }).when(mail).send(any(SimpleMailMessage.class));
+        String previous = saved().getResetTokenHash();
+        auth.forgotPassword(email, email);
+        assertTrue(attempted.await(5, TimeUnit.SECONDS));
+        assertEquals(previous, saved().getResetTokenHash());
         assertNotNull(token);
     }
-    @Test void unknownEmailIsAcceptedAndThrottledLikeKnownEmail() throws Exception {
-        String unknown=UUID.randomUUID()+"@example.com";
-        auth.forgotPassword(unknown,unknown);
-        assertThrows(com.personal.bookmark_backend.exception.TooManyRequestsException.class, () -> auth.forgotPassword(unknown,unknown));
+
+    @Test
+    void unknownEmailIsAcceptedAndThrottledLikeKnownEmail() throws Exception {
+        String unknown = UUID.randomUUID() + "@example.com";
+        auth.forgotPassword(unknown, unknown);
+        assertThrows(
+                com.personal.bookmark_backend.exception.TooManyRequestsException.class,
+                () -> auth.forgotPassword(unknown, unknown)
+        );
         // 同一背景佇列的任務皆完成後確認未寄信。
-        var executor=(ExecutorService)org.springframework.test.util.ReflectionTestUtils.getField(auth,"resetMailExecutor");
-        executor.submit(() -> {}).get(5,TimeUnit.SECONDS);
+        var executor = (ExecutorService) org.springframework.test.util.ReflectionTestUtils.getField(
+                auth,
+                "resetMailExecutor"
+        );
+        executor.submit(() -> {
+        }).get(5, TimeUnit.SECONDS);
         verifyNoInteractions(mail);
     }
-    @Test void concurrentVerificationIssuesOnlyOneToken() throws Exception {
-        seed("012345"); var pool=Executors.newFixedThreadPool(2); var gate=new CountDownLatch(1);
-        Callable<Boolean> task=() -> { gate.await(); try { auth.verifyResetCode(email,"012345",email); return true; } catch (IllegalArgumentException e) { return false; } };
-        try { var one=pool.submit(task); var two=pool.submit(task); gate.countDown();
-            assertNotEquals(one.get(10,TimeUnit.SECONDS),two.get(10,TimeUnit.SECONDS));
-        } finally { pool.shutdownNow(); }
-    }
-    @Test void notificationFailureDoesNotUndoReset() throws Exception {
-        String token=token(); var attempted=new CountDownLatch(1);
-        doAnswer(call -> { attempted.countDown(); throw new MailSendException("simulated"); }).when(mail).send(any(SimpleMailMessage.class));
-        auth.resetPassword(token,"NewPass123","NewPass123");
-        assertTrue(attempted.await(5,TimeUnit.SECONDS));
-        assertNull(saved().getResetTokenHash());
-        assertTrue(encoder.matches("NewPass123",users.findById(userId).orElseThrow().getPasswordHash()));
-    }
-    @Test void concurrentRefreshCannotLeaveUsableOldSessionAfterReset() throws Exception {
-        String token=token(); String old=auth.login(email,"OldPass123").refreshToken();
-        var pool=Executors.newFixedThreadPool(2); var gate=new CountDownLatch(1);
+
+    @Test
+    void concurrentVerificationIssuesOnlyOneToken() throws Exception {
+        seed("012345");
+        var pool = Executors.newFixedThreadPool(2);
+        var gate = new CountDownLatch(1);
+        Callable<Boolean> task = () -> {
+            gate.await();
+            try {
+                auth.verifyResetCode(email, "012345", email);
+                return true;
+            } catch (IllegalArgumentException e) {
+                return false;
+            }
+        };
         try {
-            var reset=pool.submit(() -> { gate.await(); auth.resetPassword(token,"NewPass123","NewPass123"); return true; });
-            var rotate=pool.submit(() -> { gate.await(); try { return auth.refreshAccessToken(old).refreshToken(); }
-                catch (IllegalArgumentException e) { return null; } });
-            gate.countDown(); assertTrue(reset.get(10,TimeUnit.SECONDS)); String rotated=rotate.get(10,TimeUnit.SECONDS);
+            var one = pool.submit(task);
+            var two = pool.submit(task);
+            gate.countDown();
+            assertNotEquals(one.get(10, TimeUnit.SECONDS), two.get(10, TimeUnit.SECONDS));
+        } finally {
+            pool.shutdownNow();
+        }
+    }
+
+    @Test
+    void notificationFailureDoesNotUndoReset() throws Exception {
+        String token = token();
+        var attempted = new CountDownLatch(1);
+        doAnswer(call -> {
+            attempted.countDown();
+            throw new MailSendException("simulated");
+        }).when(mail).send(any(SimpleMailMessage.class));
+        auth.resetPassword(token, "NewPass123", "NewPass123");
+        assertTrue(attempted.await(5, TimeUnit.SECONDS));
+        assertNull(saved().getResetTokenHash());
+        assertTrue(encoder.matches("NewPass123", users.findById(userId).orElseThrow().getPasswordHash()));
+    }
+
+    @Test
+    void concurrentRefreshCannotLeaveUsableOldSessionAfterReset() throws Exception {
+        String token = token();
+        String old = auth.login(email, "OldPass123").refreshToken();
+        var pool = Executors.newFixedThreadPool(2);
+        var gate = new CountDownLatch(1);
+        try {
+            var reset = pool.submit(() -> {
+                gate.await();
+                auth.resetPassword(token, "NewPass123", "NewPass123");
+                return true;
+            });
+            var rotate = pool.submit(() -> {
+                gate.await();
+                try {
+                    return auth.refreshAccessToken(old).refreshToken();
+                } catch (IllegalArgumentException e) {
+                    return null;
+                }
+            });
+            gate.countDown();
+            assertTrue(reset.get(10, TimeUnit.SECONDS));
+            String rotated = rotate.get(10, TimeUnit.SECONDS);
             assertThrows(IllegalArgumentException.class, () -> auth.refreshAccessToken(old));
-            if (rotated != null) assertThrows(IllegalArgumentException.class, () -> auth.refreshAccessToken(rotated));
-        } finally { pool.shutdownNow(); }
-        assertNotNull(messages.poll(5,TimeUnit.SECONDS));
+            if (rotated != null)
+                assertThrows(IllegalArgumentException.class, () -> auth.refreshAccessToken(rotated));
+        } finally {
+            pool.shutdownNow();
+        }
+        assertNotNull(messages.poll(5, TimeUnit.SECONDS));
     }
 }

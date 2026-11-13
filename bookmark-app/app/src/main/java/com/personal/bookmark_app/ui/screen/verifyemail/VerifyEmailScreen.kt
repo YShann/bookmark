@@ -1,5 +1,6 @@
 package com.personal.bookmark_app.ui.screen.verifyemail
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
@@ -222,7 +223,7 @@ private fun OtpCodeInput(
                                 .height(64.dp),
                             shape = MaterialTheme.shapes.medium,
                             color = MaterialTheme.colorScheme.surface,
-                            border = androidx.compose.foundation.BorderStroke(
+                            border = BorderStroke(
                                 width = 1.dp,
                                 color = if (isActiveCell) {
                                     MaterialTheme.colorScheme.primary

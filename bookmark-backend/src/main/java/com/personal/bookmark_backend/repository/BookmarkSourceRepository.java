@@ -1,6 +1,7 @@
 package com.personal.bookmark_backend.repository;
 
 import com.personal.bookmark_backend.entity.BookmarkSource;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;

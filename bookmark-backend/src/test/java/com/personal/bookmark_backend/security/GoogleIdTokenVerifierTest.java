@@ -1,7 +1,9 @@
 package com.personal.bookmark_backend.security;
 
 import com.personal.bookmark_backend.exception.UnauthorizedException;
+
 import io.jsonwebtoken.Jwts;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 
@@ -23,8 +25,10 @@ class GoogleIdTokenVerifierTest {
     void acceptsSignedCredentialsFromBothGoogleIssuerFormats() {
         for (String issuer : new String[]{"https://accounts.google.com", "accounts.google.com"}) {
             String token = token(issuer, CLIENT_ID, true, Instant.now().plusSeconds(300), GOOGLE_KEY);
-            assertEquals(new GoogleIdTokenVerifier.GoogleAccount("google-user-id", "test@gmail.com", true),
-                    verifier.verify(token));
+            assertEquals(
+                    new GoogleIdTokenVerifier.GoogleAccount("google-user-id", "test@gmail.com", true),
+                    verifier.verify(token)
+            );
         }
     }
 

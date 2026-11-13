@@ -1,5 +1,6 @@
 package com.personal.bookmark_app.ui.screen.home
 
+import androidx.compose.ui.unit.Dp
 import android.net.Uri
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -22,8 +23,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
+import androidx.paging.LoadState
+import androidx.paging.compose.LazyPagingItems
+import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.itemKey
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
@@ -50,7 +53,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -65,7 +68,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.personal.bookmark_app.data.remote.dto.response.user.UserProfileResponse
 import com.personal.bookmark_app.ui.components.LinkGoogleDialog
 import com.personal.bookmark_app.ui.components.requestGoogleIdToken
@@ -82,7 +85,6 @@ fun HomeScreen(
     onSearchClick: () -> Unit = {},
     onAddBookmarkClick: () -> Unit = {},
     onDailyPicksClick: () -> Unit = {},
-    onEditFoldersClick: () -> Unit = {},
     onFolderClick: (FolderUiModel) -> Unit = {},
     onAvatarSelected: (Uri) -> Unit = {},
     onLogoutClick: () -> Unit = {}
@@ -96,17 +98,11 @@ fun HomeScreen(
         mutableStateOf<FolderUiModel?>(null)
     }
 
-    val homeViewModel: HomeViewModel = viewModel()
-    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
-        homeViewModel.refreshFolders()
-    }
+    val homeViewModel: HomeViewModel = hiltViewModel()
+    val folders = homeViewModel.folders.collectAsLazyPagingItems()
+    val uiState by homeViewModel.uiState.collectAsStateWithLifecycle()
 
-
-    // 觀察本地端儲存的顯示方式
-    val displayMode by homeViewModel.folderDisplayMode.collectAsState()
-    val folders by homeViewModel.folders.collectAsState()
-    val isRefreshingFolders by homeViewModel.isRefreshingFolders.collectAsState()
-    val updatedProfile by homeViewModel.profile.collectAsState()
+    val isRefreshingFolders = folders.loadState.refresh is LoadState.Loading
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -114,7 +110,7 @@ fun HomeScreen(
             HomeTopAppBar(
                 onSearchClick = onSearchClick,
                 onAddBookmarkClick = onAddBookmarkClick,
-                profile = updatedProfile ?: initialProfile,
+                profile = uiState.updatedProfile ?: initialProfile,
                 onLinkGoogle = homeViewModel::linkGoogle,
                 onAvatarSelected = { uri ->
                     homeViewModel.updateAvatar(uri)
@@ -135,15 +131,16 @@ fun HomeScreen(
 
             PullToRefreshBox(
                 isRefreshing = isRefreshingFolders,
-                onRefresh = homeViewModel::refreshFolders,
+                onRefresh = folders::refresh,
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
             ) {
                 FolderSection(
                     folders = folders,
+                    folderCount = uiState.folderCount,
                     modifier = Modifier.fillMaxSize(),
-                    displayMode = displayMode,
+                    displayMode = uiState.displayMode,
                     onDisplayModeChange = homeViewModel::updateFolderDisplayMode,
                     onEditClick = {
                         showFolderManagement = true
@@ -166,6 +163,7 @@ fun HomeScreen(
     if (showFolderManagement) {
         FolderManagementSheet(
             folders = folders,
+            folderCount = uiState.folderCount,
             onDismiss = {
                 showFolderManagement = false
             },
@@ -467,7 +465,8 @@ private fun DailyPicksCard(
 
 @Composable
 private fun FolderSection(
-    folders: List<FolderUiModel>,
+    folders: LazyPagingItems<FolderUiModel>,
+    folderCount: Long,
     modifier: Modifier = Modifier,
     displayMode: FolderDisplayMode,
     onDisplayModeChange: (FolderDisplayMode) -> Unit,
@@ -500,7 +499,7 @@ private fun FolderSection(
                 Spacer(modifier = Modifier.width(8.dp))
 
                 Text(
-                    text = "${folders.size} 個分類",
+                    text = "${folderCount} 個分類",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -597,9 +596,10 @@ private fun FolderSection(
                     userScrollEnabled = true
                 ) {
                     items(
-                        items = folders,
-                        key = { it.id }
-                    ) { folder ->
+                        count = folders.itemCount,
+                        key = folders.itemKey { it.id }
+                    ) { index ->
+                        val folder = folders[index] ?: return@items
                         FolderCard(
                             folder = folder,
                             modifier = Modifier.fillMaxWidth(),
@@ -623,9 +623,10 @@ private fun FolderSection(
                     userScrollEnabled = true
                 ) {
                     items(
-                        items = folders,
-                        key = { it.id }
-                    ) { folder ->
+                        count = folders.itemCount,
+                        key = folders.itemKey { it.id }
+                    ) { index ->
+                        val folder = folders[index] ?: return@items
                         FolderListItem(
                             folder = folder,
                             onClick = {
@@ -722,7 +723,7 @@ private fun FolderCard(
 @Composable
 private fun FolderImageFallback(
     modifier: Modifier,
-    iconSize: androidx.compose.ui.unit.Dp,
+    iconSize: Dp,
     contentDescription: String
 ) {
     Box(

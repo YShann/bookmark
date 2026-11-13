@@ -51,6 +51,7 @@ Spring Boot Context 範例測試與 Android Debug APK／單元測試已在本機
 
 ## 文件
 
+- [Android Hilt 入門：從搜尋頁讀懂依賴注入](docs/ANDROID_HILT.md)
 - [開發規格與階段狀態](docs/DEVELOPMENT_SPEC.md)
 - [系統架構](docs/ARCHITECTURE.md)
 

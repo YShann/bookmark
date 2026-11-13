@@ -23,7 +23,11 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleGoogleLinkRequired(GoogleLinkRequiredException exception) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .header("X-Bookmark-Auth-Action", "link-google")
-                .body(new ErrorResponse(HttpStatus.CONFLICT.value(), exception.getMessage(), LocalDateTime.now()));
+                .body(new ErrorResponse(
+                        HttpStatus.CONFLICT.value(),
+                        exception.getMessage(),
+                        LocalDateTime.now()
+                ));
     }
 
     @ExceptionHandler(ResponseStatusException.class)

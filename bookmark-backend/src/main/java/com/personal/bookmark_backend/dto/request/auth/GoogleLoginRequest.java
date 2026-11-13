@@ -9,4 +9,5 @@ public record GoogleLoginRequest(
         String idToken,
         @Size(max = 72, message = "密碼長度過長")
         String password
-) {}
+) {
+}

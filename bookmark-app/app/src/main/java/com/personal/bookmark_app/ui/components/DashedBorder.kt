@@ -29,7 +29,10 @@ fun Modifier.dashedBorder(
         cap = cap,
         width = width.toPx(),
         pathEffect = PathEffect.dashPathEffect(
-            intervals = floatArrayOf(dashWidth.toPx() + width.toPx(), gapWidth.toPx() + width.toPx()),
+            intervals = floatArrayOf(
+                dashWidth.toPx() + width.toPx(),
+                gapWidth.toPx() + width.toPx()
+            ),
             phase = 0f
         )
     )

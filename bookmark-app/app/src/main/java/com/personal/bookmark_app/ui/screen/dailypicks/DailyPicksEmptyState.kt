@@ -1,5 +1,6 @@
 package com.personal.bookmark_app.ui.screen.dailypicks
 
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -73,7 +74,7 @@ fun DailyPicksEmptyState(
                 text = "還沒有收藏任何內容，\n先把喜歡的文章、貼文或影片收藏起來吧！",
                 style = MaterialTheme.typography.bodySmall,
                 color = BookmarkTextSecondary,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                textAlign = TextAlign.Center,
                 lineHeight = MaterialTheme.typography.bodySmall.lineHeight
             )
         }

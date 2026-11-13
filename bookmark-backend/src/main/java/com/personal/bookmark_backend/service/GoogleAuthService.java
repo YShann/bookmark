@@ -8,7 +8,9 @@ import com.personal.bookmark_backend.exception.UnauthorizedException;
 import com.personal.bookmark_backend.repository.UserRepository;
 import com.personal.bookmark_backend.security.GoogleIdTokenVerifier;
 import com.personal.bookmark_backend.security.GoogleIdTokenVerifier.GoogleAccount;
+
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;

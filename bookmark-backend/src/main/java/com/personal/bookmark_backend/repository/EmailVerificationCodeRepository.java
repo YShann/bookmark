@@ -1,9 +1,9 @@
 package com.personal.bookmark_backend.repository;
 
 import com.personal.bookmark_backend.entity.EmailVerificationCode;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import java.util.List;
 import java.util.Optional;
 
 public interface EmailVerificationCodeRepository
@@ -14,8 +14,4 @@ public interface EmailVerificationCodeRepository
             String email
     );
 
-    // 查詢指定 Email 尚未驗證的驗證碼紀錄
-    List<EmailVerificationCode> findAllByEmailAndVerifiedAtIsNullOrderByCreatedAtDesc(
-            String email
-    );
 }

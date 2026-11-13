@@ -9,6 +9,7 @@ import com.personal.bookmark_backend.repository.BookmarkRepository;
 import com.personal.bookmark_backend.repository.BookmarkTagRepository;
 import com.personal.bookmark_backend.repository.FolderRepository;
 import com.personal.bookmark_backend.repository.TagRepository;
+
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.stereotype.Service;
@@ -87,13 +88,6 @@ public class TagService {
                         userId,
                         folderId
                 );
-
-        // 建立 Tag ID -> Tag Name 對照表
-        Map<Long, String> tagNameMap = new HashMap<>();
-
-        for (Tag tag : folderTags) {
-            tagNameMap.put(tag.getId(), tag.getName());
-        }
 
         // 建立 Bookmark ID -> Tag ID Set 對照表
         Map<Long, Set<Long>> bookmarkTagIds = new HashMap<>();

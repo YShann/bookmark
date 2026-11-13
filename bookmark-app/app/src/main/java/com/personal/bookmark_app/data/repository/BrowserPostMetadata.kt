@@ -12,7 +12,11 @@ internal enum class BrowserPostSite {
     DCARD, THREADS, INSTAGRAM
 }
 
-internal data class BrowserPostLink(val site: BrowserPostSite, val id: String, val isShare: Boolean = false)
+internal data class BrowserPostLink(
+    val site: BrowserPostSite,
+    val id: String,
+    val isShare: Boolean = false
+)
 
 internal fun browserPostSite(value: String): BrowserPostSite? {
     val url = value.toHttpUrlOrNull() ?: return null

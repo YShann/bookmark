@@ -1,5 +1,6 @@
 package com.personal.bookmark_backend.controller;
 
+import com.personal.bookmark_backend.mapper.TagMapper;
 import com.personal.bookmark_backend.dto.response.tag.TagResponse;
 import com.personal.bookmark_backend.entity.Tag;
 import com.personal.bookmark_backend.service.TagService;
@@ -18,6 +19,7 @@ import java.util.List;
 public class TagController {
 
     private final TagService tagService;
+    private final TagMapper tagMapper;
 
     // =====================================================
     // 共用方法：取得登入者 ID
@@ -50,23 +52,9 @@ public class TagController {
 
         // 將 Entity 轉換成 Response DTO
         List<TagResponse> response = tags.stream()
-                .map(this::toResponse)
+                .map(tagMapper::toResponse)
                 .toList();
 
         return ResponseEntity.ok(response);
-    }
-
-
-    // =====================================================
-    // Entity -> Response DTO
-    // =====================================================
-
-    private TagResponse toResponse(Tag tag) {
-
-        return new TagResponse(
-                tag.getId(),
-                tag.getName(),
-                tag.getCreatedAt()
-        );
     }
 }

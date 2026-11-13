@@ -1,4 +1,3 @@
-
 package com.personal.bookmark_app.ui.theme
 
 import android.os.Build

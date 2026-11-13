@@ -7,6 +7,7 @@ import com.personal.bookmark_backend.exception.UnauthorizedException;
 import com.personal.bookmark_backend.repository.UserRepository;
 import com.personal.bookmark_backend.security.GoogleIdTokenVerifier;
 import com.personal.bookmark_backend.security.GoogleIdTokenVerifier.GoogleAccount;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -24,11 +25,16 @@ import static org.mockito.Mockito.when;
 class GoogleAccountLinkingTest {
     private static final String PASSWORD = "TestPassword123";
 
-    @Autowired AuthService auth;
-    @Autowired GoogleAuthService google;
-    @Autowired GoogleIdTokenVerifier verifier;
-    @Autowired UserRepository users;
-    @Autowired PasswordEncoder encoder;
+    @Autowired
+    AuthService auth;
+    @Autowired
+    GoogleAuthService google;
+    @Autowired
+    GoogleIdTokenVerifier verifier;
+    @Autowired
+    UserRepository users;
+    @Autowired
+    PasswordEncoder encoder;
 
     @Test
     void passwordAccountCanLinkAndUseBothLoginMethods() {
@@ -43,7 +49,10 @@ class GoogleAccountLinkingTest {
 
         assertEquals(user.getId(), google.login(token, null).userId());
         assertEquals(user.getId(), auth.login(user.getEmail(), PASSWORD).userId());
-        assertEquals(user.getEmailVerifiedAt(), users.findById(user.getId()).orElseThrow().getEmailVerifiedAt());
+        assertEquals(
+                user.getEmailVerifiedAt(),
+                users.findById(user.getId()).orElseThrow().getEmailVerifiedAt()
+        );
     }
 
     @Test
@@ -62,7 +71,10 @@ class GoogleAccountLinkingTest {
         assertEquals(subject, users.findById(user.getId()).orElseThrow().getGoogleSubject());
         assertEquals(user.getId(), google.login(token, null).userId());
         assertEquals(user.getId(), auth.login(user.getEmail(), PASSWORD).userId());
-        assertEquals(user.getEmailVerifiedAt(), users.findById(user.getId()).orElseThrow().getEmailVerifiedAt());
+        assertEquals(
+                user.getEmailVerifiedAt(),
+                users.findById(user.getId()).orElseThrow().getEmailVerifiedAt()
+        );
 
         String otherGoogleAccount = googleToken(UUID.randomUUID().toString(), user.getEmail());
         assertThrows(ForbiddenException.class, () -> google.login(otherGoogleAccount, null));
@@ -76,7 +88,10 @@ class GoogleAccountLinkingTest {
         String sameEmail = googleToken(UUID.randomUUID().toString(), user.getEmail());
         String otherEmail = googleToken(UUID.randomUUID().toString(), newEmail());
 
-        assertThrows(ForbiddenException.class, () -> google.link(user.getId(), sameEmail, "WrongPassword123"));
+        assertThrows(
+                ForbiddenException.class,
+                () -> google.link(user.getId(), sameEmail, "WrongPassword123")
+        );
         assertThrows(ForbiddenException.class, () -> google.link(user.getId(), otherEmail, PASSWORD));
         assertNull(users.findById(user.getId()).orElseThrow().getGoogleSubject());
     }
@@ -88,10 +103,15 @@ class GoogleAccountLinkingTest {
         Long id = google.login(token, null).userId();
         var registrationError = assertThrows(ConflictException.class, () -> auth.sendRegistrationCode(email));
         var loginError = assertThrows(UnauthorizedException.class, () -> auth.login(email, PASSWORD));
-        var unknownEmailError = assertThrows(UnauthorizedException.class, () -> auth.login(newEmail(), PASSWORD));
+        var unknownEmailError = assertThrows(
+                UnauthorizedException.class,
+                () -> auth.login(newEmail(), PASSWORD)
+        );
         User passwordUser = passwordAccount();
-        var wrongPasswordError = assertThrows(UnauthorizedException.class,
-                () -> auth.login(passwordUser.getEmail(), "WrongPassword123"));
+        var wrongPasswordError = assertThrows(
+                UnauthorizedException.class,
+                () -> auth.login(passwordUser.getEmail(), "WrongPassword123")
+        );
         assertTrue(registrationError.getMessage().contains("請選擇 Google 登入"));
         assertTrue(loginError.getMessage().contains("請選擇 Google 登入"));
         assertEquals("此 Email 尚未註冊，請先建立帳號。", unknownEmailError.getMessage());

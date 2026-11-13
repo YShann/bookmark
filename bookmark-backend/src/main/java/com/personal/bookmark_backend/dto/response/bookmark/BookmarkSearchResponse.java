@@ -10,4 +10,5 @@ public record BookmarkSearchResponse(
         long totalElements,
         int totalPages,
         Map<String, Long> sourceCounts
-) {}
+) {
+}

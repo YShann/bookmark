@@ -22,7 +22,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.paging.compose.LazyPagingItems
+import androidx.paging.compose.itemKey
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -66,7 +67,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.personal.bookmark_app.ui.model.FolderUiModel
-import com.personal.bookmark_app.ui.screen.addbookmark.AddFolderDialog
+import com.personal.bookmark_app.ui.components.AddFolderDialog
+import com.personal.bookmark_app.ui.utils.MAX_FOLDER_NAME_LENGTH
 
 private enum class FolderDeleteAction {
     MOVE_TO_UNCLASSIFIED,
@@ -76,7 +78,8 @@ private enum class FolderDeleteAction {
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun FolderManagementSheet(
-    folders: List<FolderUiModel>,
+    folders: LazyPagingItems<FolderUiModel>,
+    folderCount: Long,
     onDismiss: () -> Unit,
     onRename: (Long, String) -> Unit,
     onDelete: (Long) -> Unit,
@@ -107,10 +110,6 @@ fun FolderManagementSheet(
     var deleteAction by remember {
         mutableStateOf(FolderDeleteAction.MOVE_TO_UNCLASSIFIED)
     }
-    val orderedFolders = remember(folders) {
-        folders.sortedByDescending { it.title == "未分類" }
-    }
-
     val sheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = true
     )
@@ -136,7 +135,7 @@ fun FolderManagementSheet(
             val maxSheetHeight = maxHeight * 0.8f
             val maxFolderListHeight = (maxSheetHeight - 240.dp).coerceAtLeast(0.dp)
             val folderListHeight =
-                (folders.size * 78 + 20).dp.coerceAtMost(maxFolderListHeight)
+                (folderCount * 78 + 20).toFloat().dp.coerceAtMost(maxFolderListHeight)
 
             Column(
                 modifier = Modifier
@@ -145,138 +144,139 @@ fun FolderManagementSheet(
                     .padding(horizontal = 16.dp)
             ) {
 
-            // 標題與關閉按鈕
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
+                // 標題與關閉按鈕
                 Row(
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Box(
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .width(6.dp)
+                                .height(22.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(MaterialTheme.colorScheme.primary)
+                        )
+
+                        Spacer(Modifier.width(8.dp))
+
+                        Text(
+                            text = "管理收藏夾",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+
+                    IconButton(
+                        onClick = onDismiss,
                         modifier = Modifier
-                            .width(6.dp)
-                            .height(22.dp)
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(MaterialTheme.colorScheme.primary)
+                            .size(40.dp)
+                            .background(
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                shape = RoundedCornerShape(50)
+                            )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Close,
+                            contentDescription = "關閉管理",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                // 新增收藏夾按鈕
+                OutlinedButton(
+                    onClick = {
+                        showAddDialog = true
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(
+                        width = 0.dp,
+                        color = Color.Transparent
+                    ),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = MaterialTheme.colorScheme.background,
+                        contentColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
                     )
 
                     Spacer(Modifier.width(8.dp))
 
                     Text(
-                        text = "管理收藏夾",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        text = "新建收藏夾",
+                        style = MaterialTheme.typography.labelLarge
                     )
                 }
 
-                IconButton(
+                Spacer(Modifier.height(16.dp))
+
+                // 收藏夾清單
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(folderListHeight),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    contentPadding = PaddingValues(bottom = 20.dp)
+                ) {
+                    items(
+                        count = folders.itemCount,
+                        key = folders.itemKey { it.id }
+                    ) { index ->
+                        val folder = folders[index] ?: return@items
+                        FolderManagementItem(
+                            folder = folder,
+                            isManageable = folder.title != "未分類",
+                            onRename = { newTitle ->
+                                if (folder.title != "未分類") {
+                                    onRename(folder.id, newTitle)
+                                }
+                            },
+                            onDelete = {
+                                if (folder.title != "未分類") {
+                                    folderToDelete = folder
+
+                                    // 每次開啟 Dialog，預設選擇移至未分類
+                                    deleteAction = FolderDeleteAction.MOVE_TO_UNCLASSIFIED
+                                }
+                            }
+                        )
+                    }
+                }
+
+                // 完成管理按鈕
+                Button(
                     onClick = onDismiss,
                     modifier = Modifier
-                        .size(40.dp)
-                        .background(
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            shape = RoundedCornerShape(50)
-                        )
+                        .fillMaxWidth()
+                        .height(58.dp)
+                        .padding(bottom = 4.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
                 ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Close,
-                        contentDescription = "關閉管理",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    Text(
+                        text = "完成管理",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
                     )
                 }
-            }
 
-            Spacer(Modifier.height(16.dp))
-
-            // 新增收藏夾按鈕
-            OutlinedButton(
-                onClick = {
-                    showAddDialog = true
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp),
-                shape = RoundedCornerShape(8.dp),
-                border = BorderStroke(
-                    width = 0.dp,
-                    color = Color.Transparent
-                ),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                    contentColor = MaterialTheme.colorScheme.primary
-                )
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp)
-                )
-
-                Spacer(Modifier.width(8.dp))
-
-                Text(
-                    text = "新建收藏夾",
-                    style = MaterialTheme.typography.labelLarge
-                )
-            }
-
-            Spacer(Modifier.height(16.dp))
-
-            // 收藏夾清單
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(folderListHeight),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-                contentPadding = PaddingValues(bottom = 20.dp)
-            ) {
-                items(
-                    items = orderedFolders,
-                    key = { it.id }
-                ) { folder ->
-                    FolderManagementItem(
-                        folder = folder,
-                        isManageable = folder.title != "未分類",
-                        onRename = { newTitle ->
-                            if (folder.title != "未分類") {
-                                onRename(folder.id, newTitle)
-                            }
-                        },
-                        onDelete = {
-                            if (folder.title != "未分類") {
-                                folderToDelete = folder
-
-                                // 每次開啟 Dialog，預設選擇移至未分類
-                                deleteAction = FolderDeleteAction.MOVE_TO_UNCLASSIFIED
-                            }
-                        }
-                    )
-                }
-            }
-
-            // 完成管理按鈕
-            Button(
-                onClick = onDismiss,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(58.dp)
-                    .padding(bottom = 4.dp),
-                shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary
-                )
-            ) {
-                Text(
-                    text = "完成管理",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(16.dp))
             }
         }
     }
@@ -382,6 +382,10 @@ private fun FolderManagementItem(
             Spacer(Modifier.width(12.dp))
 
             if (isManageable && isEditing) {
+                val newTitle = editedTitle.trim()
+                val nameTooLong = newTitle.length > MAX_FOLDER_NAME_LENGTH
+                val canRename = newTitle.isNotEmpty() && !nameTooLong
+
                 // 編輯模式：輸入框
                 OutlinedTextField(
                     value = editedTitle,
@@ -390,6 +394,12 @@ private fun FolderManagementItem(
                     },
                     modifier = Modifier.weight(1f),
                     singleLine = true,
+                    isError = nameTooLong,
+                    supportingText = if (nameTooLong) {
+                        { Text("收藏夾名稱不能超過 $MAX_FOLDER_NAME_LENGTH 個字") }
+                    } else {
+                        null
+                    },
                     textStyle = MaterialTheme.typography.bodyLarge,
                     shape = RoundedCornerShape(8.dp),
                     placeholder = {
@@ -404,13 +414,10 @@ private fun FolderManagementItem(
                     modifier = Modifier
                         .size(48.dp)
                         .clickable(
-                            enabled = editedTitle.isNotBlank(),
+                            enabled = canRename,
                             onClick = {
-                                val newTitle = editedTitle.trim()
-                                if (newTitle.isNotEmpty()) {
-                                    onRename(newTitle)
-                                    isEditing = false
-                                }
+                                onRename(newTitle)
+                                isEditing = false
                             }
                         ),
                     contentAlignment = Alignment.Center
@@ -420,7 +427,7 @@ private fun FolderManagementItem(
                             .size(36.dp)
                             .clip(RoundedCornerShape(8.dp))
                             .background(
-                                if (editedTitle.isNotBlank()) {
+                                if (canRename) {
                                     MaterialTheme.colorScheme.primary
                                 } else {
                                     MaterialTheme.colorScheme.surfaceVariant

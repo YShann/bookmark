@@ -2,6 +2,7 @@ package com.personal.bookmark_backend.repository;
 
 import com.personal.bookmark_backend.entity.BookmarkTag;
 import com.personal.bookmark_backend.entity.BookmarkTagId;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -50,12 +51,12 @@ public interface BookmarkTagRepository
     // 計算指定標籤目前有多少筆收藏關聯
     // 如果回傳 0，代表這個標籤已經沒有任何收藏使用
     @Query("""
-        SELECT COUNT(bt)
-        FROM BookmarkTag bt
-        WHERE bt.userId = :userId
-          AND bt.folderId = :folderId
-          AND bt.id.tagId = :tagId
-        """)
+            SELECT COUNT(bt)
+            FROM BookmarkTag bt
+            WHERE bt.userId = :userId
+              AND bt.folderId = :folderId
+              AND bt.id.tagId = :tagId
+            """)
     long countByTagId(
             @Param("userId") Long userId,
             @Param("folderId") Long folderId,
@@ -68,28 +69,15 @@ public interface BookmarkTagRepository
             clearAutomatically = true
     )
     @Query("""
-        DELETE FROM BookmarkTag bt
-        WHERE bt.userId = :userId
-          AND bt.folderId = :folderId
-          AND bt.id.bookmarkId = :bookmarkId
-        """)
+            DELETE FROM BookmarkTag bt
+            WHERE bt.userId = :userId
+              AND bt.folderId = :folderId
+              AND bt.id.bookmarkId = :bookmarkId
+            """)
     int deleteAllByBookmarkId(
             @Param("userId") Long userId,
             @Param("folderId") Long folderId,
             @Param("bookmarkId") Long bookmarkId
     );
 
-    // 刪除指定標籤的所有收藏關聯
-    @Modifying
-    @Query("""
-            DELETE FROM BookmarkTag bt
-            WHERE bt.userId = :userId
-              AND bt.folderId = :folderId
-              AND bt.id.tagId = :tagId
-            """)
-    int deleteAllByTagId(
-            @Param("userId") Long userId,
-            @Param("folderId") Long folderId,
-            @Param("tagId") Long tagId
-    );
 }

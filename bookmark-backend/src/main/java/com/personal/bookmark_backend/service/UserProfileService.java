@@ -3,7 +3,9 @@ package com.personal.bookmark_backend.service;
 import com.personal.bookmark_backend.entity.User;
 import com.personal.bookmark_backend.exception.ResourceNotFoundException;
 import com.personal.bookmark_backend.repository.UserRepository;
+
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

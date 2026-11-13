@@ -1,13 +1,17 @@
 package com.personal.bookmark_app.data.remote.api
 
+import com.personal.bookmark_app.data.remote.dto.request.bookmark.CreateBookmarkRequest
+import com.personal.bookmark_app.data.remote.dto.request.bookmark.MoveBookmarkRequest
+import com.personal.bookmark_app.data.remote.dto.request.bookmark.UpdateBookmarkRequest
+import com.personal.bookmark_app.data.remote.dto.response.PageResponse
 import com.personal.bookmark_app.data.remote.dto.response.bookmark.BookmarkResponse
 import com.personal.bookmark_app.data.remote.dto.response.bookmark.BookmarkSearchResponse
 import com.personal.bookmark_app.data.remote.dto.response.bookmark.BookmarkSourceResponse
-import com.personal.bookmark_app.data.remote.dto.request.bookmark.UpdateBookmarkRequest
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.PATCH
+import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -15,12 +19,28 @@ interface BookmarkApi {
     @GET("api/bookmark-sources")
     suspend fun getBookmarkSources(): List<BookmarkSourceResponse>
 
-    @retrofit2.http.POST("api/folders/{folderId}/bookmarks")
-    suspend fun createBookmark(@Path("folderId") folderId: Long,
-        @Body request: com.personal.bookmark_app.data.remote.dto.request.bookmark.CreateBookmarkRequest): BookmarkResponse
+    @POST("api/folders/{folderId}/bookmarks")
+    suspend fun createBookmark(
+        @Path("folderId") folderId: Long,
+        @Body request: CreateBookmarkRequest
+    ): BookmarkResponse
 
-    @GET("api/folders/{folderId}/bookmarks")
-    suspend fun getFolderBookmarks(@Path("folderId") folderId: Long): List<BookmarkResponse>
+    @GET("api/folders/{folderId}/bookmarks/page")
+    suspend fun getFolderBookmarkPage(
+        @Path("folderId") folderId: Long,
+        @Query("query") query: String,
+        @Query("tag") tags: List<String>,
+        @Query("newestFirst") newestFirst: Boolean,
+        @Query("page") page: Int,
+        @Query("size") size: Int
+    ): PageResponse<BookmarkResponse>
+
+    @GET("api/folders/{folderId}/bookmarks/ids")
+    suspend fun getMatchingFolderBookmarkIds(
+        @Path("folderId") folderId: Long,
+        @Query("query") query: String,
+        @Query("tag") tags: List<String>
+    ): List<Long>
 
     @GET("api/bookmarks/search")
     suspend fun searchBookmarks(
@@ -39,7 +59,7 @@ interface BookmarkApi {
     @PATCH("api/bookmarks/{bookmarkId}/move")
     suspend fun moveBookmark(
         @Path("bookmarkId") bookmarkId: Long,
-        @Body request: com.personal.bookmark_app.data.remote.dto.request.bookmark.MoveBookmarkRequest
+        @Body request: MoveBookmarkRequest
     ): BookmarkResponse
 
     @DELETE("api/bookmarks/{bookmarkId}")

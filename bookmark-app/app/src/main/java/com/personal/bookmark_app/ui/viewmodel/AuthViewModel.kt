@@ -1,5 +1,9 @@
 package com.personal.bookmark_app.ui.viewmodel
 
+import android.os.SystemClock
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.Dispatchers
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.personal.bookmark_app.data.repository.auth.AuthRepository
@@ -20,14 +24,24 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 
+@HiltViewModel
 class AuthViewModel(
     private val authRepository: AuthRepository,
-    private val nowMillis: () -> Long = { android.os.SystemClock.elapsedRealtime() },
-    coroutineScope: kotlinx.coroutines.CoroutineScope = kotlinx.coroutines.CoroutineScope(
-        kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Main.immediate
-    )
+    private val nowMillis: () -> Long,
+    coroutineScope: CoroutineScope
 ) : ViewModel(coroutineScope) {
+    // Hilt 使用這個建構子；測試仍可透過上面的建構子提供可控制的時間與 CoroutineScope。
+    @Inject
+    constructor(authRepository: AuthRepository) : this(
+        authRepository,
+        { SystemClock.elapsedRealtime() },
+        CoroutineScope(
+            SupervisorJob() + Dispatchers.Main.immediate
+        )
+    )
 
     // -------------------------
     // Login UiState
@@ -173,7 +187,11 @@ class AuthViewModel(
                 if (error is GoogleLinkRequiredException) {
                     onLinkRequired(idToken)
                 } else {
-                    _authEvent.emit(AuthEvent.ShowMessage(error?.message ?: "Google 登入失敗，請稍後再試"))
+                    _authEvent.emit(
+                        AuthEvent.ShowMessage(
+                            error?.message ?: "Google 登入失敗，請稍後再試"
+                        )
+                    )
                 }
             }
         } finally {
@@ -347,14 +365,15 @@ class AuthViewModel(
     }
 
     // 每次用截止時間重算，App 從背景回來也會顯示正確秒數。
-    private fun startCountdown(deadline: Long, updateSeconds: (Int) -> Unit): Job = viewModelScope.launch {
-        while (true) {
-            val seconds = remainingSeconds(deadline)
-            updateSeconds(seconds)
-            if (seconds == 0) break
-            delay(500)
+    private fun startCountdown(deadline: Long, updateSeconds: (Int) -> Unit): Job =
+        viewModelScope.launch {
+            while (true) {
+                val seconds = remainingSeconds(deadline)
+                updateSeconds(seconds)
+                if (seconds == 0) break
+                delay(500)
+            }
         }
-    }
 
     private fun remainingSeconds(deadline: Long): Int {
         val remainingMillis = (deadline - nowMillis()).coerceAtLeast(0)
@@ -370,6 +389,7 @@ class AuthViewModel(
 
     private val _resetPasswordUiState = MutableStateFlow(ResetPasswordUiState())
     val resetPasswordUiState = _resetPasswordUiState.asStateFlow()
+
     // 僅存在 ViewModel 記憶體；不放進 UiState、SavedStateHandle、導航或持久化儲存。
     private var resetToken: String? = null
     private var resetTokenExpiresAt = 0L
@@ -399,7 +419,13 @@ class AuthViewModel(
 
     private fun sendResetCode(email: String) {
         resetToken = null
-        _forgotPasswordUiState.update { it.copy(email = email, isLoading = true, errorMessage = null) }
+        _forgotPasswordUiState.update {
+            it.copy(
+                email = email,
+                isLoading = true,
+                errorMessage = null
+            )
+        }
         passwordResetJob = viewModelScope.launch {
             val result = authRepository.forgotPassword(email)
             ensureActive()
@@ -411,7 +437,12 @@ class AuthViewModel(
 
             resendAvailableAt = nowMillis() + VERIFICATION_RESEND_SECONDS * 1000L
             _forgotPasswordUiState.update {
-                it.copy(step = PasswordResetStep.CODE, code = "", isLoading = false, resendCountdown = VERIFICATION_RESEND_SECONDS)
+                it.copy(
+                    step = PasswordResetStep.CODE,
+                    code = "",
+                    isLoading = false,
+                    resendCountdown = VERIFICATION_RESEND_SECONDS
+                )
             }
             startPasswordResetCountdown()
         }
@@ -463,14 +494,27 @@ class AuthViewModel(
     }
 
     fun onNewPasswordChange(value: String) {
-        if (!_resetPasswordUiState.value.isLoading) _resetPasswordUiState.update { it.copy(password = value, errorMessage = null) }
+        if (!_resetPasswordUiState.value.isLoading) _resetPasswordUiState.update {
+            it.copy(
+                password = value,
+                errorMessage = null
+            )
+        }
     }
+
     fun onNewPasswordConfirmationChange(value: String) {
-        if (!_resetPasswordUiState.value.isLoading) _resetPasswordUiState.update { it.copy(confirmPassword = value, errorMessage = null) }
+        if (!_resetPasswordUiState.value.isLoading) _resetPasswordUiState.update {
+            it.copy(
+                confirmPassword = value,
+                errorMessage = null
+            )
+        }
     }
+
     fun toggleNewPasswordVisibility() {
         _resetPasswordUiState.update { it.copy(isPasswordVisible = !it.isPasswordVisible) }
     }
+
     fun toggleNewPasswordConfirmationVisibility() {
         _resetPasswordUiState.update { it.copy(isConfirmPasswordVisible = !it.isConfirmPasswordVisible) }
     }
@@ -495,7 +539,12 @@ class AuthViewModel(
                 if (message.contains("憑證")) {
                     returnToResetCode(message)
                 } else {
-                    _resetPasswordUiState.update { it.copy(isLoading = false, errorMessage = message) }
+                    _resetPasswordUiState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = message
+                        )
+                    }
                 }
                 return@launch
             }
@@ -516,7 +565,14 @@ class AuthViewModel(
     fun returnToResetCode(message: String? = null) {
         passwordResetJob?.cancel()
         clearResetCredentials()
-        _forgotPasswordUiState.update { it.copy(step = PasswordResetStep.CODE, code = "", isLoading = false, errorMessage = message) }
+        _forgotPasswordUiState.update {
+            it.copy(
+                step = PasswordResetStep.CODE,
+                code = "",
+                isLoading = false,
+                errorMessage = message
+            )
+        }
         refreshPasswordResetCountdown()
     }
 

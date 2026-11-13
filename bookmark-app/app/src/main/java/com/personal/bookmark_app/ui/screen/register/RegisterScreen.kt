@@ -478,7 +478,6 @@ private fun LoginSection(
 }
 
 
-
 //@Composable
 //private fun TermsAgreement(
 //    checked: Boolean,

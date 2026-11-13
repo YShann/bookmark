@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.personal.bookmark_app.ui.model.TagOptionUiModel
+import com.personal.bookmark_app.ui.utils.MAX_TAG_NAME_LENGTH
 
 @Composable
 fun AddTagDialog(
@@ -93,8 +94,8 @@ fun AddTagDialog(
                             errorMessage = "請輸入標籤名稱"
                         }
 
-                        name.length > 30 -> {
-                            errorMessage = "標籤名稱不能超過 30 個字"
+                        name.length > MAX_TAG_NAME_LENGTH -> {
+                            errorMessage = "標籤名稱不能超過 $MAX_TAG_NAME_LENGTH 個字"
                         }
 
                         existingTags.any {

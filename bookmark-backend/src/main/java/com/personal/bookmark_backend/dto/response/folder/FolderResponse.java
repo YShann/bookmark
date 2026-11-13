@@ -8,7 +8,8 @@ public record FolderResponse(
 
         String imageUrl,
 
-        Boolean isDefault
+        Boolean isDefault,
+        long bookmarkCount
 
 ) {
 }

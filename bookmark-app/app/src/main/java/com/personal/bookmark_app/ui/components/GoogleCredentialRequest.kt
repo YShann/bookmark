@@ -27,7 +27,8 @@ internal suspend fun requestGoogleIdToken(context: Context): String? {
         .addCredentialOption(GetSignInWithGoogleOption.Builder(clientId).build())
         .build()
     return try {
-        val credential = CredentialManager.create(context).getCredential(context, request).credential
+        val credential =
+            CredentialManager.create(context).getCredential(context, request).credential
         if (credential is CustomCredential &&
             credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
         ) {
@@ -39,7 +40,8 @@ internal suspend fun requestGoogleIdToken(context: Context): String? {
     } catch (_: GetCredentialCancellationException) {
         null
     } catch (_: GetCredentialException) {
-        Toast.makeText(context, "無法使用 Google 登入，請確認帳號和裝置設定", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, "無法使用 Google 登入，請確認帳號和裝置設定", Toast.LENGTH_SHORT)
+            .show()
         null
     } catch (_: GoogleIdTokenParsingException) {
         Toast.makeText(context, "無法讀取 Google 登入憑證", Toast.LENGTH_SHORT).show()

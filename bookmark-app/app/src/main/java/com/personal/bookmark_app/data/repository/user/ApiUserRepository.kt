@@ -11,8 +11,9 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import retrofit2.HttpException
+import javax.inject.Inject
 
-class ApiUserRepository(
+class ApiUserRepository @Inject constructor(
     private val api: UserApi,
     private val contentResolver: ContentResolver
 ) : UserRepository {

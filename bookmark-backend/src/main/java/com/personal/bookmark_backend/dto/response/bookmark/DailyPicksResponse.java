@@ -5,4 +5,5 @@ import java.util.List;
 public record DailyPicksResponse(
         long totalBookmarkCount,
         List<BookmarkResponse> picks
-) {}
+) {
+}

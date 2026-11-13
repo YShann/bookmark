@@ -13,10 +13,12 @@ import com.personal.bookmark_backend.repository.EmailVerificationCodeRepository;
 import com.personal.bookmark_backend.repository.FolderRepository;
 import com.personal.bookmark_backend.repository.PasswordResetCodeRepository;
 import com.personal.bookmark_backend.repository.UserRepository;
+
 import jakarta.annotation.PreDestroy;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
 import lombok.RequiredArgsConstructor;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -51,7 +53,8 @@ import static com.personal.bookmark_backend.service.PasswordResetRateLimiter.RES
 public class AuthService {
 
     private static final String GOOGLE_LOGIN_HINT = "若你原本使用 Google 建立帳號，請選擇 Google 登入";
-    private static final String REGISTERED_EMAIL = "此 Email 已經註冊，請用原本的方式登入。" + GOOGLE_LOGIN_HINT;
+    private static final String REGISTERED_EMAIL =
+            "此 Email 已經註冊，請用原本的方式登入。" + GOOGLE_LOGIN_HINT;
     private static final String UNREGISTERED_EMAIL = "此 Email 尚未註冊，請先建立帳號。";
     private static final String INVALID_LOGIN = "Email 或密碼錯誤。" + GOOGLE_LOGIN_HINT;
 
@@ -84,7 +87,8 @@ public class AuthService {
     private final ExecutorService resetMailExecutor = new ThreadPoolExecutor(
             2, 2, 0L, TimeUnit.MILLISECONDS,
             new ArrayBlockingQueue<>(100),
-            new ThreadPoolExecutor.AbortPolicy());
+            new ThreadPoolExecutor.AbortPolicy()
+    );
 
     /**
      * 發送註冊 Email 驗證碼
@@ -523,10 +527,12 @@ public class AuthService {
         saved.setResetTokenHash(null);
         saved.setResetTokenExpiresAt(null);
         passwordResetCodeRepository.saveAndFlush(saved);
-        sendEmail(email, "【聚藏 Bookmark App】密碼重設驗證碼",
+        sendEmail(
+                email, "【聚藏 Bookmark App】密碼重設驗證碼",
                 "您的密碼重設驗證碼為：" + code
                         + "\n此驗證碼將於 5 分鐘後失效，請勿提供給其他人。"
-                        + "\n如果您沒有要求重設密碼，請忽略此信件。");
+                        + "\n如果您沒有要求重設密碼，請忽略此信件。"
+        );
     }
 
     private String checkCodeAndIssueToken(String email, String code) {
@@ -568,8 +574,10 @@ public class AuthService {
         LocalDateTime expiresAt = saved.getResetTokenExpiresAt();
         if (saved.getVerifiedAt() == null || currentHash == null
                 || expiresAt == null || !expiresAt.isAfter(LocalDateTime.now())
-                || !MessageDigest.isEqual(tokenHash.getBytes(StandardCharsets.UTF_8),
-                currentHash.getBytes(StandardCharsets.UTF_8))) {
+                || !MessageDigest.isEqual(
+                tokenHash.getBytes(StandardCharsets.UTF_8),
+                currentHash.getBytes(StandardCharsets.UTF_8)
+        )) {
             throw new IllegalArgumentException(INVALID_RESET_TOKEN);
         }
     }
@@ -589,9 +597,11 @@ public class AuthService {
 
     private void sendPasswordChangedNotice(String email) {
         try {
-            sendEmail(email, "【聚藏 Bookmark App】密碼已變更",
+            sendEmail(
+                    email, "【聚藏 Bookmark App】密碼已變更",
                     "您的密碼已重設成功，請使用新密碼重新登入。"
-                            + "\n若非您本人操作，請立即重新設定密碼並聯絡服務支援。");
+                            + "\n若非您本人操作，請立即重新設定密碼並聯絡服務支援。"
+            );
         } catch (RuntimeException failure) {
             log.warn("密碼變更通知寄送失敗；密碼已成功更新");
         }

@@ -1,12 +1,15 @@
 package com.personal.bookmark_backend.controller;
 
+import com.personal.bookmark_backend.mapper.AuthMapper;
 import com.personal.bookmark_backend.dto.request.auth.LoginRequest;
 import com.personal.bookmark_backend.dto.request.auth.GoogleLoginRequest;
 import com.personal.bookmark_backend.dto.request.auth.ForgotPasswordRequest;
 import com.personal.bookmark_backend.dto.request.auth.VerifyResetCodeRequest;
 import com.personal.bookmark_backend.dto.request.auth.ResetPasswordRequest;
 import com.personal.bookmark_backend.dto.response.auth.VerifyResetCodeResponse;
+
 import jakarta.servlet.http.HttpServletRequest;
+
 import com.personal.bookmark_backend.dto.request.auth.LogoutRequest;
 import com.personal.bookmark_backend.dto.request.auth.RefreshTokenRequest;
 import com.personal.bookmark_backend.dto.request.auth.RegisterRequest;
@@ -16,8 +19,10 @@ import com.personal.bookmark_backend.dto.response.auth.MessageResponse;
 import com.personal.bookmark_backend.exception.UnauthorizedException;
 import com.personal.bookmark_backend.service.AuthService;
 import com.personal.bookmark_backend.service.GoogleAuthService;
+
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -30,10 +35,11 @@ public class AuthController {
 
     private final AuthService authService;
     private final GoogleAuthService googleAuthService;
+    private final AuthMapper authMapper;
 
     /**
      * 1. 發送註冊 Email 驗證碼
-     *
+     * <p>
      * POST /api/auth/registration-code
      */
     @PostMapping("/registration-code")
@@ -50,7 +56,7 @@ public class AuthController {
 
     /**
      * 2. 驗證 Email 並註冊帳號
-     *
+     * <p>
      * POST /api/auth/register
      */
     @PostMapping("/register")
@@ -72,7 +78,7 @@ public class AuthController {
 
     /**
      * 3. 使用 Email 和密碼登入
-     *
+     * <p>
      * POST /api/auth/login
      */
     @PostMapping("/login")
@@ -87,7 +93,7 @@ public class AuthController {
                 );
 
         return ResponseEntity.ok(
-                toAuthResponse(result)
+                authMapper.toResponse(result)
         );
     }
 
@@ -95,12 +101,14 @@ public class AuthController {
     public ResponseEntity<AuthResponse> loginWithGoogle(
             @Valid @RequestBody GoogleLoginRequest request
     ) {
-        return ResponseEntity.ok(toAuthResponse(googleAuthService.login(request.idToken(), request.password())));
+        return ResponseEntity.ok(
+                authMapper.toResponse(googleAuthService.login(request.idToken(), request.password()))
+        );
     }
 
     /**
      * 4. 使用 Refresh Token 更新 Token
-     *
+     * <p>
      * POST /api/auth/refresh
      */
     @PostMapping("/refresh")
@@ -114,13 +122,13 @@ public class AuthController {
                 );
 
         return ResponseEntity.ok(
-                toAuthResponse(result)
+                authMapper.toResponse(result)
         );
     }
 
     /**
      * 5. 使用者登出
-     *
+     * <p>
      * POST /api/auth/logout
      */
     @PostMapping("/logout")
@@ -140,7 +148,9 @@ public class AuthController {
             @Valid @RequestBody RefreshTokenRequest request
     ) {
         try {
-            return ResponseEntity.ok(toAuthResponse(authService.refreshSession(request.refreshToken())));
+            return ResponseEntity.ok(
+                    authMapper.toResponse(authService.refreshSession(request.refreshToken()))
+            );
         } catch (UnauthorizedException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .header("X-Bookmark-Auth-Action", "sign-in")
@@ -150,9 +160,9 @@ public class AuthController {
 
     /**
      * 6. 登出所有裝置
-     *
+     * <p>
      * POST /api/auth/logout-all
-     *
+     * <p>
      * 需要有效的 Access Token
      */
     @PostMapping("/logout-all")
@@ -180,7 +190,10 @@ public class AuthController {
             HttpServletRequest servletRequest
     ) {
         // 使用連線來源；不直接信任客戶端可偽造的 X-Forwarded-For。
-        authService.forgotPassword(request.email(), servletRequest.getRemoteAddr());
+        authService.forgotPassword(
+                request.email(),
+                servletRequest.getRemoteAddr()
+        );
         return ResponseEntity.ok(
                 new MessageResponse("如果此 Email 已註冊，將會收到密碼重設驗證碼")
         );
@@ -192,7 +205,9 @@ public class AuthController {
             HttpServletRequest servletRequest
     ) {
         String resetToken = authService.verifyResetCode(
-                request.email(), request.code(), servletRequest.getRemoteAddr()
+                request.email(),
+                request.code(),
+                servletRequest.getRemoteAddr()
         );
         return ResponseEntity.ok(new VerifyResetCodeResponse(resetToken));
     }
@@ -202,25 +217,10 @@ public class AuthController {
             @Valid @RequestBody ResetPasswordRequest request
     ) {
         authService.resetPassword(
-                request.resetToken(), request.newPassword(), request.confirmPassword()
+                request.resetToken(),
+                request.newPassword(),
+                request.confirmPassword()
         );
         return ResponseEntity.ok(new MessageResponse("密碼重設成功，請重新登入"));
     }
-
-    /**
-     * 將 Service 回傳資料轉換成 Response DTO
-     */
-    private AuthResponse toAuthResponse(
-            AuthService.AuthResponse result
-    ) {
-
-        return new AuthResponse(
-                result.userId(),
-                result.email(),
-                result.accessToken(),
-                result.refreshToken()
-        );
-    }
 }
-
-

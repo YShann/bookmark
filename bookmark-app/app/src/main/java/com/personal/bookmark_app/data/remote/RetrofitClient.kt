@@ -1,6 +1,5 @@
 package com.personal.bookmark_app.data.remote
 
-import android.content.Context
 import com.personal.bookmark_app.BuildConfig
 import com.personal.bookmark_app.data.local.SessionTokens
 import com.personal.bookmark_app.data.local.UserPreferencesRepository
@@ -13,20 +12,17 @@ import okhttp3.OkHttpClient
 import retrofit2.HttpException
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import javax.inject.Inject
+import javax.inject.Singleton
 
-object RetrofitClient {
+@Singleton
+class RetrofitClient @Inject constructor(
+    private val preferences: UserPreferencesRepository,
+    private val authApi: AuthApi
+) {
     private val refreshMutex = Mutex()
-    private val retrofit: Retrofit by lazy {
-        Retrofit.Builder()
-            .baseUrl(BuildConfig.API_BASE_URL)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-    }
 
-    val authApi: AuthApi by lazy { retrofit.create(AuthApi::class.java) }
-
-    fun authenticated(context: Context): Retrofit {
-        val preferences = UserPreferencesRepository(context.applicationContext)
+    fun authenticated(): Retrofit {
         val client = OkHttpClient.Builder()
             .addInterceptor { chain ->
                 val session = runBlocking { preferences.sessionTokens() }

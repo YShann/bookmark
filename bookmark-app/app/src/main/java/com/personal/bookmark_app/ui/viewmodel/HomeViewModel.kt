@@ -1,87 +1,70 @@
 package com.personal.bookmark_app.ui.viewmodel
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import android.net.Uri
+import androidx.lifecycle.ViewModel
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import androidx.lifecycle.viewModelScope
-import com.personal.bookmark_app.data.remote.RetrofitClient
-import com.personal.bookmark_app.data.remote.api.BookmarkApi
+import androidx.paging.cachedIn
+import androidx.paging.map
+import com.personal.bookmark_app.data.remote.PageLoader
 import com.personal.bookmark_app.data.remote.api.FolderApi
 import com.personal.bookmark_app.data.remote.api.FolderNameRequest
-import com.personal.bookmark_app.data.remote.api.UserApi
-import com.personal.bookmark_app.data.remote.dto.response.folder.FolderResponse
-import com.personal.bookmark_app.data.remote.dto.response.user.UserProfileResponse
 import com.personal.bookmark_app.data.local.UserPreferencesRepository
-import com.personal.bookmark_app.data.repository.user.ApiUserRepository
 import com.personal.bookmark_app.data.repository.user.UserRepository
+import com.personal.bookmark_app.data.repository.FolderChanges
 import com.personal.bookmark_app.ui.model.FolderDisplayMode
-import com.personal.bookmark_app.ui.model.FolderUiModel
+import com.personal.bookmark_app.ui.model.toUiModel
+import com.personal.bookmark_app.ui.screen.home.HomeUiState
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 
-class HomeViewModel(
-    application: Application
-) : AndroidViewModel(application) {
+@HiltViewModel
+class HomeViewModel @Inject constructor(
+    private val userPreferencesRepository: UserPreferencesRepository,
+    private val api: FolderApi,
+    private val userRepository: UserRepository,
+    folderChanges: FolderChanges
+) : ViewModel() {
+    private val _uiState = MutableStateFlow(HomeUiState())
+    val uiState = combine(_uiState, userPreferencesRepository.folderDisplayMode) { state, mode ->
+        state.copy(displayMode = mode)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomeUiState())
 
-    private val userPreferencesRepository =
-        UserPreferencesRepository(application)
-    private val retrofit = RetrofitClient.authenticated(application)
-    private val api = retrofit.create(FolderApi::class.java)
-    private val bookmarkApi = retrofit.create(BookmarkApi::class.java)
-    private val userRepository: UserRepository = ApiUserRepository(
-        retrofit.create(UserApi::class.java),
-        application.contentResolver
-    )
-    private val _folders = MutableStateFlow<List<FolderUiModel>>(emptyList())
-    val folders = _folders.asStateFlow()
-    private val _isRefreshingFolders = MutableStateFlow(false)
-    val isRefreshingFolders = _isRefreshingFolders.asStateFlow()
-    private val _profile = MutableStateFlow<UserProfileResponse?>(null)
-    val profile = _profile.asStateFlow()
+    private val pages = PageLoader { page, size ->
+        api.getFolderPage(page, size).also { pageResponse ->
+            _uiState.update { it.copy(folderCount = pageResponse.totalElements) }
+        }
+    }
+    val folders = pages.flow.map { page -> page.map { it.toUiModel() } }.cachedIn(viewModelScope)
 
     init {
-        refreshFolders()
+        viewModelScope.launch {
+            folderChanges.changes.collect { refreshFolders() }
+        }
     }
 
-    fun updateAvatar(uri: android.net.Uri) {
+    fun updateAvatar(uri: Uri) {
         viewModelScope.launch {
             withContext(Dispatchers.IO) { userRepository.updateAvatar(uri) }
-                .onSuccess { _profile.value = it }
+                .onSuccess { profile -> _uiState.update { it.copy(updatedProfile = profile) } }
         }
     }
 
     suspend fun linkGoogle(idToken: String, password: String): Result<Unit> =
         userRepository.linkGoogle(idToken, password)
             .map { updatedProfile ->
-                _profile.value = updatedProfile
+                _uiState.update { it.copy(updatedProfile = updatedProfile) }
             }
 
-    fun refreshFolders() {
-        if (_isRefreshingFolders.value) return
-        _isRefreshingFolders.value = true
-
-        viewModelScope.launch {
-            try {
-                runCatching {
-                    withContext(Dispatchers.IO) {
-                        api.getFolders().map { folder ->
-                            async(Dispatchers.IO) {
-                                folder.toUiModel(bookmarkApi.getFolderBookmarks(folder.id).size)
-                            }
-                        }.awaitAll().sortedWith(compareByDescending<FolderUiModel> { it.title == "未分類" })
-                    }
-                }.onSuccess { _folders.value = it }
-            } finally {
-                _isRefreshingFolders.value = false
-            }
-        }
-    }
+    fun refreshFolders() = pages.refresh()
 
     fun renameFolder(id: Long, name: String) = mutateFolders {
         api.renameFolder(id, FolderNameRequest(name))
@@ -107,14 +90,6 @@ class HomeViewModel(
         }
     }
 
-    // 目前收藏夾顯示方式
-    val folderDisplayMode =
-        userPreferencesRepository.folderDisplayMode.stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = FolderDisplayMode.GRID
-        )
-
     // 更新收藏夾顯示方式
     fun updateFolderDisplayMode(
         mode: FolderDisplayMode
@@ -124,11 +99,3 @@ class HomeViewModel(
         }
     }
 }
-
-private fun FolderResponse.toUiModel(count: Int) = FolderUiModel(
-    id = id,
-    title = name,
-    count = count,
-    imageUrl = imageUrl.orEmpty(),
-    latestSavedAt = null
-)

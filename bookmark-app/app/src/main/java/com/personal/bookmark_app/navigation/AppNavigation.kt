@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -21,54 +22,45 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.personal.bookmark_app.data.local.UserPreferencesRepository
-import com.personal.bookmark_app.data.remote.RetrofitClient
-import com.personal.bookmark_app.data.remote.api.BookmarkApi
-import com.personal.bookmark_app.data.remote.api.UserApi
+import com.personal.bookmark_app.SharedBookmark
 import com.personal.bookmark_app.data.remote.dto.response.bookmark.BookmarkSourceResponse
 import com.personal.bookmark_app.data.remote.dto.response.user.UserProfileResponse
-import com.personal.bookmark_app.data.repository.auth.ApiAuthRepository
-import com.personal.bookmark_app.data.repository.auth.AuthRepository
-import com.personal.bookmark_app.ui.screen.SearchBookmarkScreen
 import com.personal.bookmark_app.ui.screen.addbookmark.AddBookmarkScreen
 import com.personal.bookmark_app.ui.screen.addbookmark.BackgroundBookmarkImport
 import com.personal.bookmark_app.ui.screen.addbookmark.BookmarkBrowserImportContract
 import com.personal.bookmark_app.ui.screen.dailypicks.DailyPicksScreen
 import com.personal.bookmark_app.ui.screen.folderbookmark.FolderBookmarkScreen
-import com.personal.bookmark_app.ui.screen.forgotpassword.ForgotPasswordScreen
-import com.personal.bookmark_app.ui.screen.forgotpassword.PasswordResetStep
 import com.personal.bookmark_app.ui.screen.home.HomeScreen
 import com.personal.bookmark_app.ui.screen.login.LoginScreen
 import com.personal.bookmark_app.ui.screen.register.RegisterScreen
-import com.personal.bookmark_app.ui.screen.resetpassword.ResetPasswordScreen
+import com.personal.bookmark_app.ui.screen.searchbookmark.SearchBookmarkScreen
 import com.personal.bookmark_app.ui.screen.verifyemail.VerifyEmailScreen
-import com.personal.bookmark_app.ui.screen.verifyemail.VerifyEmailUiState
+import com.personal.bookmark_app.ui.viewmodel.AddBookmarkViewModel
 import com.personal.bookmark_app.ui.viewmodel.AuthEvent
 import com.personal.bookmark_app.ui.viewmodel.AuthViewModel
-import com.personal.bookmark_app.ui.viewmodel.AuthViewModelFactory
+import com.personal.bookmark_app.ui.viewmodel.DailyPicksViewModel
+import com.personal.bookmark_app.ui.viewmodel.NavigationViewModel
 import kotlinx.coroutines.CancellationException
 
 @Composable
 fun AppNavigation(
-    sharedBookmark: com.personal.bookmark_app.SharedBookmark? = null,
-    onShareHandled: (String) -> Unit = {}
+    sharedBookmark: SharedBookmark? = null,
+    onShareHandled: (String) -> Unit = {},
+    navigationViewModel: NavigationViewModel = hiltViewModel()
 ) {
-    val context = LocalContext.current.applicationContext
-    val preferences = remember(context) { UserPreferencesRepository(context) }
-    val signedIn by preferences.hasSession.collectAsStateWithLifecycle(initialValue = null)
+    val signedIn by navigationViewModel.hasSession.collectAsStateWithLifecycle(initialValue = null)
     val sessionActive = signedIn
     if (sessionActive == null) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -79,22 +71,23 @@ fun AppNavigation(
 
     key(sessionActive) {
         if (sessionActive) {
-            val userApi = remember(context) {
-                RetrofitClient.authenticated(context).create(UserApi::class.java)
-            }
             var attempt by remember { mutableStateOf(0) }
             var result by remember(attempt) { mutableStateOf<Result<UserProfileResponse>?>(null) }
-            LaunchedEffect(userApi, attempt) {
+            LaunchedEffect(navigationViewModel, attempt) {
                 result = runCatching {
-                    userApi.getProfile().also { check(!it.email.isNullOrBlank()) }
+                    navigationViewModel.getProfile()
                 }.onFailure { if (it is CancellationException) throw it }
             }
 
             val profile = result?.getOrNull()
             if (profile != null) {
-                SessionNavigation(profile, preferences, sharedBookmark, onShareHandled)
+                SessionNavigation(profile, navigationViewModel, sharedBookmark, onShareHandled)
             } else {
-                Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .padding(24.dp), contentAlignment = Alignment.Center
+                ) {
                     if (result == null) {
                         CircularProgressIndicator()
                     } else {
@@ -109,7 +102,7 @@ fun AppNavigation(
                 }
             }
         } else {
-            SessionNavigation(null, preferences, sharedBookmark, onShareHandled)
+            SessionNavigation(null, navigationViewModel, sharedBookmark, onShareHandled)
         }
     }
 }
@@ -117,8 +110,8 @@ fun AppNavigation(
 @Composable
 private fun SessionNavigation(
     profile: UserProfileResponse?,
-    preferences: UserPreferencesRepository,
-    sharedBookmark: com.personal.bookmark_app.SharedBookmark?,
+    navigationViewModel: NavigationViewModel,
+    sharedBookmark: SharedBookmark?,
     onShareHandled: (String) -> Unit
 ) {
     val signedIn = profile != null
@@ -127,19 +120,17 @@ private fun SessionNavigation(
 
     // 觀察目前所在的 Navigation 頁面
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
-    val bookmarkApi = remember(context) {
-        RetrofitClient.authenticated(context.applicationContext).create(BookmarkApi::class.java)
-    }
     var bookmarkSources by remember { mutableStateOf(emptyList<BookmarkSourceResponse>()) }
     LaunchedEffect(currentBackStackEntry?.destination?.route) {
         when (currentBackStackEntry?.destination?.route) {
             Screen.SEARCH_BOOKMARK, Screen.FOLDER_BOOKMARK, Screen.DAILY_PICKS -> {
                 try {
-                    bookmarkSources = bookmarkApi.getBookmarkSources()
+                    bookmarkSources = navigationViewModel.getBookmarkSources()
                 } catch (error: Exception) {
                     if (error is CancellationException) throw error
                 }
             }
+
             Screen.LOGIN -> bookmarkSources = emptyList()
             else -> Unit
         }
@@ -159,20 +150,7 @@ private fun SessionNavigation(
     // 建立 AuthViewModel
     // ------------------------------------------------
 
-    val authRepository: AuthRepository = remember {
-        ApiAuthRepository(
-            api = RetrofitClient.authApi,
-            preferences = preferences
-        )
-    }
-
-    val authViewModelFactory = remember {
-        AuthViewModelFactory(authRepository)
-    }
-
-    val authViewModel: AuthViewModel = viewModel(
-        factory = authViewModelFactory
-    )
+    val authViewModel: AuthViewModel = hiltViewModel()
     LaunchedEffect(signedIn) {
         if (signedIn) authViewModel.resetLoginState()
     }
@@ -233,7 +211,8 @@ private fun SessionNavigation(
     // Keep the share pending until the form closes, including across session invalidation.
     LaunchedEffect(sharedBookmark?.id, currentBackStackEntry?.destination?.route) {
         if (signedIn && sharedBookmark != null && currentBackStackEntry != null &&
-            navController.currentDestination?.route != Screen.ADD_BOOKMARK) {
+            navController.currentDestination?.route != Screen.ADD_BOOKMARK
+        ) {
             navController.navigate(Screen.ADD_BOOKMARK) { launchSingleTop = true }
         }
     }
@@ -334,61 +313,13 @@ private fun SessionNavigation(
             )
         }
 
-        // 三個畫面在同一導航流程中切換，不將密碼或 Token 放入路由。
         composable(Screen.FORGOT_PASSWORD) {
-            val leaveFlow = {
-                authViewModel.resetForgotPasswordState()
-                navController.navigate(Screen.LOGIN) {
-                    popUpTo(Screen.LOGIN) { inclusive = true }
-                    launchSingleTop = true
-                }
-            }
-            BackHandler {
-                if (forgotPasswordUiState.step == PasswordResetStep.PASSWORD) {
-                    if (!resetPasswordUiState.isLoading) authViewModel.returnToResetCode("請重新寄送驗證碼")
-                } else leaveFlow()
-            }
-            LaunchedEffect(forgotPasswordUiState.step) {
-                if (forgotPasswordUiState.step == PasswordResetStep.SUCCESS) {
-                    Toast.makeText(context, "密碼重設成功，請重新登入", Toast.LENGTH_LONG).show()
-                    leaveFlow()
-                }
-            }
-            when (forgotPasswordUiState.step) {
-                PasswordResetStep.EMAIL -> ForgotPasswordScreen(
-                    uiState = forgotPasswordUiState,
-                    onEmailChange = authViewModel::onForgotPasswordEmailChange,
-                    onBackClick = leaveFlow,
-                    onSendCodeClick = authViewModel::forgotPassword
-                )
-                PasswordResetStep.CODE -> VerifyEmailScreen(
-                    // 僅轉換給共用 UI；註冊與重設的 ViewModel 狀態完全分開。
-                    uiState = VerifyEmailUiState(
-                        email = forgotPasswordUiState.email,
-                        verificationCode = forgotPasswordUiState.code,
-                        resendCountdown = forgotPasswordUiState.resendCountdown,
-                        errorMessage = forgotPasswordUiState.errorMessage,
-                        isLoading = forgotPasswordUiState.isLoading
-                    ),
-                    onCodeChange = authViewModel::onResetCodeChange,
-                    onVerifyClick = authViewModel::verifyResetCode,
-                    onResendClick = authViewModel::resendResetCode,
-                    title = "驗證密碼重設",
-                    description = "若信箱已註冊，將會收到六位數驗證碼",
-                    expiryText = "請於 5 分鐘內輸入驗證碼；未收到時請檢查垃圾郵件",
-                    buttonText = "驗證並設定新密碼",
-                )
-                PasswordResetStep.PASSWORD -> ResetPasswordScreen(
-                    uiState = resetPasswordUiState,
-                    onPasswordChange = authViewModel::onNewPasswordChange,
-                    onConfirmPasswordChange = authViewModel::onNewPasswordConfirmationChange,
-                    onPasswordVisibilityChange = authViewModel::toggleNewPasswordVisibility,
-                    onConfirmPasswordVisibilityChange = authViewModel::toggleNewPasswordConfirmationVisibility,
-                    onSaveClick = authViewModel::resetPassword,
-                    onBackClick = { authViewModel.returnToResetCode("請重新寄送驗證碼") }
-                )
-                PasswordResetStep.SUCCESS -> Unit
-            }
+            PasswordResetRoute(
+                authViewModel = authViewModel,
+                forgotPasswordUiState = forgotPasswordUiState,
+                resetPasswordUiState = resetPasswordUiState,
+                navController = navController
+            )
         }
 
         // ============================================
@@ -404,9 +335,6 @@ private fun SessionNavigation(
                 onSearchClick = { navController.navigate(Screen.SEARCH_BOOKMARK) },
                 onAddBookmarkClick = { navController.navigate(Screen.ADD_BOOKMARK) },
                 onDailyPicksClick = { navController.navigate(Screen.DAILY_PICKS) },
-                onEditFoldersClick = {
-                    // 編輯收藏夾畫面尚未設計，暫時不處理
-                },
                 onFolderClick = { folder ->
                     navController.navigate(Screen.folderBookmark(folder.id))
                 },
@@ -415,15 +343,18 @@ private fun SessionNavigation(
         }
 
         // Daily Picks
-        composable(Screen.DAILY_PICKS) {
-
+        composable(Screen.DAILY_PICKS) { entry ->
+            // 返回首頁再進入時，沿用首頁返回堆疊中的今日拾藏資料。
+            val homeEntry = remember(entry) { navController.getBackStackEntry(Screen.HOME) }
+            val viewModel: DailyPicksViewModel = hiltViewModel(homeEntry)
             DailyPicksScreen(
+                viewModel = viewModel,
                 bookmarkSources = bookmarkSources,
                 onBackClick = {
                     navController.popBackStack()
                 },
                 onAddBookmarkClick = {
-                    navController.navigate("addBookmark")
+                    navController.navigate(Screen.ADD_BOOKMARK)
                 }
             )
         }
@@ -440,10 +371,12 @@ private fun SessionNavigation(
         // Add Bookmark
         composable(Screen.ADD_BOOKMARK) {
 
-            val vm: com.personal.bookmark_app.ui.viewmodel.AddBookmarkViewModel = viewModel()
-            val state by vm.state.collectAsStateWithLifecycle()
-            val automaticBrowserUrl by vm.automaticBrowserImport.collectAsStateWithLifecycle()
-            val browserImport = rememberLauncherForActivityResult(BookmarkBrowserImportContract(), vm::completeBrowserImport)
+            val vm: AddBookmarkViewModel = hiltViewModel()
+            val state by vm.uiState.collectAsStateWithLifecycle()
+            val browserImport = rememberLauncherForActivityResult(
+                BookmarkBrowserImportContract(),
+                vm::completeBrowserImport
+            )
             var receivedShareId by rememberSaveable { mutableStateOf<String?>(null) }
             LaunchedEffect(sharedBookmark?.id, state.isSaving, state.isSaved) {
                 sharedBookmark?.takeUnless { state.isSaving || state.isSaved }?.let {
@@ -465,7 +398,7 @@ private fun SessionNavigation(
                 }
             }
             Box(Modifier.fillMaxSize()) {
-                automaticBrowserUrl?.let { url ->
+                state.automaticBrowserUrl?.let { url ->
                     BackgroundBookmarkImport(url, Modifier.matchParentSize()) { result ->
                         vm.completeAutomaticBrowserImport(url, result)
                     }
@@ -481,7 +414,9 @@ private fun SessionNavigation(
                     onCreateTag = vm::addTag,
                     onRetry = vm::loadFolders,
                     onDailyPicksChange = { value -> vm.edit { it.copy(isAddedToDailyPicks = value) } },
-                    onReparseClick = { vm.reparseOrOpenBrowser()?.let { browserImport.launch(it) } },
+                    onReparseClick = {
+                        vm.reparseOrOpenBrowser()?.let { browserImport.launch(it) }
+                    },
                     onClearTitleClick = { vm.edit { it.copy(title = "") } },
                     onSaveClick = vm::save,
                     onBackClick = { if (!state.isSaving) closeForm() }

@@ -10,25 +10,20 @@ import com.personal.bookmark_backend.repository.BookmarkSourceRepository;
 import com.personal.bookmark_backend.repository.BookmarkTagRepository;
 import com.personal.bookmark_backend.repository.FolderRepository;
 import com.personal.bookmark_backend.repository.TagRepository;
+
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.PageRequest;
 
 import java.net.URI;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
-import java.util.Optional;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.ArrayList;
-import java.time.LocalDate;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -37,6 +32,7 @@ public class BookmarkService {
     private final BookmarkRepository bookmarkRepository;
     private final BookmarkSourceRepository bookmarkSourceRepository;
     private final FolderRepository folderRepository;
+    private final FolderCoverUpdater folderCoverUpdater;
     private final BookmarkTagRepository bookmarkTagRepository;
     private final TagRepository tagRepository;
 
@@ -55,13 +51,51 @@ public class BookmarkService {
     }
 
     @Transactional
-    public List<Bookmark> getDailyPicks(Long userId, int rotation, List<Long> excludeIds) {
-        return dailyPickSelectionService.getPicks(userId, rotation, excludeIds);
+    public List<Bookmark> getDailyPicks(Long userId, List<Long> excludeIds) {
+        boolean refresh = excludeIds != null && !excludeIds.isEmpty();
+        return dailyPickSelectionService.select(userId, refresh, null).picks();
     }
 
     @Transactional(readOnly = true)
     public Page<Bookmark> searchBookmarks(Long userId, String query, String source, Pageable pageable) {
         return bookmarkRepository.searchForUser(userId, query, source, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Bookmark> getFolderBookmarkPage(
+            Long userId, Long folderId, String query, List<String> tags, Pageable pageable
+    ) {
+        findUserFolder(userId, folderId);
+        return bookmarkRepository.findFolderBookmarkPage(
+                userId,
+                folderId,
+                query.isBlank() ? "" : query,
+                queryTags(tags),
+                tags.stream().distinct().count(),
+                pageable
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public List<Long> getMatchingFolderBookmarkIds(
+            Long userId,
+            Long folderId,
+            String query,
+            List<String> tags
+    ) {
+        findUserFolder(userId, folderId);
+        return bookmarkRepository.findMatchingFolderBookmarkIds(
+                userId,
+                folderId,
+                query.isBlank() ? "" : query,
+                queryTags(tags),
+                tags.stream().distinct().count()
+        );
+    }
+
+    private List<String> queryTags(List<String> tags) {
+        // 空清單不適用於 SQL 的 IN 條件，沒有選標籤時使用佔位值。
+        return tags.isEmpty() ? List.of("") : tags;
     }
 
     @Transactional(readOnly = true)
@@ -158,7 +192,7 @@ public class BookmarkService {
         );
 
         // 更新收藏夾封面
-        updateFolderCoverImage(folder);
+        folderCoverUpdater.update(folder);
 
         return bookmarkRepository.findByIdAndUserId(
                 savedBookmark.getId(),
@@ -216,7 +250,7 @@ public class BookmarkService {
         // 更新所屬收藏夾封面
         Folder folder = findUserFolder(userId, bookmark.getFolderId());
 
-        updateFolderCoverImage(folder);
+        folderCoverUpdater.update(folder);
 
         return bookmarkRepository.findByIdAndUserId(
                 bookmarkId,
@@ -279,7 +313,7 @@ public class BookmarkService {
         // 更新收藏夾封面
         Folder folder = findUserFolder(userId, folderId);
 
-        updateFolderCoverImage(folder);
+        folderCoverUpdater.update(folder);
     }
 
 
@@ -318,8 +352,8 @@ public class BookmarkService {
         );
 
         // 更新來源收藏夾與目標收藏夾的封面
-        updateFolderCoverImage(sourceFolder);
-        updateFolderCoverImage(targetFolder);
+        folderCoverUpdater.update(sourceFolder);
+        folderCoverUpdater.update(targetFolder);
 
         return bookmark;
     }
@@ -423,27 +457,6 @@ public class BookmarkService {
         return sourceCode;
     }
 
-
-    // =====================================================
-    // 10. 共用方法：更新收藏夾封面
-    // =====================================================
-
-    private void updateFolderCoverImage(Folder folder) {
-
-        Optional<Bookmark> latestBookmark =
-                bookmarkRepository.findTopByUserIdAndFolderIdOrderByCreatedAtDesc(
-                        folder.getUserId(),
-                        folder.getId()
-                );
-
-        folder.setImageUrl(
-                latestBookmark
-                        .map(Bookmark::getImageUrl)
-                        .orElse(null)
-        );
-
-        folderRepository.save(folder);
-    }
 
     // 驗證 ImageUrl
     private void validateImageUrl(String imageUrl) {

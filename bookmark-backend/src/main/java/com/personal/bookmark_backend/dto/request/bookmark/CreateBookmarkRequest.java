@@ -30,4 +30,5 @@ public record CreateBookmarkRequest(
 
         boolean addToDailyPicks
 
-) {}
+) {
+}

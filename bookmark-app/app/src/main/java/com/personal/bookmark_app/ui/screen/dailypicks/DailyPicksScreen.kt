@@ -1,5 +1,7 @@
 package com.personal.bookmark_app.ui.screen.dailypicks
 
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,6 +26,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -31,12 +34,16 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.personal.bookmark_app.data.remote.dto.response.bookmark.BookmarkSourceResponse
 import com.personal.bookmark_app.data.remote.dto.response.bookmark.displayNameFor
 import com.personal.bookmark_app.ui.theme.BookmarkTextSecondary
@@ -45,21 +52,26 @@ import java.util.Locale
 
 @Composable
 fun DailyPicksScreen(
+    viewModel: DailyPicksViewModel,
     onBackClick: () -> Unit = {},
     onAddBookmarkClick: () -> Unit = {},
-    viewModel: DailyPicksViewModel = viewModel(),
     bookmarkSources: List<BookmarkSourceResponse> = emptyList()
 ) {
-    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         viewModel.retry()
     }
-    val dailyPicks by viewModel.picks.collectAsState()
-    val totalBookmarkCount by viewModel.totalBookmarkCount.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
-    val error by viewModel.error.collectAsState()
-    val selectionDate by viewModel.selectionDate.collectAsState()
-    val isSufficient by viewModel.isSufficient.collectAsState()
-    val canRefresh = totalBookmarkCount > 3 && !isLoading
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(lifecycle, viewModel) {
+        lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            viewModel.watchDailyRefresh()
+        }
+    }
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val dailyPicks = uiState.picks
+    val totalBookmarkCount = uiState.totalBookmarkCount
+    val isLoading = uiState.isLoading
+    val error = uiState.error
+    val hasLoaded = uiState.selectionDate != null
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -67,7 +79,8 @@ fun DailyPicksScreen(
             DailyPicksTopBar(
                 onBackClick = onBackClick,
                 onRefreshClick = viewModel::refreshPicks,
-                showRefreshAction = canRefresh
+                showRefreshAction = totalBookmarkCount > 3,
+                refreshEnabled = uiState.canRefresh
             )
         }
     ) { innerPadding ->
@@ -78,7 +91,9 @@ fun DailyPicksScreen(
                 .padding(innerPadding)
         ) {
 
-            DailyPicksHeader(selectionDate)
+            if (hasLoaded || error == null) {
+                DailyPicksHeader(uiState.selectionDate)
+            }
 
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -91,23 +106,26 @@ fun DailyPicksScreen(
                     .padding(bottom = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                if (error != null && dailyPicks.isNotEmpty()) {
+                if (error != null && hasLoaded) {
                     Text(
                         text = error.orEmpty(),
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall
                     )
-                    TextButton(onClick = viewModel::retry, enabled = !isLoading) { Text("重新載入") }
+                    TextButton(
+                        onClick = viewModel::retry,
+                        enabled = !isLoading
+                    ) { Text("重新載入") }
                 }
 
                 when {
-                    isLoading && dailyPicks.isEmpty() -> {
+                    !hasLoaded && (isLoading || error == null) -> {
                         CircularProgressIndicator(
                             modifier = Modifier.align(Alignment.CenterHorizontally)
                         )
                     }
 
-                    error != null && dailyPicks.isEmpty() -> {
+                    !hasLoaded && error != null -> {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
                                 text = error.orEmpty(),
@@ -127,7 +145,7 @@ fun DailyPicksScreen(
                     }
 
                     // 狀態二：收藏不足 3 則
-                    !isSufficient -> {
+                    !uiState.isSufficient -> {
                         DailyPicksInsufficientState(
                             bookmarkCount = totalBookmarkCount.toInt(),
                             onAddBookmarkClick = onAddBookmarkClick
@@ -164,7 +182,8 @@ fun DailyPicksScreen(
 private fun DailyPicksTopBar(
     onBackClick: () -> Unit,
     onRefreshClick: () -> Unit,
-    showRefreshAction: Boolean
+    showRefreshAction: Boolean,
+    refreshEnabled: Boolean
 ) {
     TopAppBar(
         title = {
@@ -187,12 +206,13 @@ private fun DailyPicksTopBar(
         actions = {
             if (showRefreshAction) {
                 TextButton(
-                    onClick = onRefreshClick
+                    onClick = onRefreshClick,
+                    enabled = refreshEnabled
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Refresh,
                         contentDescription = "換一組",
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = LocalContentColor.current,
                         modifier = Modifier.size(18.dp)
                     )
 
@@ -200,8 +220,7 @@ private fun DailyPicksTopBar(
 
                     Text(
                         text = "換一組",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary
+                        style = MaterialTheme.typography.labelLarge
                     )
                 }
             }
@@ -219,7 +238,7 @@ private fun DailyPicksTopBar(
 // ==================================================
 
 @Composable
-private fun DailyPicksHeader(selectionDate: String) {
+private fun DailyPicksHeader(selectionDate: String?) {
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier
@@ -227,9 +246,12 @@ private fun DailyPicksHeader(selectionDate: String) {
             .padding(horizontal = 20.dp),
     ) {
 
-        val today = selectionDate.takeIf { it.isNotBlank() }?.let {
-            runCatching { java.time.LocalDate.parse(it).format(
-                java.time.format.DateTimeFormatter.ofPattern("yyyy 年 M 月 d 日・E", Locale.TAIWAN)) }.getOrDefault(it)
+        val today = selectionDate?.takeIf { it.isNotBlank() }?.let {
+            runCatching {
+                LocalDate.parse(it).format(
+                    DateTimeFormatter.ofPattern("yyyy 年 M 月 d 日・E", Locale.TAIWAN)
+                )
+            }.getOrDefault(it)
         } ?: "載入日期中…"
 
         Row(
@@ -291,7 +313,7 @@ private fun DailyPicksFooter(
         }
 
         Text(
-            text = "每日依台北時間換日，下次開啟時更新；亦可手動更換。",
+            text = "每日清晨 06:00 固定刷新，亦可手動更換。",
             color = BookmarkTextSecondary,
             style = MaterialTheme.typography.bodySmall
         )

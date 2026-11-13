@@ -1,62 +1,77 @@
 package com.personal.bookmark_app.ui.viewmodel
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import androidx.lifecycle.viewModelScope
-import com.personal.bookmark_app.data.remote.RetrofitClient
 import com.personal.bookmark_app.data.remote.api.DailyPicksApi
 import com.personal.bookmark_app.data.remote.dto.response.bookmark.BookmarkResponse
 import com.personal.bookmark_app.ui.model.DaliyBookmarkUiModel
+import com.personal.bookmark_app.ui.screen.dailypicks.DailyPicksUiState
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.time.Duration
+import java.time.ZoneId
+import java.time.ZonedDateTime
 
-class DailyPicksViewModel(application: Application) : AndroidViewModel(application) {
-    private val api = RetrofitClient.authenticated(application).create(DailyPicksApi::class.java)
+@HiltViewModel
+class DailyPicksViewModel @Inject constructor(
+    private val api: DailyPicksApi
+) : ViewModel() {
 
-    private val _picks = MutableStateFlow<List<DaliyBookmarkUiModel>>(emptyList())
-    val picks = _picks.asStateFlow()
-    private val _totalBookmarkCount = MutableStateFlow(0L)
-    val totalBookmarkCount = _totalBookmarkCount.asStateFlow()
-    private val _isLoading = MutableStateFlow(false)
-    val isLoading = _isLoading.asStateFlow()
-    private val _error = MutableStateFlow<String?>(null)
-    val error = _error.asStateFlow()
-
-    private val _selectionDate = MutableStateFlow("")
-    val selectionDate = _selectionDate.asStateFlow()
-    private val _isSufficient = MutableStateFlow(false)
-    val isSufficient = _isSufficient.asStateFlow()
-
-
+    private val _uiState = MutableStateFlow(DailyPicksUiState())
+    val uiState = _uiState.asStateFlow()
 
     fun refreshPicks() {
-        if (_isLoading.value || _totalBookmarkCount.value <= 3) return
+        if (!_uiState.value.canRefresh) return
         loadPicks(refresh = true)
     }
 
     fun retry() = loadPicks()
 
+    suspend fun watchDailyRefresh() {
+        val taipei = ZoneId.of("Asia/Taipei")
+        while (true) {
+            val now = ZonedDateTime.now(taipei)
+            val morning = now.toLocalDate().atTime(6, 0).atZone(taipei)
+            val nextRefresh = if (now.isBefore(morning)) morning else morning.plusDays(1)
+            delay(Duration.between(now, nextRefresh).toMillis() + 1)
+            // 若手動換組仍在進行，等它完成再讀取新一天的結果。
+            uiState.first { !it.isLoading }
+            retry()
+        }
+    }
+
     private fun loadPicks(refresh: Boolean = false) {
-        if (_isLoading.value) return
-        _isLoading.value = true
+        if (_uiState.value.isLoading) return
+        _uiState.update { it.copy(isLoading = true, error = null) }
         viewModelScope.launch {
             try {
                 val response = withContext(Dispatchers.IO) {
                     if (refresh) api.refreshDailyPicks() else api.getDailyPicks()
                 }
-                _picks.value = response.orderedBookmarks().map { it.toDailyPick() }
-                _totalBookmarkCount.value = response.bookmarkCount
-                _selectionDate.value = response.selectionDate
-                _isSufficient.value = response.isSufficient
-                _error.value = null
-            } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
-                _error.value = "今日拾藏載入失敗，請稍後再試。"
+                _uiState.update {
+                    it.copy(
+                        picks = response.orderedBookmarks()
+                            .map { bookmark -> bookmark.toDailyPick() },
+                        totalBookmarkCount = response.bookmarkCount,
+                        selectionDate = response.selectionDate,
+                        isSufficient = response.isSufficient
+                    )
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                _uiState.update { it.copy(error = "今日拾藏載入失敗，請稍後再試。") }
             } finally {
-                _isLoading.value = false
+                _uiState.update { it.copy(isLoading = false) }
             }
         }
     }

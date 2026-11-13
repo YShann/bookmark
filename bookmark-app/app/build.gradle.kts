@@ -1,6 +1,8 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
+    alias(libs.plugins.hilt)
+    alias(libs.plugins.ksp)
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
@@ -54,6 +56,12 @@ kotlin {
 }
 
 dependencies {
+    implementation(libs.androidx.paging.compose)
+    implementation(libs.hilt.android)
+    implementation(libs.androidx.hilt.lifecycle.viewmodel.compose)
+    ksp(libs.hilt.compiler)
+    // 讓 Hilt 在編譯時能讀取此專案的 Kotlin 版本所產生的 metadata。
+    ksp(libs.kotlin.metadata.jvm)
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 
     implementation(libs.androidx.core.ktx)

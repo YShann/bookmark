@@ -7,8 +7,11 @@ import com.personal.bookmark_backend.repository.BookmarkRepository;
 import com.personal.bookmark_backend.repository.BookmarkTagRepository;
 import com.personal.bookmark_backend.repository.FolderRepository;
 import com.personal.bookmark_backend.repository.TagRepository;
+
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,6 +28,7 @@ public class FolderService {
 
     // 收藏夾 Repository
     private final FolderRepository folderRepository;
+    private final FolderCoverUpdater folderCoverUpdater;
     private final DailyPickSelectionService dailyPickSelectionService;
 
     // 收藏 Repository
@@ -48,6 +52,27 @@ public class FolderService {
         // 最新新增或修改過收藏的收藏夾排在前面。
         // 空收藏夾則依照建立時間排序。
         return folderRepository.findAllByUserIdOrderByLatestActivity(userId);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Folder> getFolderPage(Long userId, Pageable pageable) {
+        return folderRepository.findFolderPage(userId, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Folder getFolder(Long userId, Long folderId) {
+        return findUserFolder(userId, folderId);
+    }
+
+    @Transactional(readOnly = true)
+    public Map<Long, Long> countBookmarks(Long userId, List<Folder> folders) {
+        if (folders.isEmpty()) return Map.of();
+        List<Long> ids = folders.stream().map(Folder::getId).toList();
+        Map<Long, Long> counts = new HashMap<>();
+        for (Object[] row : bookmarkRepository.countByFolderIds(userId, ids)) {
+            counts.put((Long) row[0], (Long) row[1]);
+        }
+        return counts;
     }
 
 
@@ -157,7 +182,10 @@ public class FolderService {
                 );
 
         if (deleteBookmarks) {
-            dailyPickSelectionService.removeBookmarks(userId, bookmarks.stream().map(Bookmark::getId).toList());
+            dailyPickSelectionService.removeBookmarks(
+                    userId,
+                    bookmarks.stream().map(Bookmark::getId).toList()
+            );
             bookmarkTagRepository.deleteAll(sourceAssociations);
             bookmarkTagRepository.flush();
 
@@ -333,7 +361,7 @@ public class FolderService {
         // 步驟 G：更新「未分類」的封面圖片
         // -------------------------------------------------
 
-        updateFolderCoverImage(defaultFolder);
+        folderCoverUpdater.update(defaultFolder);
 
 
         // -------------------------------------------------
@@ -379,27 +407,5 @@ public class FolderService {
         }
 
         return folderName;
-    }
-
-
-    // =====================================================
-    // 7. 共用方法：更新收藏夾封面圖片
-    // =====================================================
-    private void updateFolderCoverImage(Folder folder) {
-
-        Optional<Bookmark> latestBookmark =
-                bookmarkRepository.findTopByUserIdAndFolderIdOrderByCreatedAtDesc(
-                        folder.getUserId(),
-                        folder.getId()
-                );
-
-        // 有收藏時使用最新收藏的圖片，沒有收藏時清空封面
-        folder.setImageUrl(
-                latestBookmark
-                        .map(Bookmark::getImageUrl)
-                        .orElse(null)
-        );
-
-        folderRepository.save(folder);
     }
 }

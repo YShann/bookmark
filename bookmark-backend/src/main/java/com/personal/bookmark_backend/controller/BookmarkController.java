@@ -4,12 +4,13 @@ import com.personal.bookmark_backend.dto.request.bookmark.CreateBookmarkRequest;
 import com.personal.bookmark_backend.dto.request.bookmark.MoveBookmarkRequest;
 import com.personal.bookmark_backend.dto.request.bookmark.UpdateBookmarkRequest;
 import com.personal.bookmark_backend.dto.response.bookmark.BookmarkResponse;
+import com.personal.bookmark_backend.dto.response.PageResponse;
 import com.personal.bookmark_backend.dto.response.bookmark.BookmarkSearchResponse;
 import com.personal.bookmark_backend.dto.response.bookmark.DailyPicksResponse;
 import com.personal.bookmark_backend.entity.Bookmark;
 import com.personal.bookmark_backend.entity.BookmarkSource;
 import com.personal.bookmark_backend.service.BookmarkService;
-import com.personal.bookmark_backend.service.TagService;
+import com.personal.bookmark_backend.service.BookmarkResponseAssembler;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +19,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.core.Authentication;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -30,7 +33,7 @@ import java.util.Map;
 public class BookmarkController {
 
     private final BookmarkService bookmarkService;
-    private final TagService tagService;
+    private final BookmarkResponseAssembler bookmarkResponses;
 
     // =====================================================
     // 共用方法：取得登入者 ID
@@ -48,66 +51,81 @@ public class BookmarkController {
 
     @GetMapping("/folders/{folderId}/bookmarks")
     public ResponseEntity<List<BookmarkResponse>> getFolderBookmarks(
-            @PathVariable Long folderId,
-            Authentication authentication
+            @PathVariable Long folderId, Authentication authentication
     ) {
 
         // 從登入狀態取得目前使用者 ID
         Long userId = getUserId(authentication);
 
         // 查詢收藏夾內的所有收藏
-        List<Bookmark> bookmarks =
-                bookmarkService.getFolderBookmarks(userId, folderId);
+        List<Bookmark> bookmarks = bookmarkService.getFolderBookmarks(userId, folderId);
 
-        // 取得所有收藏 ID
-        List<Long> bookmarkIds = bookmarks.stream()
-                .map(Bookmark::getId)
-                .toList();
-
-        // 一次查詢所有收藏的標籤名稱
-        Map<Long, List<String>> tagNamesMap =
-                tagService.getBookmarkTagNames(
-                        userId,
-                        folderId,
-                        bookmarkIds
-                );
-
-        // 將 Entity 轉換成 Response DTO
-        List<BookmarkResponse> response = bookmarks.stream()
-                .map(bookmark -> toResponse(
-                        bookmark,
-                        tagNamesMap.getOrDefault(
-                                bookmark.getId(),
-                                List.of()
-                        )
-                ))
-                .toList();
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(bookmarkResponses.toResponses(userId, bookmarks));
     }
 
+    @GetMapping("/folders/{folderId}/bookmarks/page")
+    public PageResponse<BookmarkResponse> getFolderBookmarkPage(
+            @PathVariable Long folderId,
+            @RequestParam(defaultValue = "") String query,
+            @RequestParam MultiValueMap<String, String> parameters,
+            @RequestParam(defaultValue = "true") boolean newestFirst,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            Authentication authentication
+    ) {
+        Long userId = getUserId(authentication);
+        Sort.Direction direction = newestFirst ? Sort.Direction.DESC : Sort.Direction.ASC;
+        Sort sort = Sort.by(
+                new Sort.Order(direction, "createdAt"),
+                Sort.Order.desc("id")
+        );
+        PageRequest request = PageRequest.of(
+                Math.max(0, page),
+                Math.max(1, Math.min(size, 50)),
+                sort
+        );
+        var bookmarks = bookmarkService.getFolderBookmarkPage(
+                userId,
+                folderId,
+                query,
+                parameters.getOrDefault("tag", List.of()),
+                request
+        );
+        return PageResponse.from(
+                bookmarks,
+                bookmarkResponses.toResponses(userId, bookmarks.getContent())
+        );
+    }
 
-    // =====================================================
-    // 搜尋收藏（分頁）
-    // =====================================================
+    @GetMapping("/folders/{folderId}/bookmarks/ids")
+    public List<Long> getMatchingFolderBookmarkIds(
+            @PathVariable Long folderId,
+            @RequestParam(defaultValue = "") String query,
+            @RequestParam MultiValueMap<String, String> parameters,
+            Authentication authentication
+    ) {
+        return bookmarkService.getMatchingFolderBookmarkIds(
+                getUserId(authentication),
+                folderId,
+                query,
+                parameters.getOrDefault("tag", List.of())
+        );
+    }
 
     @GetMapping("/bookmarks/daily-picks")
     public ResponseEntity<DailyPicksResponse> getDailyPicks(
+            // 舊版 API 仍接受此參數，推薦由後端管理。
             @RequestParam(defaultValue = "0") int rotation,
             @RequestParam(required = false) List<Long> excludeIds,
             Authentication authentication
     ) {
         Long userId = getUserId(authentication);
-        List<BookmarkResponse> picks = bookmarkService
-                .getDailyPicks(userId, Math.max(0, rotation), excludeIds)
-                .stream()
-                .map(bookmark -> toBookmarkResponse(userId, bookmark))
-                .toList();
+        List<Bookmark> bookmarks = bookmarkService.getDailyPicks(userId, excludeIds);
+        List<BookmarkResponse> picks = bookmarkResponses.toResponses(userId, bookmarks);
 
-        return ResponseEntity.ok(new DailyPicksResponse(
-                bookmarkService.countUserBookmarks(userId),
-                picks
-        ));
+        return ResponseEntity.ok(
+                new DailyPicksResponse(bookmarkService.countUserBookmarks(userId), picks)
+        );
     }
 
     @GetMapping("/bookmark-sources")
@@ -136,35 +154,25 @@ public class BookmarkController {
                 PageRequest.of(safePage, safeSize)
         );
 
-        Map<Long, List<Long>> idsByFolder = results.getContent().stream()
-                .collect(java.util.stream.Collectors.groupingBy(
-                        Bookmark::getFolderId,
-                        java.util.stream.Collectors.mapping(Bookmark::getId, java.util.stream.Collectors.toList())
-                ));
-        Map<Long, Map<Long, List<String>>> tagsByFolder = new java.util.HashMap<>();
-        idsByFolder.forEach((folderId, ids) -> tagsByFolder.put(
-                folderId,
-                tagService.getBookmarkTagNames(userId, folderId, ids)
-        ));
+        List<BookmarkResponse> content = bookmarkResponses.toResponses(
+                userId,
+                results.getContent()
+        );
+        Map<String, Long> sourceCounts = bookmarkService.countSearchResultsBySource(
+                userId,
+                normalizedQuery
+        );
 
-        List<BookmarkResponse> content = results.getContent().stream()
-                .map(bookmark -> toResponse(
-                        bookmark,
-                        tagsByFolder.getOrDefault(bookmark.getFolderId(), Map.of())
-                                .getOrDefault(bookmark.getId(), List.of())
-                ))
-                .toList();
-
-        Map<String, Long> sourceCounts = bookmarkService.countSearchResultsBySource(userId, normalizedQuery);
-
-        return ResponseEntity.ok(new BookmarkSearchResponse(
-                content,
-                results.getNumber(),
-                results.getSize(),
-                results.getTotalElements(),
-                results.getTotalPages(),
-                sourceCounts
-        ));
+        return ResponseEntity.ok(
+                new BookmarkSearchResponse(
+                        content,
+                        results.getNumber(),
+                        results.getSize(),
+                        results.getTotalElements(),
+                        results.getTotalPages(),
+                        sourceCounts
+                )
+        );
     }
 
     // 查詢單筆收藏
@@ -177,13 +185,10 @@ public class BookmarkController {
         Long userId = getUserId(authentication);
 
         // 查詢指定收藏
-        Bookmark bookmark =
-                bookmarkService.getBookmark(userId, bookmarkId);
+        Bookmark bookmark = bookmarkService.getBookmark(userId, bookmarkId);
 
         // 查詢標籤並轉換成 Response DTO
-        return ResponseEntity.ok(
-                toBookmarkResponse(userId, bookmark)
-        );
+        return ResponseEntity.ok(bookmarkResponses.toResponse(userId, bookmark));
     }
 
 
@@ -214,14 +219,9 @@ public class BookmarkController {
                 request.addToDailyPicks()
         );
 
-        BookmarkResponse response = toBookmarkResponse(
-                userId,
-                bookmark
-        );
+        BookmarkResponse response = bookmarkResponses.toResponse(userId, bookmark);
 
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(response);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
 
@@ -251,9 +251,7 @@ public class BookmarkController {
                 request.tags()
         );
 
-        return ResponseEntity.ok(
-                toBookmarkResponse(userId, bookmark)
-        );
+        return ResponseEntity.ok(bookmarkResponses.toResponse(userId, bookmark));
     }
 
 
@@ -295,62 +293,6 @@ public class BookmarkController {
                 request.targetFolderId()
         );
 
-        return ResponseEntity.ok(
-                toBookmarkResponse(userId, bookmark)
-        );
-    }
-
-
-    // =====================================================
-    // 共用方法：查詢收藏標籤並轉換成 Response DTO
-    // =====================================================
-
-    private BookmarkResponse toBookmarkResponse(
-            Long userId,
-            Bookmark bookmark
-    ) {
-
-        // 查詢這筆收藏的標籤名稱
-        Map<Long, List<String>> tagNamesMap =
-                tagService.getBookmarkTagNames(
-                        userId,
-                        bookmark.getFolderId(),
-                        List.of(bookmark.getId())
-                );
-
-        // 取得標籤名稱
-        // 根據當前bookmark的 ID 找出對應的標籤清單；如果沒有任何標籤（在 Map 裡找不到對應的 ID），就回傳『空的清單（List.of()）』
-        List<String> tagNames = tagNamesMap.getOrDefault(
-                bookmark.getId(),
-                List.of()
-        );
-
-        // Entity -> Response DTO
-        return toResponse(bookmark, tagNames);
-    }
-
-
-    // =====================================================
-    // 共用方法：Bookmark Entity 轉換成 Response DTO
-    // =====================================================
-
-    private BookmarkResponse toResponse(
-            Bookmark bookmark,
-            List<String> tagNames
-    ) {
-
-        return new BookmarkResponse(
-                bookmark.getId(),
-                bookmark.getFolderId(),
-                bookmark.getUrl(),
-                bookmark.getTitle(),
-                bookmark.getContent(),
-                bookmark.getNote(),
-                bookmark.getSource(),
-                bookmark.getImageUrl(),
-                tagNames,
-                bookmark.getCreatedAt(),
-                bookmark.getUpdatedAt()
-        );
+        return ResponseEntity.ok(bookmarkResponses.toResponse(userId, bookmark));
     }
 }

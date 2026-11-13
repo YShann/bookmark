@@ -28,4 +28,5 @@ public record UpdateBookmarkRequest(
 
         List<@Size(max = 30, message = "每個標籤名稱不能超過 30 個字") String> tags
 
-) {}
+) {
+}

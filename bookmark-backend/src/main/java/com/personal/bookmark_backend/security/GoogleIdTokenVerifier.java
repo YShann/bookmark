@@ -1,6 +1,7 @@
 package com.personal.bookmark_backend.security;
 
 import com.personal.bookmark_backend.exception.UnauthorizedException;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -80,5 +81,6 @@ public class GoogleIdTokenVerifier {
         return new UnauthorizedException("Google 登入憑證無效或已過期，請重新登入");
     }
 
-    public record GoogleAccount(String subject, String email, boolean googleManagesEmail) {}
+    public record GoogleAccount(String subject, String email, boolean googleManagesEmail) {
+    }
 }

@@ -14,6 +14,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.first
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
+import javax.inject.Singleton
 
 private val Context.dataStore by preferencesDataStore(
     name = "user_preferences"
@@ -50,8 +53,9 @@ private fun sessionDataStore(context: Context): DataStore<Preferences> {
 
 internal class SessionTokens(val accessToken: String?, val refreshToken: String)
 
-class UserPreferencesRepository(
-    private val context: Context
+@Singleton
+class UserPreferencesRepository @Inject constructor(
+    @ApplicationContext private val context: Context
 ) {
 
     companion object {
